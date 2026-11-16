@@ -1,4 +1,4 @@
-//! Manual graphical validation helper. Requires an explicit --click flag.
+//! Manual graphical validation helper. Actions require --click or --scroll.
 //! Coordinates are logical output coordinates; never use it over gameplay controls.
 use wayland_client::{
     delegate_noop,
@@ -42,8 +42,21 @@ fn timestamp() -> u32 {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() < 4 {
-        return Err("usage: pointer X Y OUTPUT_WIDTH OUTPUT_HEIGHT [--click]".into());
+        return Err(
+            "usage: pointer X Y OUTPUT_WIDTH OUTPUT_HEIGHT [--click | --scroll PIXELS]".into(),
+        );
     }
+    let scroll = match args.get(4).map(String::as_str) {
+        None | Some("--click") => None,
+        Some("--scroll") => {
+            let value: f64 = args.get(5).ok_or("--scroll requires pixels")?.parse()?;
+            if !value.is_finite() || value.abs() > 1000. {
+                return Err("scroll must be finite and at most 1000 pixels".into());
+            }
+            Some(value)
+        }
+        _ => return Err("unknown pointer action".into()),
+    };
     let c = Connection::connect_to_env()?;
     let mut q = c.new_event_queue();
     let mut s = State { manager: None };
@@ -68,6 +81,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         p.frame();
         q.roundtrip(&mut s)?;
         p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released);
+        p.frame();
+        q.roundtrip(&mut s)?;
+    }
+    if let Some(value) = scroll {
+        p.axis_source(wl_pointer::AxisSource::Wheel);
+        p.axis(timestamp(), wl_pointer::Axis::VerticalScroll, value);
         p.frame();
         q.roundtrip(&mut s)?;
     }

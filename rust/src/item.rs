@@ -1,5 +1,5 @@
 //! First parser port: English item text and the upstream item catalogue.
-//! Unknown modifiers remain visible; they are never silently converted to filters.
+//! Unsupported modifiers remain in the raw text and never become guessed filters.
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -25,6 +25,8 @@ pub struct Item {
     pub map_tier: Option<u32>,
     pub links: u32,
     pub corrupted: bool,
+    pub mirrored: bool,
+    pub unmodifiable: bool,
     pub unidentified: bool,
     pub raw: String,
     pub modifiers: Vec<crate::modifiers::Modifier>,
@@ -34,6 +36,8 @@ pub struct Item {
     pub category: Option<String>,
     pub stack_size: Option<u32>,
     pub influences: Vec<String>,
+    pub properties: crate::properties::Properties,
+    pub armour_base: crate::properties::ArmourBase,
 }
 // Keep the complete upstream asset, but decode only fields used by the business
 // layer. In particular icon URLs and unrelated area/build records need no JSON
@@ -48,6 +52,8 @@ struct CatalogueEntry {
     trade_discriminator: Option<String>,
     craftable: Option<Craftable>,
     unique: Option<Unique>,
+    #[serde(default)]
+    armour: crate::properties::ArmourBase,
 }
 #[derive(Deserialize)]
 struct Craftable {
@@ -165,6 +171,11 @@ impl Item {
                     .unwrap_or(0)
             })
             .unwrap_or(0);
+        let armour_base = catalogue()
+            .iter()
+            .find(|v| v.namespace == "ITEM" && v.name == base)
+            .map(|v| v.armour.clone())
+            .unwrap_or_default();
         Ok(Self {
             class,
             rarity,
@@ -175,9 +186,13 @@ impl Item {
             quality: prop("Quality: "),
             map_tier: prop("Map Tier: "),
             links,
-            corrupted: lines.contains(&"Corrupted"),
+            corrupted: lines.contains(&"Corrupted") || lines.contains(&"Unmodifiable"),
+            mirrored: lines.contains(&"Mirrored"),
+            unmodifiable: lines.contains(&"Unmodifiable"),
             unidentified: lines.contains(&"Unidentified"),
             raw: text.to_string(),
+            properties: crate::properties::Properties::parse(text),
+            armour_base,
             modifiers: crate::modifiers::parse(text, category),
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),

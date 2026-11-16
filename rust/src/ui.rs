@@ -31,7 +31,7 @@ enum Event {
     Shortcut(&'static str),
     Windows(Snapshot),
     TrackerError(String),
-    Captured(u64, Result<(Item, u128), String>),
+    Captured(u64, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Result<Option<Quote>, String>),
 }
@@ -59,12 +59,15 @@ struct Ui {
     league: gtk::Entry,
     ilvl: gtk::SpinButton,
     online: gtk::CheckButton,
+    search_range: gtk::SpinButton,
     currency: gtk::ComboBoxText,
     stock: gtk::SpinButton,
     economy_panel: economy_panel::EconomyPanel,
     economy_worker: SyncSender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
     mod_box: gtk::Box,
+    mod_scroll: gtk::ScrolledWindow,
+    mod_expander: gtk::Expander,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
@@ -208,6 +211,7 @@ impl Ui {
         let mut settings = self.settings.borrow().clone();
         settings.league = self.league.text().trim().to_string();
         settings.filters.online = self.online.is_active();
+        settings.search_range = self.search_range.value();
         settings.filters.min_item_level =
             (self.ilvl.value_as_int() > 0).then_some(self.ilvl.value_as_int() as u32);
         settings.filters.bulk_currency = self
@@ -229,6 +233,8 @@ impl Ui {
                 .iter()
                 .filter_map(stat_row::StatRow::selected_filter),
         );
+        self.mod_expander
+            .set_label(Some(&format!("Filtres · {} actifs", selected.stats.len())));
         let query = match filters::search_query(&item, &selected) {
             Ok(query) => query,
             Err(e) => {
@@ -252,7 +258,7 @@ impl Ui {
                 item.stack_size,
             );
         }
-        self.text.set_text(&format!("Recherche dans {}…\n\nComparaison par base et filtres sélectionnés.\nLes mods sont sélectionnés explicitement dans le panneau.",settings.league));
+        self.text.set_text(&format!("Recherche dans {}…\n\nComparaison par base et filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
         match self.worker.try_send(Job::Search {
             generation,
             league: settings.league.clone(),
@@ -302,8 +308,9 @@ impl Ui {
                     eprintln!("discarded capture generation={generation}");
                     return;
                 }
-                match result {
+                match *result {
                     Ok((item, elapsed)) => {
+                        let filters_started = Instant::now();
                         eprintln!(
                             "capture parsed processing_ms={elapsed} clipboard_before_overlay=true"
                         );
@@ -323,12 +330,25 @@ impl Ui {
                             self.mod_box.remove(&child);
                         }
                         self.stat_rows.borrow_mut().clear();
-                        for modifier in &item.modifiers {
-                            let row = stat_row::StatRow::new(modifier);
-                            self.mod_box.pack_start(&row.container, false, false, 0);
+                        let candidates =
+                            crate::calculated::candidates(&item, self.search_range.value());
+                        let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
+                        let advanced_expander =
+                            gtk::Expander::new(Some("Autres filtres et sources exactes"));
+                        advanced_expander.add(&advanced);
+                        for candidate in &candidates {
+                            let row = stat_row::StatRow::new(candidate);
+                            if candidate.hidden.is_some() {
+                                advanced.pack_start(&row.container, false, false, 0);
+                            } else {
+                                self.mod_box.pack_start(&row.container, false, false, 0);
+                            }
                             self.stat_rows.borrow_mut().push(row);
                         }
-                        if item.modifiers.is_empty() {
+                        if !advanced.children().is_empty() {
+                            self.mod_box.pack_start(&advanced_expander, false, false, 0);
+                        }
+                        if candidates.is_empty() {
                             self.mod_box.pack_start(
                                 &gtk::Label::new(Some(
                                     "Aucun mod reconnu dans le catalogue de traductions.",
@@ -338,7 +358,13 @@ impl Ui {
                                 0,
                             );
                         }
+                        self.mod_scroll.vadjustment().set_value(0.);
                         self.item.replace(Some(item));
+                        eprintln!(
+                            "filters prepared count={} ui_ms={}",
+                            self.stat_rows.borrow().len(),
+                            filters_started.elapsed().as_millis()
+                        );
                         if self.show() {
                             self.search();
                         }
@@ -444,11 +470,24 @@ pub fn run() -> Result<(), String> {
         }
         let query = filters::search_query(&item, &filters)?;
         if args[0] == "inspect" {
+            let candidate_filters =
+                crate::calculated::candidates(&item, Settings::load()?.search_range);
+            let suggested = filters::Filters {
+                stats: candidate_filters
+                    .iter()
+                    .filter(|c| !c.disabled)
+                    .map(filters::StatFilter::from_candidate)
+                    .collect(),
+                ..filters.clone()
+            };
             eprintln!(
                 "inspect processing_us={}",
                 inspect_started.elapsed().as_micros()
             );
-            println!("{}", serde_json::json!({"item":item,"query":query}));
+            println!(
+                "{}",
+                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"suggested_query":filters::search_query(&item,&suggested)})
+            );
             return Ok(());
         }
         let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
@@ -597,6 +636,18 @@ pub fn run() -> Result<(), String> {
     row.pack_start(&gtk::Label::new(Some("ilvl ≥")), false, false, 0);
     row.pack_start(&ilvl, false, false, 0);
     row.pack_start(&online, false, false, 0);
+    let range_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let search_range = gtk::SpinButton::with_range(0., 100., 1.);
+    search_range.set_value(settings.search_range);
+    search_range.set_tooltip_text(Some("Tolérance des nouvelles bornes suggérées ; 0 = valeur exacte. Une nouvelle copie applique la plage choisie."));
+    range_row.pack_start(&gtk::Label::new(Some("Plage suggérée ±")), false, false, 0);
+    range_row.pack_start(&search_range, false, false, 0);
+    range_row.pack_start(
+        &gtk::Label::new(Some("% · appliquée à la prochaine copie")),
+        false,
+        false,
+        0,
+    );
     let mod_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
     let bulk_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let currency = gtk::ComboBoxText::new();
@@ -620,8 +671,9 @@ pub fn run() -> Result<(), String> {
     bulk_row.pack_start(&stock, false, false, 0);
     let economy_panel = economy_panel::EconomyPanel::new();
     let mod_scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    mod_scroll.set_min_content_height(90);
-    mod_scroll.set_max_content_height(180);
+    mod_scroll.set_min_content_height(180);
+    mod_scroll.set_max_content_height(300);
+    mod_scroll.set_propagate_natural_height(true);
     mod_scroll.add(&mod_box);
     let mod_expander =
         gtk::Expander::new(Some("Mods reconnus — cochez un filtre, puis Rechercher"));
@@ -639,6 +691,7 @@ pub fn run() -> Result<(), String> {
     content.pack_start(&title, false, false, 0);
     content.pack_start(&scroll, true, true, 0);
     content.pack_start(&row, false, false, 0);
+    content.pack_start(&range_row, false, false, 0);
     content.pack_start(&bulk_row, false, false, 0);
     content.pack_start(&economy_panel.container, false, false, 0);
     content.pack_start(&mod_expander, false, false, 0);
@@ -669,7 +722,10 @@ pub fn run() -> Result<(), String> {
                         })
                         .and_then(|s| Item::parse(&s))
                         .map(|item| (item, start.elapsed().as_millis()));
-                        if sender.send(Event::Captured(generation, result)).is_err() {
+                        if sender
+                            .send(Event::Captured(generation, Box::new(result)))
+                            .is_err()
+                        {
                             break;
                         }
                     }
@@ -715,12 +771,15 @@ pub fn run() -> Result<(), String> {
         league,
         ilvl,
         online,
+        search_range,
         currency,
         stock,
         economy_panel,
         economy_worker,
         economy_result: RefCell::new(None),
         mod_box,
+        mod_scroll,
+        mod_expander,
         stat_rows: RefCell::new(Vec::new()),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),

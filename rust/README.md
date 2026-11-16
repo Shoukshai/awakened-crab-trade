@@ -30,8 +30,19 @@ types implicite/craft/fracture, effet des modificateurs et contributions cumulé
 Les cases Min/Max activent chaque borne ; un mod sans valeur numérique demande
 seulement sa présence. Les variantes utilisent leur option Trade exacte.
 Les groupes d'identifiants alternatifs sont une condition « au moins un », et
-non plusieurs conditions obligatoires. Les filtres pseudo, propriétés calculées
-et règles propres à certains objets restent à porter.
+non plusieurs conditions obligatoires.
+
+Les filtres calculés reprennent les règles upstream : résistances cumulées,
+attributs, vie/mana apportés par les attributs, dégâts et vitesses globaux ; DPS,
+vitesse d'attaque, critique, défenses et percentile de base. Les suggestions sont
+cochées selon leurs règles ; vérifier les filtres actifs avant d'estimer un rare.
+Les défenses et dégâts physiques utilisent la qualité normalisée du site Trade
+(`max(20, qualité)` sauf enchantement supprimant ce bonus). Les sources exactes
+consommées par un calcul restent dans **Autres filtres et sources exactes**.
+La plage suggérée, initialement ±10 %, s'applique à la prochaine copie et reste
+bornée aux valeurs possibles ; les uniques suivent leur plage de rolls.
+Les presets complets et les règles propres aux cartes, flacons, bijoux de cluster,
+objets spéciaux et stats pseudo spécialisées restent à porter.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
 en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
@@ -89,7 +100,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.4.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -104,6 +115,9 @@ cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo build --locked --example stat-translation
 node scripts/compare-stat-translations.cjs
+cargo build --locked --example calculated-filters
+node scripts/export-pseudo-rules.cjs --check
+node scripts/compare-calculated-filters.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```

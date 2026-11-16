@@ -1,0 +1,15 @@
+Item Class: Rings
+Rarity: Rare
+Synthetic Fixture
+Gold Ring
+--------
+Item Level: 83
+--------
+{ Prefix Modifier "Healthy" (Tier: 1) — Life }
++73(70-79) to maximum Life
+{ Suffix Modifier "of the Brute" (Tier: 3) — Attribute }
++25(22-27) to Strength
+{ Suffix Modifier "of the Furnace" (Tier: 3) — Resistance }
++32(30-35)% to Fire Resistance
+{ Master Crafted Suffix Modifier — Resistance }
++15(13-16)% to Cold and Chaos Resistances

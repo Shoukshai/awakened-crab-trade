@@ -6,6 +6,7 @@ pub struct Settings {
     pub league: String,
     pub filters: Filters,
     pub scale: f64,
+    pub search_range: f64,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -13,6 +14,7 @@ impl Default for Settings {
             league: "Standard".into(),
             filters: Filters::default(),
             scale: 1.0,
+            search_range: 10.,
         }
     }
 }
@@ -37,6 +39,9 @@ impl Settings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
+            return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());
+        }
         if !crate::filters::PAYMENT_CURRENCIES
             .iter()
             .any(|(tag, _)| *tag == self.filters.bulk_currency)
@@ -79,6 +84,7 @@ mod tests {
         settings.validate().unwrap();
         assert_eq!(settings.filters.bulk_currency, "chaos");
         assert_eq!(settings.filters.minimum_stock, None);
+        assert_eq!(settings.search_range, 10.);
     }
     #[test]
     fn invalid_settings_are_rejected_before_the_ui_can_silently_clamp_them() {
@@ -90,6 +96,9 @@ mod tests {
         assert!(s.validate().is_err());
         s.filters.bulk_currency = "chaos".into();
         s.scale = f64::NAN;
+        assert!(s.validate().is_err());
+        s.scale = 1.;
+        s.search_range = 101.;
         assert!(s.validate().is_err());
     }
 }

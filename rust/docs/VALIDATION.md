@@ -250,3 +250,79 @@ le focus. RSS ensuite à 69 248 Kio (67,63 Mio), 0 tick CPU sur 3 s à CLK_TCK=1
 Les offres varient avec le marché. Les branches UI des flags et options ont une
 couverture de traduction/requête, mais pas encore d'inspection graphique sur
 des objets réels correspondants.
+
+## Jalon 0.4 : pseudo-stats et propriétés
+
+55 tests Rust passent, ainsi que Clippy avec avertissements refusés. La table des
+35 règles pseudo générales est exportée depuis le TypeScript upstream inchangé
+avec son hash et son commit de provenance. `export-pseudo-rules.cjs --check`
+vérifie son identité JSON, y compris les multiplicateurs, sources obligatoires,
+groupes remplacés, ordre des règles et conservation des sources. Le traitement
+spécifique de visibilité du chaos crafté est porté dans le moteur Rust.
+
+`compare-calculated-filters.cjs` compare 1 651 entrées au parseur d'objet complet
+upstream, puis à ses fonctions de propriétés, pseudo-stats et bornes initiales :
+zéro écart sur les IDs, valeurs affichées, bornes, sélections, masquages et sources
+restantes. Le corpus comprend les contributions simples/cumulées, résistances
+duales et générales, attributs, sources requises, uniques corrompus/non corrompus,
+sources craftées/fracturées, valeurs négatives, qualité 0/10/20/30, armes et armures,
+la vraie copie de la wand et une fixture d'anneau. Les autres objets sont
+synthétiques ; ils vérifient les calculs et ne constituent pas des objets copiés
+du jeu. Rapport : [calculated-filters-0.4.json](calculated-filters-0.4.json).
+
+L'hôte Node charge les ressources Vite depuis les fichiers locaux, sans réseau,
+et exécute les modules parser/calculs upstream. Pour éviter de charger l'interface
+web et les presets, il extrait les corps AST inchangés des trois fonctions de
+conversion en filtres utilisées. Cette comparaison ne couvre pas tous les presets,
+les ajustements finaux d'UI ni les règles pseudo spécialisées (maps, flacons,
+Heist, clusters, etc.). Les 55 961 comparaisons traduction/effet du jalon 0.3 ont
+également été rejouées sans différence après ajout des métadonnées de sources.
+
+Vérifications graphiques du build release sur PoE :
+
+- Vraie wand copiée par Ctrl+D, 439 résultats et 10 offres, 673 ms réseau ; 71 ms
+  copie/parsing, 4 ms préparation des cinq lignes de filtres, 81 ms premier rendu
+  à froid. Panneau passif, focus conservé au jeu.
+- Physical DPS calculé à 12,6 après normalisation de qualité, affiché à 12 selon
+  l'arrondi upstream. Clic dans la ligne puis Rechercher : requête vérifiée avec
+  `weapon_filters.filters.pdps.min=12`, aucun faux ID `item.*` dans les stats ;
+  10 offres, 602 ms réseau. Les mods de dégâts de sorts ne contribuent pas au DPS.
+- Défilement natif de la liste, capture inspectée, sans transmettre de touche
+  de défilement X11 au jeu. L'exemple pointer exige `--scroll` explicite.
+- Fixture `synthetic-calculated-ring.txt` chargée par presse-papiers et commande
+  check, pas par un objet du jeu. Suggestions automatiques vérifiées par socket :
+  `pseudo_total_life.min=81` et `pseudo_total_elemental_resistance.min=43`, 65
+  résultats, 10 offres, 630 ms réseau ; panneau passif. La restauration du
+  presse-papiers a été tentée dans finally ; elle n'a pas persisté après la fin
+  de l'outil de test. Une nouvelle copie réelle depuis PoE a été vérifiée ensuite
+  (voir contrôle du paquet ci-dessous). Le prix poe.ninja était explicitement
+  étiqueté « Prix de la base seule », pas une estimation des mods de ce rare.
+
+Le volet conserve les sources exactes dans un expandeur secondaire. La hauteur
+de la liste et sa remise à zéro entre objets ont été ajustées après observation
+des contrôles trop serrés. La plage suggérée est persistée (défaut ±10 %, anciens
+profils compatibles) et s'applique à la prochaine copie. Les anciens contrôles
+déjà saisis ne sont pas réécrits lors d'un changement de plage.
+
+Paquet 0.4.0-1 : build et 55 tests hors ligne par makepkg, archive source comparée
+aux 410 fichiers locaux, 345 fichiers du paquet root/root, notices de 188 crates
+et bibliothèque standard contrôlées par leurs hashes. Binaire extrait exécuté
+sans installation système. Cinq cycles passifs supplémentaires passent. La vraie
+wand donne 433 résultats, 10 offres, 770 ms réseau ; préparation des cinq lignes
+de filtres en 3 ms, premier rendu 6 ms. La nouvelle liste agrandie et le défilement
+vers les lignes pseudo/sources sont inspectés sur captures.
+
+Sélection de pDPS : `weapon_filters.filters.pdps.min=12`, 442 résultats, 739 ms
+réseau. Sélection supplémentaire du pseudo dégâts des sorts :
+`pseudo.pseudo_increased_spell_damage.min=8`, 10 offres et 618 ms réseau.
+Une consultation immédiate de la fixture est bloquée par le cooldown local
+de 5 s, sans retry automatique ni activation. Après expiration, clic explicite
+sur Rechercher : 64 résultats, 10 offres, 628 ms réseau avec les deux suggestions
+vie/résistances attendues. La liste revient bien à son début entre deux objets.
+
+Échap rend le focus au jeu. Une dernière copie de la vraie wand donne 447 résultats
+et 10 offres en 616 ms, préparation des lignes 6 ms et premier rendu 9 ms. Après
+masquage, wl-paste confirme toujours le vrai texte avancé de la wand (8% spell
+damage), puis RSS du processus à 70 896 Kio (69,23 Mio), 0 tick CPU sur 3 s à
+CLK_TCK=100. Ce sont des observations ponctuelles, sans optimisation spécifique
+revendiquée à ce jalon. PoE et le compositeur sont restés ouverts.

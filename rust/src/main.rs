@@ -1,3 +1,4 @@
+mod calculated;
 #[cfg(target_os = "linux")]
 mod desktop;
 mod economy;
@@ -5,6 +6,8 @@ mod filters;
 mod item;
 mod modifiers;
 mod overlay;
+mod properties;
+mod pseudo;
 mod settings;
 mod trade;
 #[cfg(target_os = "linux")]

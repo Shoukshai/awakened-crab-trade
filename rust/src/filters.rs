@@ -30,6 +30,21 @@ pub struct StatFilter {
     pub roll_value: Option<f64>,
     pub inverted: bool,
 }
+impl StatFilter {
+    pub fn from_candidate(candidate: &crate::calculated::Candidate) -> Self {
+        let m = &candidate.modifier;
+        let numeric = !m.option && !m.ids.iter().any(|id| id.contains('|')) && m.value.is_some();
+        Self {
+            id: m.id.clone(),
+            alternatives: m.ids.iter().skip(1).cloned().collect(),
+            min: numeric.then_some(candidate.initial_min).flatten(),
+            max: numeric.then_some(candidate.initial_max).flatten(),
+            option: m.option.then_some(m.value).flatten(),
+            roll_value: candidate.display_value,
+            inverted: m.inverted,
+        }
+    }
+}
 impl Default for Filters {
     fn default() -> Self {
         Self {
@@ -45,7 +60,12 @@ impl Default for Filters {
 pub fn query(item: &Item, filters: &Filters) -> Value {
     let mut and = Vec::new();
     let mut groups = Vec::new();
+    let mut properties = Vec::new();
     for stat in &filters.stats {
+        if let Some((group, property)) = property_path(&stat.id) {
+            properties.push((group, property, stat));
+            continue;
+        }
         let ids: Vec<_> = std::iter::once(&stat.id)
             .chain(stat.alternatives.iter())
             .collect();
@@ -87,7 +107,27 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     {
         q["filters"]["socket_filters"] = json!({"filters":{"links":{"min":n}}});
     }
+    for (group, property, stat) in properties {
+        q["filters"][group]["filters"][property] = stat_to_query(&stat.id, stat)["value"].clone();
+    }
     json!({"query":q,"sort":{"price":"asc"}})
+}
+fn property_path(id: &str) -> Option<(&'static str, &'static str)> {
+    Some(match id {
+        "item.armour" => ("armour_filters", "ar"),
+        "item.evasion_rating" => ("armour_filters", "ev"),
+        "item.energy_shield" => ("armour_filters", "es"),
+        "item.ward" => ("armour_filters", "ward"),
+        "item.block" => ("armour_filters", "block"),
+        "item.base_percentile" => ("armour_filters", "base_defence_percentile"),
+        "item.total_dps" => ("weapon_filters", "dps"),
+        "item.physical_dps" => ("weapon_filters", "pdps"),
+        "item.elemental_dps" => ("weapon_filters", "edps"),
+        "item.aps" => ("weapon_filters", "aps"),
+        "item.crit" => ("weapon_filters", "crit"),
+        "item.memory_strands" => ("misc_filters", "memory_level"),
+        _ => return None,
+    })
 }
 fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
     let divisor = if id.starts_with("{div_by_100}") {
@@ -128,6 +168,9 @@ fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
 /// Mirrors upstream's choice: stat filters require ordinary Trade even for currency.
 pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
     for stat in &filters.stats {
+        if stat.id.starts_with("item.") && property_path(&stat.id).is_none() {
+            return Err("Cette propriété n’est pas encore prise en charge.".into());
+        }
         if [stat.min, stat.max, stat.option, stat.roll_value]
             .into_iter()
             .flatten()
@@ -160,6 +203,48 @@ pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn calculated_weapon_property_is_routed_to_weapon_filters_and_keeps_other_constraints() {
+        let i = Item::parse(include_str!("fixtures/driftwood-wand.txt")).unwrap();
+        let c = crate::calculated::candidates(&i, 10.)
+            .into_iter()
+            .find(|c| c.modifier.id == "item.physical_dps")
+            .unwrap();
+        let filters = Filters {
+            min_item_level: Some(1),
+            stats: vec![StatFilter::from_candidate(&c)],
+            ..Filters::default()
+        };
+        let q = search_query(&i, &filters).unwrap();
+        assert_eq!(
+            q["query"]["filters"]["weapon_filters"]["filters"]["pdps"]["min"],
+            12.
+        );
+        assert_eq!(
+            q["query"]["filters"]["misc_filters"]["filters"]["ilvl"]["min"],
+            1
+        );
+        assert_eq!(q["query"]["stats"][0]["filters"], json!([]));
+    }
+    #[test]
+    fn negative_pseudo_display_maps_back_to_correct_trade_bound() {
+        let i=Item::parse("Item Class: Rings\nRarity: Rare\nSynthetic Fixture\nGold Ring\n--------\n{ Suffix Modifier }\n20(15-30)% reduced Movement Speed").unwrap();
+        let c = crate::calculated::candidates(&i, 10.)
+            .into_iter()
+            .find(|c| c.modifier.kind == "pseudo")
+            .unwrap();
+        assert_eq!(c.initial_min, None);
+        assert_eq!(c.initial_max, Some(22.));
+        let filters = Filters {
+            stats: vec![StatFilter::from_candidate(&c)],
+            ..Filters::default()
+        };
+        let q = search_query(&i, &filters).unwrap();
+        assert_eq!(
+            q["query"]["stats"][0]["filters"][0]["value"],
+            json!({"min":-22.})
+        );
+    }
     #[test]
     fn alternative_ids_form_one_or_condition_instead_of_requiring_both() {
         let item =

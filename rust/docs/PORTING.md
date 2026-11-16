@@ -17,13 +17,13 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d'objet entier, mods voilés et enrichissements spécifiques, autres langues |
-| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR et transformations d'IDs ; Trade search/fetch ; bulk devise/stock | recherche Covens, 10 offres Trade et 20 bulk ; tests de requêtes ; voir validation 0.3 pour contrôles natifs | filtres pseudo et propriétés, presets/plages automatiques upstream, parité de tous les types, UI complète |
+| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets complets et ajustements finaux, pseudo spécialisés (cartes/flacons/cluster/etc.), parité de tous les types |
 | Prix poe.ninja, tendances, prix liés, poussière, valeur espérée | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, poussière, valeur espérée |
 | Évaluation objets, cartes et mods dangereux | oui | non | non | règles, configuration, UI |
 | Recherche objets, wiki et liens externes | oui | non | non | recherche et raccourcis |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
 | Widgets minuteur, images, grille Delve, menu | oui | non | non | états et rendu natif |
-| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, ligue/ilvl/en ligne/devise/stock dans le panneau, échelle au démarrage | ligue Covens saisie/persistée, devise/stock manipulés, échelle app 1,25 observée ; validation/migration JSON | éditeur complet, langues, sélection d’échelle dans l’UI |
+| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, ligue/ilvl/en ligne/devise/stock/plage suggérée dans le panneau, échelle au démarrage | ligue Covens saisie/persistée, devise/stock manipulés, plage dans les requêtes ; échelle app 1,25 observée en 0.1 ; migration JSON | éditeur complet, langues, sélection d’échelle dans l’UI |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
 | Tray, mises à jour, debug, fichiers hôte | oui | logs stderr, status IPC, PKGBUILD et lanceur | status et journaux en direct, paquet construit/extrait/exécuté | installation propre, tray, mises à jour et fichiers hôte |
@@ -50,3 +50,7 @@ Les dépendances graphiques sont ciblées Linux dans Cargo ; aucun build Windows
 n'a été effectué. `desktop/xwayland_shortcuts.rs` est une
 intégration d'entrées X11 limitée aux fenêtres XWayland, pas un backend d'overlay
 X11 autonome. Le prototype laisse les entrées passives traverser le panneau.
+
+`calculated.rs`, `pseudo.rs`, `properties.rs` préparent les filtres sans dépendre
+du bureau. La table pseudo exportée depuis le TypeScript conserve sa provenance
+et son hash dans `src/data/pseudo-rules.json` ; son vérificateur reste hors ligne.

@@ -1,4 +1,4 @@
-use crate::{filters::StatFilter, modifiers::Modifier};
+use crate::{calculated::Candidate, filters::StatFilter};
 use gtk::prelude::*;
 
 pub struct StatRow {
@@ -8,12 +8,15 @@ pub struct StatRow {
     max_enabled: gtk::CheckButton,
     min: gtk::SpinButton,
     max: gtk::SpinButton,
-    modifier: Modifier,
+    numeric: bool,
+    template: StatFilter,
 }
 impl StatRow {
-    pub fn new(modifier: &Modifier) -> Self {
+    pub fn new(candidate: &Candidate) -> Self {
+        let modifier = &candidate.modifier;
         let container = gtk::Box::new(gtk::Orientation::Vertical, 4);
         let selected = gtk::CheckButton::new();
+        selected.set_active(!candidate.disabled);
         let label = gtk::Label::new(Some(&modifier.text));
         label.set_line_wrap(true);
         label.set_max_width_chars(58);
@@ -34,10 +37,16 @@ impl StatRow {
         for spin in [&min, &max] {
             spin.set_digits(if modifier.decimal { 2 } else { 1 });
             spin.set_width_chars(9);
-            spin.set_value(modifier.value.unwrap_or(0.));
+            spin.set_value(candidate.display_value.unwrap_or(0.));
         }
-        min_enabled.set_active(modifier.better >= 0);
-        max_enabled.set_active(modifier.better <= 0);
+        min_enabled.set_active(candidate.initial_min.is_some());
+        max_enabled.set_active(candidate.initial_max.is_some());
+        if let Some(value) = candidate.initial_min {
+            min.set_value(value);
+        }
+        if let Some(value) = candidate.initial_max {
+            max.set_value(value);
+        }
         for (check, spin) in [(&min_enabled, &min), (&max_enabled, &max)] {
             spin.set_sensitive(check.is_active());
             let spin = spin.clone();
@@ -61,9 +70,26 @@ impl StatRow {
                 0,
             );
         } else if modifier.value.is_some() {
-            let note = gtk::Label::new(Some(
-                "Valeur Trade · les plages de dégâts utilisent leur moyenne",
-            ));
+            let note = gtk::Label::new(Some(&format!(
+                "Stat Trade : {}\n{}",
+                candidate.display_reference,
+                if [
+                    "item.armour",
+                    "item.evasion_rating",
+                    "item.energy_shield",
+                    "item.ward",
+                    "item.physical_dps",
+                    "item.total_dps"
+                ]
+                .contains(&modifier.id.as_str())
+                {
+                    "Défenses/dégâts physiques : qualité normalisée selon Trade."
+                } else if modifier.kind == "property" {
+                    "Propriété calculée pour les filtres Trade."
+                } else {
+                    "Valeur canonique ; les plages de dégâts utilisent leur moyenne."
+                }
+            )));
             note.set_line_wrap(true);
             note.set_xalign(0.);
             container.pack_start(&note, false, false, 0);
@@ -76,23 +102,19 @@ impl StatRow {
             max_enabled,
             min,
             max,
-            modifier: modifier.clone(),
+            numeric: !modifier.option
+                && !modifier.ids.iter().any(|id| id.contains('|'))
+                && modifier.value.is_some(),
+            template: StatFilter::from_candidate(candidate),
         }
     }
     pub fn selected_filter(&self) -> Option<StatFilter> {
         if !self.selected.is_active() {
             return None;
         }
-        let m = &self.modifier;
-        let numeric = !m.option && !m.ids.iter().any(|id| id.contains('|')) && m.value.is_some();
-        Some(StatFilter {
-            id: m.id.clone(),
-            alternatives: m.ids.iter().skip(1).cloned().collect(),
-            min: (numeric && self.min_enabled.is_active()).then(|| self.min.value()),
-            max: (numeric && self.max_enabled.is_active()).then(|| self.max.value()),
-            option: m.option.then_some(m.value).flatten(),
-            roll_value: m.value,
-            inverted: m.inverted,
-        })
+        let mut filter = self.template.clone();
+        filter.min = (self.numeric && self.min_enabled.is_active()).then(|| self.min.value());
+        filter.max = (self.numeric && self.max_enabled.is_active()).then(|| self.max.value());
+        Some(filter)
     }
 }

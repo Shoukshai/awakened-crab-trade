@@ -61,6 +61,7 @@ impl Record {
 struct Database {
     records: Vec<Record>,
     index: Vec<(u32, usize)>,
+    ref_index: Vec<(u32, usize)>,
     max_lines: usize,
 }
 fn hash(text: &str) -> u32 {
@@ -76,9 +77,11 @@ fn database() -> &'static Database {
             .map(|s| serde_json::from_str(s).expect("upstream stat record"))
             .collect();
         let mut index = Vec::new();
+        let mut ref_index = Vec::new();
         let mut max_lines = 1;
         for (row, record) in records.iter().enumerate() {
             for stat in record.stats() {
+                ref_index.push((hash(&stat.reference), row));
                 for matcher in &stat.matchers {
                     max_lines = max_lines.max(matcher.string.lines().count()).max(
                         matcher
@@ -95,15 +98,99 @@ fn database() -> &'static Database {
             }
         }
         index.sort_by_key(|(hash, _)| *hash);
+        ref_index.sort_by_key(|(hash, _)| *hash);
         Database {
             records,
             index,
+            ref_index,
             max_lines,
         }
     })
 }
 pub fn max_lines() -> usize {
     database().max_lines
+}
+/// Translation selected for the combined roll, as translateStatWithRoll does.
+pub fn display(modifier: &Modifier) -> (String, bool) {
+    let record = database().records.iter().find_map(|record| {
+        record.stats().iter().find(|s| {
+            s.reference == modifier.reference
+                && s.trade
+                    .ids
+                    .get(&modifier.kind)
+                    .is_some_and(|ids| ids.iter().any(|id| modifier.ids.contains(id)))
+        })
+    });
+    let Some(stat) = record else {
+        return (modifier.reference.clone(), false);
+    };
+    let matcher = if let Some(value) = modifier.value {
+        stat.matchers
+            .iter()
+            .find(|m| m.value == Some(value))
+            .or_else(|| {
+                let sign = |v: f64| if v == 0. { 0. } else { v.signum() };
+                let same_sign = modifier
+                    .min
+                    .zip(modifier.max)
+                    .is_some_and(|(a, b)| sign(a) == sign(b));
+                stat.matchers
+                    .iter()
+                    .find(|m| m.value.is_none() && m.negate == (same_sign && value < 0.))
+            })
+            .or_else(|| stat.matchers.iter().find(|m| m.value.is_none()))
+    } else {
+        stat.matchers
+            .iter()
+            .find(|m| m.value.is_none())
+            .or_else(|| stat.matchers.first())
+    };
+    matcher
+        .map(|m| (m.string.clone(), m.negate))
+        .unwrap_or_else(|| (modifier.reference.clone(), false))
+}
+/// Same reference lookup and pseudo selection as assets/data.pseudoStatByRef.
+pub fn pseudo(reference: &str) -> Option<Modifier> {
+    let data = database();
+    let index = &data.ref_index;
+    let target = hash(reference);
+    let (mut left, mut right) = (0isize, index.len() as isize - 1);
+    while left <= right {
+        let mid = (left + right) / 2;
+        match index[mid as usize].0.cmp(&target) {
+            std::cmp::Ordering::Less => left = mid + 1,
+            std::cmp::Ordering::Greater => right = mid - 1,
+            std::cmp::Ordering::Equal => {
+                let record = &data.records[index[mid as usize].1];
+                let stat = match record {
+                    Record::Single(stat) => stat,
+                    Record::Group { stats, .. } => stats
+                        .iter()
+                        .find(|s| s.reference == reference && s.trade.ids.contains_key("pseudo"))?,
+                };
+                let ids = stat.trade.ids.get("pseudo")?;
+                return Some(Modifier {
+                    text: stat.matchers.first()?.string.clone(),
+                    id: ids.first()?.clone(),
+                    ids: ids.clone(),
+                    reference: stat.reference.clone(),
+                    kind: "pseudo".into(),
+                    value: None,
+                    min: None,
+                    max: None,
+                    decimal: stat.dp,
+                    legacy: false,
+                    unscalable: false,
+                    option: stat.trade.option,
+                    inverted: stat.trade.inverted,
+                    better: stat.better,
+                    source_count: 0,
+                    fractured_t1: false,
+                });
+            }
+        }
+    }
+    None
 }
 fn lookup(text: &str) -> Option<&'static Record> {
     let data = database();
@@ -420,6 +507,8 @@ pub fn translate(
             option: stat.trade.option,
             inverted: stat.trade.inverted,
             better: stat.better,
+            source_count: 1,
+            fractured_t1: false,
         });
     }
     None

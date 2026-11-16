@@ -1,0 +1,15 @@
+{
+  "cases": 1651,
+  "mismatch_count": 0,
+  "failures": [],
+  "rule_count": 35,
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "scope": "Full upstream item parser, equipment/pseudo calculation and initial bounds; synthetic English item corpus plus real copied wand; excludes complete presets/final UI rules",
+  "source_sha256": {
+    "renderer/src/parser/Parser.ts": "1ab2d88158e44afbb69a8717eca2fc060f37b3001b486342587b7445dab50e6a",
+    "renderer/src/parser/calc-q20.ts": "31d5f23d07160e45bc1ee9181d7f313fec50474b1ff8e0472f6f022e8287939f",
+    "renderer/src/web/price-check/filters/pseudo/index.ts": "b3a0d919a59d64c4559b4114c689661f9f4a0e4ae19a865d6f02998cc75691c2",
+    "renderer/src/web/price-check/filters/pseudo/item-property.ts": "093a297cec6e373f94d9ebdc2cd94fbc07f2b4a8302c6d786926f32563c1bd96",
+    "renderer/src/web/price-check/filters/create-stat-filters.ts": "29ff2a7b6a7a567a7754ac6b770cc79ca9cdde62ee43ddcadc0089395ec911a1"
+  }
+}

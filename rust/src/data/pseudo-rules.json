@@ -1,0 +1,552 @@
+{
+  "source": "renderer/src/web/price-check/filters/pseudo/index.ts",
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "source_sha256": "b3a0d919a59d64c4559b4114c689661f9f4a0e4ae19a865d6f02998cc75691c2",
+  "rules": [
+    {
+      "pseudo": "+#% total Elemental Resistance",
+      "disabled": false,
+      "stats": [
+        {
+          "ref": "+#% to All Resistances",
+          "multiplier": 3,
+          "keep": true
+        },
+        {
+          "ref": "+#% to all Elemental Resistances",
+          "multiplier": 3
+        },
+        {
+          "ref": "+#% to Fire Resistance",
+          "multiplier": 1
+        },
+        {
+          "ref": "+#% to Cold Resistance",
+          "multiplier": 1
+        },
+        {
+          "ref": "+#% to Lightning Resistance",
+          "multiplier": 1
+        },
+        {
+          "ref": "+#% to Fire and Lightning Resistances",
+          "multiplier": 2
+        },
+        {
+          "ref": "+#% to Fire and Cold Resistances",
+          "multiplier": 2
+        },
+        {
+          "ref": "+#% to Cold and Lightning Resistances",
+          "multiplier": 2
+        },
+        {
+          "ref": "+#% to Fire and Chaos Resistances",
+          "multiplier": 1,
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold and Chaos Resistances",
+          "multiplier": 1,
+          "keep": true
+        },
+        {
+          "ref": "+#% to Lightning and Chaos Resistances",
+          "multiplier": 1,
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total to Fire Resistance",
+      "group": "to_x_ele_res",
+      "stats": [
+        {
+          "ref": "+#% to All Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to all Elemental Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Fire Resistance"
+        },
+        {
+          "ref": "+#% to Fire and Lightning Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Fire and Cold Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Fire and Chaos Resistances",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total to Cold Resistance",
+      "group": "to_x_ele_res",
+      "stats": [
+        {
+          "ref": "+#% to All Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to all Elemental Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold Resistance"
+        },
+        {
+          "ref": "+#% to Fire and Cold Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold and Lightning Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold and Chaos Resistances",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total to Lightning Resistance",
+      "group": "to_x_ele_res",
+      "stats": [
+        {
+          "ref": "+#% to All Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to all Elemental Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Lightning Resistance"
+        },
+        {
+          "ref": "+#% to Fire and Lightning Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold and Lightning Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Lightning and Chaos Resistances",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total to Chaos Resistance",
+      "stats": [
+        {
+          "ref": "+#% to All Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Chaos Resistance",
+          "keep": false
+        },
+        {
+          "ref": "+#% to Fire and Chaos Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Cold and Chaos Resistances",
+          "keep": true
+        },
+        {
+          "ref": "+#% to Lightning and Chaos Resistances",
+          "keep": true
+        }
+      ],
+      "mutate": "chaos_visibility"
+    },
+    {
+      "pseudo": "+# total to all Attributes",
+      "group": "to_all_attrs",
+      "stats": [
+        {
+          "ref": "+# to all Attributes"
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total to Strength",
+      "group": "to_x_attr",
+      "stats": [
+        {
+          "ref": "+# to all Attributes",
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength",
+          "keep": false
+        },
+        {
+          "ref": "+# to Strength and Intelligence",
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength and Dexterity",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total to Dexterity",
+      "group": "to_x_attr",
+      "stats": [
+        {
+          "ref": "+# to all Attributes",
+          "keep": true
+        },
+        {
+          "ref": "+# to Dexterity",
+          "keep": false
+        },
+        {
+          "ref": "+# to Strength and Dexterity",
+          "keep": true
+        },
+        {
+          "ref": "+# to Dexterity and Intelligence",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total to Intelligence",
+      "group": "to_x_attr",
+      "stats": [
+        {
+          "ref": "+# to all Attributes",
+          "keep": true
+        },
+        {
+          "ref": "+# to Intelligence",
+          "keep": false
+        },
+        {
+          "ref": "+# to Strength and Intelligence",
+          "keep": true
+        },
+        {
+          "ref": "+# to Dexterity and Intelligence",
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total maximum Life",
+      "disabled": false,
+      "stats": [
+        {
+          "ref": "+# to maximum Life",
+          "required": true
+        },
+        {
+          "ref": "+# to all Attributes",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength and Intelligence",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength and Dexterity",
+          "multiplier": 0.5,
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total maximum Mana",
+      "stats": [
+        {
+          "ref": "+# to maximum Mana",
+          "required": true
+        },
+        {
+          "ref": "+# to all Attributes",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Intelligence",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Strength and Intelligence",
+          "multiplier": 0.5,
+          "keep": true
+        },
+        {
+          "ref": "+# to Dexterity and Intelligence",
+          "multiplier": 0.5,
+          "keep": true
+        }
+      ]
+    },
+    {
+      "pseudo": "#% total increased maximum Energy Shield",
+      "stats": [
+        {
+          "ref": "#% increased maximum Energy Shield"
+        }
+      ]
+    },
+    {
+      "pseudo": "+# total maximum Energy Shield",
+      "stats": [
+        {
+          "ref": "+# to maximum Energy Shield"
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total Attack Speed",
+      "stats": [
+        {
+          "ref": "#% increased Attack Speed"
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total Cast Speed",
+      "stats": [
+        {
+          "ref": "#% increased Cast Speed"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Movement Speed",
+      "stats": [
+        {
+          "ref": "#% increased Movement Speed"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% total increased Physical Damage",
+      "stats": [
+        {
+          "ref": "#% increased Global Physical Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% Global Critical Strike Chance",
+      "group": "global_crit_chance",
+      "stats": [
+        {
+          "ref": "#% increased Global Critical Strike Chance"
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% total Critical Strike Chance for Spells",
+      "replaces": "global_crit_chance",
+      "stats": [
+        {
+          "ref": "#% increased Spell Critical Strike Chance",
+          "required": true
+        },
+        {
+          "ref": "#% increased Global Critical Strike Chance"
+        }
+      ]
+    },
+    {
+      "pseudo": "+#% Global Critical Strike Multiplier",
+      "stats": [
+        {
+          "ref": "+#% to Global Critical Strike Multiplier"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Elemental Damage",
+      "group": "incr_ele_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Lightning Damage",
+      "replaces": "incr_ele_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Lightning Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Cold Damage",
+      "replaces": "incr_ele_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Cold Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Fire Damage",
+      "group": "incr_fire_dmg",
+      "replaces": "incr_ele_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Fire Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Spell Damage",
+      "group": "incr_spell_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Spell Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Lightning Spell Damage",
+      "replaces": "incr_spell_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Lightning Spell Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Spell Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Cold Spell Damage",
+      "replaces": "incr_spell_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Cold Spell Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Spell Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Fire Spell Damage",
+      "replaces": "incr_spell_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Fire Spell Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Spell Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Elemental Damage with Attack Skills",
+      "replaces": "incr_ele_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Elemental Damage with Attack Skills",
+          "required": true
+        },
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Burning Damage",
+      "replaces": "incr_fire_dmg",
+      "stats": [
+        {
+          "ref": "#% increased Burning Damage",
+          "required": true
+        },
+        {
+          "ref": "#% increased Fire Damage"
+        },
+        {
+          "ref": "#% increased Elemental Damage"
+        }
+      ]
+    },
+    {
+      "pseudo": "# Life Regenerated per Second",
+      "stats": [
+        {
+          "ref": "Regenerate # Life per second"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% of Life Regenerated per Second",
+      "stats": [
+        {
+          "ref": "Regenerate #% of Life per second"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% of Physical Attack Damage Leeched as Life",
+      "stats": [
+        {
+          "ref": "#% of Physical Attack Damage Leeched as Life"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% of Physical Attack Damage Leeched as Mana",
+      "stats": [
+        {
+          "ref": "#% of Physical Attack Damage Leeched as Mana"
+        }
+      ]
+    },
+    {
+      "pseudo": "#% increased Mana Regeneration Rate",
+      "stats": [
+        {
+          "ref": "#% increased Mana Regeneration Rate"
+        }
+      ]
+    }
+  ]
+}
