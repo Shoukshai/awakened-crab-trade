@@ -1,0 +1,41 @@
+# Local Artix/Arch package built from the adjacent, generated source archive.
+pkgname=awakened-poe-trade-rs
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Native Rust PoE overlay preview for River and XWayland'
+arch=('x86_64')
+url='https://github.com/SnosMe/awakened-poe-trade'
+license=('MIT')
+# Cargo already performs Rust thin-LTO. GCC LTO objects from ring cannot be
+# consumed by rust-lld; disable makepkg's additional C/C++ LTO for this package.
+options=('!lto')
+depends=('gtk3' 'gtk-layer-shell' 'wl-clipboard' 'xdotool' 'coreutils' 'xdg-utils' 'libnotify')
+makedepends=('rust' 'pkgconf')
+source=("native-source-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/rust"
+    export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}"
+    cargo build --release --locked --offline -j 3
+}
+
+check() {
+    cd "$srcdir/rust"
+    export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}"
+    cargo test --locked --offline -j 3
+}
+
+package() {
+    cd "$srcdir"
+    local target_dir="${CARGO_TARGET_DIR:-$srcdir/target}"
+    install -Dm755 "$target_dir/release/awakened-poe-trade-rs" "$pkgdir/usr/bin/awakened-poe-trade-rs"
+    install -Dm755 rust/packaging/awakened-poe-trade-rs-launch "$pkgdir/usr/bin/awakened-poe-trade-rs-launch"
+    install -Dm644 rust/packaging/awakened-poe-trade-rs.desktop "$pkgdir/usr/share/applications/awakened-poe-trade-rs.desktop"
+    install -Dm644 main/build/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/awakened-poe-trade-rs.png"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 rust/docs/PORTING.md "$pkgdir/usr/share/doc/$pkgname/PORTING.md"
+    install -Dm644 rust/docs/MACHINE.md "$pkgdir/usr/share/doc/$pkgname/MACHINE.md"
+    install -Dm644 rust/docs/VALIDATION.md "$pkgdir/usr/share/doc/$pkgname/VALIDATION.md"
+}

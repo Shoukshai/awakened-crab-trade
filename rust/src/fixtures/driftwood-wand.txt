@@ -1,0 +1,15 @@
+Item Class: Wands
+Rarity: Normal
+Driftwood Wand
+--------
+Wand
+Physical Damage: 5-9
+Critical Strike Chance: 8.30%
+Attacks per Second: 1.50
+--------
+Sockets: W-W
+--------
+Item Level: 1
+--------
+{ Implicit Modifier — Damage, Caster }
+8(8-12)% increased Spell Damage

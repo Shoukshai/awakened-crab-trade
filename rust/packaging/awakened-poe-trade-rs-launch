@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+app_bin="${APT_RS_BINARY:-awakened-poe-trade-rs}"
+if "$app_bin" status >/dev/null 2>&1; then
+    notify-send 'Awakened PoE Trade Rust' 'Déjà lancé. Ctrl+D sur un objet dans PoE.' || true
+    exit 0
+fi
+app_state="${XDG_STATE_HOME:-$HOME/.local/state}/awakened-poe-trade-rs"
+mkdir -p "$app_state"
+export GDK_BACKEND=wayland
+if ! "$app_bin" daemon >>"$app_state/overlay.log" 2>&1; then
+    notify-send 'Awakened PoE Trade Rust' "Échec du démarrage. Journal : $app_state/overlay.log" || true
+    exit 1
+fi
