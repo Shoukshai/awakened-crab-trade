@@ -79,16 +79,30 @@ cochées forment un groupe « au moins une » ; on peut ajuster les bornes de se
 Le volet avancé propose un préfixe/suffixe libre ou crafté lorsque les mods copiés
 le justifient. Les anointments affichent leurs huiles et suivent les règles de
 coût/talisman/corruption upstream. Modifier un mod invalide les anciennes offres
-sans démarrer de recherche. Les presets de logbooks à plusieurs zones, Atzoatl,
-Mirrored Tablet et Mercenary Warrant restent à porter.
+sans démarrer de recherche. Les presets de logbooks à plusieurs zones, Atzoatl, Mirrored Tablet et
+Mercenary Warrant sont décrits plus bas avec leurs limites réseau.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
 en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
 stock minimum, prix unitaire et quantités de chaque offre. Les autres objets
 utilisent la recherche Trade normale. Le prix indicatif poe.ninja apparaît
-séparément, avec sa tendance et le total de la pile ; il ne valorise pas les mods
-d'un rare. Son cache mémoire/disque dure 31 minutes. Les variantes complexes de
-certains uniques ne sont pas encore prises en charge et restent sans estimation.
+séparément ; il ne valorise pas les mods d’un rare. Son cache mémoire/disque dure
+31 minutes. L’identité et les variantes suivent les règles upstream : gemmes,
+bases et influences, uniques et liens/rolls spécialisés. Le panneau distingue les
+prix absents d’un prix nul, convertit chaos/divine selon le feed et affiche la
+valeur de la pile copiée ainsi que celle d’une pile complète. Le volet **Objets
+liés et prix indicatifs** utilise le même instantané, sans requête supplémentaire.
+Le lien source vise la fiche exacte. Modifier la ligue efface immédiatement
+l’ancienne cote ; cliquer **Rechercher** pour charger la suivante.
+
+La tendance et sa dispersion suivent le calcul upstream ; la dispersion n’est
+pas un taux de variation du prix. Les trous du graphe restent des données absentes.
+Foulborn, Vestigial et foil peuvent afficher la référence ordinaire avec un
+avertissement : ce prix ne valorise pas le trait. Les règles historiques de Vinktar
+ne distinguent pas les descriptions actuelles du flacon ; une cote générique est
+signalée. Filled Coffin manque dans le catalogue anglais actuel : sa copie
+complète n’est pas validée. Images des objets liés et prédiction poeprices ne sont
+pas portées.
 
 Le bouton **Évaluer** passe aux informations locales du dernier objet. Pour les
 cartes, contrats, blueprints, invitations, charts et logbooks, trois profils
@@ -158,7 +172,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.11.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.12.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -190,6 +204,8 @@ node scripts/export-special-rules.cjs --check
 node scripts/compare-special-presets.cjs
 cargo build --locked --example mercenary
 node scripts/compare-mercenary.cjs
+cargo build --locked --example economy-identity
+node scripts/compare-economy.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs

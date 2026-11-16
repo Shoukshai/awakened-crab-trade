@@ -27,6 +27,20 @@ pub(super) fn parse(raw: &str, reference: &str, category: Option<&str>) -> Parse
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .collect();
+        if reference == "Filled Coffin" && lines.iter().any(|line| line.ends_with(" (implicit)")) {
+            for line in &lines {
+                let line = line.strip_suffix(" (implicit)").unwrap_or(line);
+                if let Some(m) = translation::translate(line, "necropolis", category, false) {
+                    parsed.modifiers.push(m);
+                } else if !line.starts_with('{') {
+                    parsed.unknown.push(UnknownModifier {
+                        text: line.to_string(),
+                        kind: "necropolis".into(),
+                    });
+                }
+            }
+            continue;
+        }
         if reference == "Expedition Logbook" && lines.len() >= 3 && parsed.logbook_areas.len() < 3 {
             if let Some(faction) = translation::translate(lines[1], "pseudo", None, false)
                 .filter(|m| m.reference.starts_with("Has Logbook Faction:"))

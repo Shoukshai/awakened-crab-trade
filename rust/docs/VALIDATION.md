@@ -802,3 +802,65 @@ Warrant du personnage. La limitation anonyme ne prouve pas un défaut des poids,
 qui sont comparés au générateur upstream, ni le succès de toutes les recherches
 complexes. Windows, autres compositeurs/sorties et réduction réelle restent non
 validés. Aucun gain de performance n’est revendiqué.
+
+
+## Jalon 0.12 : cotations, variantes et ensembles liés
+
+100 tests Rust et Clippy toutes cibles réussis. Les tests couvrent notamment la
+quantité maximale des piles et les variantes/références génériques. Les corpus
+antérieurs sont rejoués sans écart : 55 961 traductions/effets, 1 651 calculs,
+3 144 inspections / 1 875 décisions, 221 presets, 2 312 filtres d’objet,
+1 145 presets d’équipement, 2 599 presets spéciaux et 16 900 cas Mercenary.
+
+[economy-0.12.json](economy-0.12.json) : zéro écart sur 6 937 identités d’objet,
+39 recherches/routes de feed, 392 ensembles liés, 78 conversions, 508 tendances
+et 4 982 slugs. L’oracle utilise le parseur anglais et les fonctions TypeScript
+pures upstream inchangés ; les cours sont synthétiques et déterministes. Sont
+parcourus les uniques du catalogue, combinaisons de mods spécialisés, liens,
+bases/niveaux/influences, gemmes/qualités/corruption, cartes et catégories.
+Les slugs incluent les références du catalogue et des cas Unicode. Les prix
+absents et nuls restent distincts. La variance échantillonnée et la prévision
+nécessitant sept points suivent la source ; le texte est nommé « dispersion »
+pour éviter de le confondre avec une variation du cours.
+
+Limites de ce corpus : les quatre anciennes références Vinktar sont absentes des
+stats actuelles, Filled Coffin manque dans le catalogue anglais. Ces branches ne
+sont pas déclarées validées par des copies complètes ; aucun oracle n’a été
+corrigé pour les rendre artificiellement atteignables. Les traits Foulborn,
+Vestigial et foil ne sont pas valorisés ; la référence ordinaire est signalée.
+
+[overlay-lifecycle-0.12.json](overlay-lifecycle-0.12.json) reprend les contrôles
+précédents sur River privé. Un cache privé version 1 fournit Dawn à 50 chaos,
+Divine à 200, Midnight à 201, Noon à zéro et Dusk absent. Le test vérifie le
+partage du cache, 150 chaos pour les trois fragments, 2,5 div pour la pile de dix,
+la distinction zéro/absence, le lien exact, graphe et 14 lignes liées. Le volet
+s’ouvre au clic sans perdre l’interaction ; le test exige une hauteur de liste
+supérieure à 100 px pour détecter un conteneur enfant resté masqué. Changer
+d’objet efface ces données.
+Une édition réelle de l’entrée GTK de ligue efface cote, graphe, lien et lignes
+liées, sans HTTP. Toutes les entrées clavier sont confinées au bureau privé et
+les services externes y sont bloqués ; le cache réel n’est jamais prérempli.
+
+Sur le bureau réel, release natif au-dessus du PoE resté ouvert : les fixtures
+synthétiques Sacrifice at Dawn, Tombfist et Vessel of Vinktar produisent les
+identités attendues avec le jeu actif en mode passif. Dawn est absent du feed
+Covens observé : aucune cote n’est inventée, mais les relations sont disponibles
+et le volet peut être ouvert au clic. Tombfist distingue « 1 Jewel, Steelscale
+Gauntlets » (1 chaos observé). Vinktar reçoit la cote générique (2 chaos observés)
+avec avertissement. Ce ne sont pas des copies réelles d’objets du personnage.
+
+La vraie pile de trois Scrolls of Wisdom, copiée par Ctrl+D, donne 0,008725 chaos
+par objet, 0,026175 pour la pile et 0,349 pour quarante au cours observé. Les trous
+du graphe sont conservés. Le jeu garde le focus ; le panneau se masque et les
+réponses Trade devenues obsolètes sont rejetées. Ces valeurs sont un instantané,
+pas une promesse de prix de vente. Images, navigation navigateur, copies réelles
+d’uniques spéciaux, autres langues/configurations et réduction réelle restent
+non validées. Aucun gain de performance n’est revendiqué pour ce jalon.
+
+La première vérification du paquet 0.12 a révélé un ScrolledWindow resté masqué
+sous le volet lié : la propriété « expanded » seule ne prouvait pas l’affichage.
+Le conteneur est maintenant montré explicitement ; le test graphique exige la
+surface occupée par la liste avant de réussir. Le Trade live du fragment Dawn
+rejette par ailleurs son tag d’échange historique (`No valid exchange want tags`),
+sans retry ; les prix liés du feed restent consultables indépendamment. Cela ne
+valide pas le parcours Trade des fragments historiques sur Covens.

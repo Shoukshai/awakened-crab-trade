@@ -1,7 +1,7 @@
 //! poe.ninja's dense economy feed, matching upstream identity/variant rules.
 //! This is an indicative market aggregate, never a valuation of a rare's mods.
 use crate::{
-    item::{Item, Rarity},
+    item::Item,
     trade::{encode_segment, header_cooldown},
 };
 use reqwest::blocking::Client;
@@ -20,115 +20,12 @@ use std::{
 const TTL: u64 = 31 * 60;
 const MAX_BYTES: u64 = 32 * 1024 * 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Key {
-    pub namespace: String,
-    pub name: String,
-    pub variant: Option<String>,
-}
-impl Key {
-    pub fn for_item(item: &Item) -> Option<Self> {
-        let variant = if item.class.ends_with("Maps") {
-            Some(if item.rarity == Rarity::Unique {
-                "T0".into()
-            } else {
-                format!(
-                    "T{}, {}",
-                    item.map_tier.unwrap_or(0),
-                    if item.map_tier.is_some() {
-                        "Gen-24"
-                    } else {
-                        "Atlas"
-                    }
-                )
-            })
-        } else if item.rarity == Rarity::Gem {
-            let level = item.gem_level?;
-            let special = ["Empower Support", "Enlighten Support", "Enhance Support"]
-                .contains(&item.base.as_str());
-            let exact = special
-                || ["Portal", "Brand Recall", "Blood and Sand"].contains(&item.base.as_str())
-                || level >= 20;
-            let mut variant = if exact { level } else { 1 }.to_string();
-            if let Some(q) = item
-                .quality
-                .filter(|q| *q > 0 && !special && !(item.base == "Brand Recall" && item.corrupted))
-            {
-                variant += &format!("/{}", if (16..=20).contains(&q) { 20 } else { q });
-            }
-            if item.corrupted && item.base != "Portal" {
-                variant.push('c');
-            }
-            Some(variant)
-        } else if item.rarity == Rarity::Unique {
-            if item.unidentified
-                || item.market.foulborn
-                || item.market.vestigial
-                || item.market.foil
-            {
-                return None;
-            }
-            // These need additional variant rules; refuse an aggregate of a different item.
-            if [
-                "Vessel of Vinktar",
-                "Atziri's Splendour",
-                "Bubonic Trail",
-                "Lightpoacher",
-                "Shroud of the Lightless",
-                "Tombfist",
-                "Volkuur's Guidance",
-                "Yriel's Fostering",
-                "Doryani's Invitation",
-                "Impresence",
-                "Voices",
-                "The First Crest",
-            ]
-            .contains(&item.name.as_str())
-            {
-                return None;
-            }
-            if item.class.contains("Flasks") {
-                None
-            } else {
-                let mut v = if item.class.contains("Relic") {
-                    "Relic".to_string()
-                } else {
-                    item.base.clone()
-                };
-                if item.links >= 5 {
-                    v += &format!(", {}L", item.links);
-                }
-                Some(v)
-            }
-        } else if item.market.craftable {
-            if item.influences.len() > 1 {
-                return None;
-            }
-            let level = item.item_level?;
-            let mut v = if level >= 86 {
-                "86+".into()
-            } else {
-                level.to_string()
-            };
-            if let Some(influence) = item.influences.first() {
-                v += &format!(", {influence}");
-            }
-            Some(v)
-        } else {
-            None
-        };
-        Some(Self {
-            namespace: item.namespace.clone(),
-            name: if item.rarity == Rarity::Unique {
-                item.name.clone()
-            } else {
-                item.base.clone()
-            },
-            variant,
-        })
-    }
-}
-
+#[path = "economy/identity.rs"]
+mod identity;
+pub use identity::Key;
+#[path = "economy/model.rs"]
+pub mod model;
+pub use model::Report;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quote {
     pub chaos: f64,
@@ -161,7 +58,7 @@ struct Snapshot {
     items: Vec<Overview>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Cached {
+pub(crate) struct Cached {
     version: u32,
     league: String,
     fetched: u64,
@@ -174,7 +71,7 @@ impl Cached {
             && self.fetched <= now
             && now - self.fetched < TTL
     }
-    fn find(&self, key: &Key, now: u64, from_cache: bool) -> Option<Quote> {
+    pub(crate) fn find(&self, key: &Key, now: u64, from_cache: bool) -> Option<Quote> {
         self.data
             .currency
             .iter()
@@ -190,29 +87,25 @@ impl Cached {
                         && line.chaos.is_finite()
                         && line.chaos >= 0.
                 })?;
-                let league_slug = if self.league.starts_with("Hardcore ") {
-                    format!(
-                        "{}hc",
-                        self.league.trim_start_matches("Hardcore ").to_lowercase()
-                    )
-                } else {
-                    self.league.to_lowercase()
-                };
+                let mut league_slug = self.league.replacen("Hardcore ", "", 1).to_lowercase();
+                if self.league.starts_with("Hardcore ") {
+                    league_slug.push_str("hc");
+                }
                 Some(Quote {
                     chaos: line.chaos,
                     graph: line
                         .graph
                         .iter()
-                        .take(64)
                         .map(|p| p.filter(|n| n.is_finite()))
                         .collect(),
                     category: overview.kind.clone(),
                     variant: line.variant.clone(),
                     age_seconds: now.saturating_sub(self.fetched),
                     url: format!(
-                        "https://poe.ninja/poe1/economy/{}/{}",
+                        "https://poe.ninja/poe1/economy/{}/{}/{}",
                         encode_segment(&league_slug),
-                        route
+                        route,
+                        key.slug()
                     ),
                     from_cache,
                 })
@@ -304,12 +197,22 @@ impl Economy {
         generation: u64,
         current: &Arc<AtomicU64>,
     ) -> Result<Option<Quote>, String> {
+        self.report(league, item, generation, current)
+            .map(|r| r.quote)
+    }
+    pub fn report(
+        &mut self,
+        league: &str,
+        item: &Item,
+        generation: u64,
+        current: &Arc<AtomicU64>,
+    ) -> Result<Report, String> {
         let valid = || current.load(Ordering::Acquire) == generation;
         if !valid() {
             return Err("Cancelled".into());
         }
         let Some(key) = Key::for_item(item) else {
-            return Ok(None);
+            return Ok(Report::default());
         };
         if league.trim().is_empty() || league.len() > 100 {
             return Err("Invalid economy league".into());
@@ -339,7 +242,7 @@ impl Economy {
             .get(league)
             .filter(|c| c.fresh(league, timestamp))
         {
-            return Ok(cached.find(&key, timestamp, true));
+            return Ok(cached.report(&key, item, timestamp, true));
         }
         if self.next > Instant::now() {
             return Err("poe.ninja cooldown; retry later".into());
@@ -398,12 +301,12 @@ impl Economy {
             "economy network_us={network_us} decode_us={decode_us} cache_write_us={}",
             write_started.elapsed().as_micros()
         );
-        let quote = cached.find(&key, now(), false);
+        let report = cached.report(&key, item, now(), false);
         if self.memory.len() >= 4 {
             self.memory.clear();
         }
         self.memory.insert(league.into(), cached);
-        Ok(quote)
+        Ok(report)
     }
     fn save(&self, path: &std::path::Path, data: &Cached) -> Result<(), String> {
         std::fs::create_dir_all(&self.cache_dir).map_err(|e| e.to_string())?;
@@ -629,7 +532,7 @@ mod tests {
 mod variant_metadata_tests {
     use super::*;
     #[test]
-    fn recognised_special_unique_variants_never_reuse_an_ordinary_quote() {
+    fn special_unique_traits_keep_an_explicit_ordinary_reference_warning() {
         for text in [
             "Foulborn Lifesprig\nDriftwood Wand",
             "Lifesprig\nVestigial Driftwood Wand",
@@ -639,8 +542,50 @@ mod variant_metadata_tests {
                 "Item Class: Wands\nRarity: Unique\n{text}\n--------\nItem Level: 83"
             ))
             .unwrap();
-            assert!(item.market.known);
-            assert!(Key::for_item(&item).is_none());
+            let key = Key::for_item(&item).unwrap();
+            let cache:Cached=serde_json::from_value(serde_json::json!({"version":1,"league":"Covens","fetched":100,"data":{"itemOverviews":[{"type":"UniqueWeapon","lines":[{"name":"Lifesprig","variant":"Driftwood Wand","chaos":5}]}]}})).unwrap();
+            let report = cache.report(&key, &item, 103, true);
+            assert_eq!(report.quote.unwrap().chaos, 5.);
+            assert!(report.warning.unwrap().contains("identité ordinaire"));
         }
+    }
+    #[test]
+    fn missing_base_price_does_not_hide_the_related_set_or_invent_missing_prices() {
+        let item=Item::parse("Item Class: Map Fragments\nRarity: Normal\nSacrifice at Dawn\n--------\nStack Size: 1/10").unwrap();
+        let cache:Cached=serde_json::from_value(serde_json::json!({"version":1,"league":"Covens","fetched":100,"data":{"currencyOverviews":[{"type":"Fragment","lines":[{"name":"Sacrifice at Midnight","chaos":2}]}]}})).unwrap();
+        let report = cache.report(&Key::for_item(&item).unwrap(), &item, 103, true);
+        assert!(report.quote.is_none());
+        let related = report.related.unwrap();
+        assert_eq!(related.related.len(), 4);
+        assert_eq!(
+            related.related.iter().filter(|r| r.price.is_some()).count(),
+            1
+        );
+        assert!(related
+            .related
+            .iter()
+            .find(|r| r.highlight)
+            .unwrap()
+            .price
+            .is_none());
+    }
+    #[test]
+    fn abyssal_sockets_use_the_first_source_and_detail_urls_normalize_unicode() {
+        let item=Item::parse("Item Class: Gloves\nRarity: Unique\nTombfist\nSteelscale Gauntlets\n--------\n{ Modifier \"Fixture\" }\nHas 1 Abyssal Socket\n{ Modifier \"Fixture\" }\nHas 1 Abyssal Socket").unwrap();
+        assert_eq!(item.modifiers[0].value, Some(2.));
+        assert_eq!(item.modifiers[0].sources[0].value, Some(1.));
+        assert_eq!(
+            Key::for_item(&item).unwrap().variant.as_deref(),
+            Some("1 Jewel, Steelscale Gauntlets")
+        );
+        assert_eq!(
+            Key {
+                namespace: "ITEM".into(),
+                name: "Maëlström of Chaos".into(),
+                variant: None
+            }
+            .slug(),
+            "maelstrom-of-chaos"
+        );
     }
 }

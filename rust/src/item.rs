@@ -39,6 +39,8 @@ pub struct Item {
     pub trade_discriminator: Option<String>,
     pub category: Option<String>,
     pub stack_size: Option<u32>,
+    #[serde(default)]
+    pub stack_max: Option<u32>,
     pub influences: Vec<String>,
     pub properties: crate::properties::Properties,
     pub armour_base: crate::properties::ArmourBase,
@@ -207,6 +209,23 @@ fn catalogue() -> &'static Vec<CatalogueEntry> {
     })
 }
 
+/// Name resolution used by RelatedItems.vue, including its unique-base fallback.
+pub fn catalogue_name(namespace: &str, reference: &str, variant: Option<&str>) -> Option<String> {
+    let entries = catalogue();
+    if namespace == "UNIQUE" {
+        if let Some(entry) = entries.iter().find(|e| {
+            e.namespace == namespace
+                && e.reference == reference
+                && e.unique.as_ref().and_then(|u| u.base.as_deref()) == variant
+        }) {
+            return Some(entry.name.clone());
+        }
+    }
+    entries
+        .iter()
+        .find(|e| e.namespace == namespace && e.reference == reference)
+        .map(|e| e.name.clone())
+}
 fn number(text: &str) -> Option<u32> {
     text.replace(',', "")
         .split(|c: char| !c.is_ascii_digit())
@@ -507,6 +526,24 @@ impl Item {
                 .collect(),
             talisman_tier: prop("Talisman Tier: "),
         };
+        let stack = lines
+            .iter()
+            .find_map(|s| s.strip_prefix("Stack Size: "))
+            .map(|s| {
+                s.chars()
+                    .filter(|c| c.is_ascii_digit() || *c == '/')
+                    .collect::<String>()
+            });
+        let (stack_size, stack_max) = stack
+            .as_ref()
+            .map(|s| {
+                let mut parts = s.split('/');
+                (
+                    parts.next().and_then(|s| s.parse().ok()),
+                    parts.next().and_then(|s| s.parse().ok()),
+                )
+            })
+            .unwrap_or((None, None));
         Ok(Self {
             class,
             rarity,
@@ -566,7 +603,8 @@ impl Item {
                 .and_then(|v| v.trade_discriminator.as_deref())
                 .map(str::to_owned),
             category: category.map(str::to_owned),
-            stack_size: prop("Stack Size: "),
+            stack_size,
+            stack_max,
             influences: [
                 "Shaper", "Elder", "Crusader", "Hunter", "Redeemer", "Warlord",
             ]

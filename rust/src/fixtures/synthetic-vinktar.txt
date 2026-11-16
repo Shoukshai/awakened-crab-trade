@@ -1,0 +1,9 @@
+Item Class: Utility Flasks
+Rarity: Unique
+Vessel of Vinktar
+Topaz Flask
+--------
+Item Level: 83
+--------
+{ Unique Modifier }
+Adds 10 to 20 Lightning Damage to Attacks during Effect

@@ -40,6 +40,7 @@ pub struct SourceInfo {
     pub variable: bool,
     pub roll_incr: bool,
     pub legacy: bool,
+    pub value: Option<f64>,
 }
 pub fn header_info(header: &str) -> SourceInfo {
     #[derive(Deserialize)]
@@ -187,8 +188,9 @@ fn parse_block(
                 source.variable = modifier.min != modifier.max;
                 source.roll_incr = effect != 0.;
                 source.legacy = modifier.legacy;
-                modifier.sources.push(source);
                 apply_effect(&mut modifier, effect);
+                source.value = modifier.value;
+                modifier.sources.push(source);
                 modifier.fractured_t1 = fractured_t1;
                 modifier.tier = tier;
                 result.push(modifier);

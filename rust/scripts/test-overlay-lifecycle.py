@@ -48,7 +48,7 @@ def fixture_command(name):
     return json.loads(fixture.stdout.readline())
 def show_price():
     focus_game();command('check');s=wait_for(lambda:state(state='Passive',rendered=True,visible=True),'price visible')
-    assert s['game_active'] and s['keyboard_mode']=='None' and (s['stat_controls'] or s.get('mercenary_controls')),s
+    assert s['game_active'] and s['keyboard_mode']=='None',s
     return s
 try:
     river=start(['river','-c',str(init)],'river')
@@ -202,6 +202,53 @@ try:
     assert report.get('mercenary_scroll_events',0)>0,'scroll coverage is required'
     report['mercenary_editor']={'six_links':True,'minimum_edited':True,'optional_supports':2,'group_disable_suspends_children':True,'edits_clear_prices':True,'pointer_scroll':True,'browser_fallback_keeps_query':True}
     command('hide');focus_game()
+    # One cached feed supplies root price, stack value and all related prices.
+    cachedir=pathlib.Path(env['XDG_CACHE_HOME'])/'awakened-poe-trade-rs/economy';cachedir.mkdir(parents=True,exist_ok=True)
+    cache={'version':1,'league':'Standard','fetched':int(time.time()),'data':{'currencyOverviews':[
+        {'type':'Currency','lines':[{'name':'Divine Orb','chaos':200}]},
+        {'type':'Fragment','lines':[{'name':'Sacrifice at Dawn','chaos':50,'graph':[-2,0,2,3,4,5,6]},{'name':'Sacrifice at Midnight','chaos':201},{'name':'Sacrifice at Noon','chaos':0}]}],
+        'itemOverviews':[{'type':'UniqueWeapon','lines':[{'name':"Doryani's Catalyst",'variant':'Vaal Sceptre','chaos':500}]}]}}
+    (cachedir/'Standard.json').write_text(json.dumps(cache))
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures/synthetic-sacrifice-fragment.txt').read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+    show_price()
+    def economy_ready():
+        s=status();return s if s['economy'] and s['economy'].get('quote') and s['economy']['quote']['chaos']==50 else None
+    s=wait_for(economy_ready,'cached economy report')
+    e=s['economy'];panel=s['economy_panel']
+    assert e['quote']['from_cache'] and e['price']=={'min':50,'max':50,'currency':'chaos'},e
+    assert e['stack']['have']==3 and e['stack']['price']['min']==150 and e['stack']['maximum']==10 and e['stack']['full_stack_price']=={'min':2.5,'max':2.5,'currency':'div'},e
+    assert e['related']['related'][1]['price']=={'min':1,'max':1,'currency':'div'},e
+    assert e['related']['related'][2]['price']['min']==0 and e['related']['related'][3]['price'] is None,e
+    assert panel['graph_visible'] and panel['source_enabled'] and panel['url'].endswith('/fragments/sacrifice-at-dawn'),panel
+    assert panel['related']['visible'] and s['game_active'] and s['keyboard_mode']=='None'
+    command('interact');s=wait_for(lambda:state(state='Interactive'),'economy interactive')
+    r=s['economy_panel']['related'];o=s['origin']
+    pointer(o['x']+r['x']+10,o['y']+r['y']+10,True)
+    wait_for(lambda:status()['economy_panel']['related']['expanded'] and status()['economy_panel']['related']['height']>100,'related prices mapped')
+    assert status()['state']=='Interactive'
+    report['economy_report']={'shared_disk_cache':True,'stack_and_full_stack':True,'divine_conversion':True,'zero_distinct_from_missing':True,'related_rows':panel['related_rows'],'detail_url':True,'trend_and_graph':True}
+    # Edit the actual GTK entry on this private desktop only. Changing league
+    # must revoke the old quote/graph/link/related rows without starting HTTP.
+    s=status();r=s['league_control'];o=s['origin']
+    pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']/2,True)
+    subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','StandardX'],env=env,check=True)
+    s=wait_for(lambda:status() if status()['league_control']['value']=='StandardX' else None,'league entry edited')
+    assert s['state']=='Interactive' and s['economy'] is None and s['request'] is None and s['trade_link'] is None,s
+    p=s['economy_panel']
+    assert not p['graph_visible'] and not p['source_enabled'] and not p['related']['visible'] and p['related_rows']==0 and p['url'] is None,p
+    assert 'Ligue modifiée' in p['text'],p
+    subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','Standard'],env=env,check=True)
+    wait_for(lambda:status()['league_control']['value']=='Standard','league restored')
+    report['economy_report']['league_edit_clears_previous_quote_without_http']=True
+    command('hide');focus_game()
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures/driftwood-wand.txt').read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+    show_price()
+    def no_stale_related():
+        s=status();return s if s['economy'] and s['economy'].get('identity',{}).get('name')=='Driftwood Wand' and s['economy']['quote'] is None else None
+    s=wait_for(no_stale_related,'new item economy identity')
+    assert not s['economy_panel']['graph_visible'] and not s['economy_panel']['related']['visible'] and not s['economy_panel']['source_enabled'],s['economy_panel']
+    report['economy_report']['new_item_clears_previous_rows']=True
+    command('hide');focus_game()
     show_price();fixture_command('destroy');s=wait_for(lambda:state(state='Hidden',game_active=False),'game destroyed');assert s['last_hide_reason']=='GameGone',s
     new=fixture_command('create');assert new['game']!=first['game'];focus_game();assert status()['state']=='Hidden'
     show_price();command('hide');assert status()['keyboard_mode']=='None'
@@ -209,7 +256,7 @@ try:
     report['network']='external services blocked by private proxy environment'
     report['scope']='private headless River/XWayland at 2560x1600; fake game only; no real PoE input'
     report['binary_version']=subprocess.check_output([str(app),'--version'],env=env,text=True).strip()
-    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/mercenary_panel.rs','src/item/mercenary.rs','src/item/mercenary/query.rs']}
+    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/mercenary_panel.rs','src/item/mercenary.rs','src/item/mercenary/query.rs','src/economy.rs','src/economy/identity.rs','src/economy/model.rs','src/ui/economy_panel.rs','src/item.rs','src/modifiers.rs']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 finally:

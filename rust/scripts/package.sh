@@ -13,11 +13,12 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     renderer/public/data/en/items.ndjson renderer/public/data/en/stats.ndjson \
     renderer/public/data/en/stats-matcher.index.bin renderer/public/data/en/stats-ref.index.bin \
     renderer/public/data/en/items-name.index.bin renderer/public/data/en/items-ref.index.bin \
-    renderer/public/data/en/client_strings.js renderer/src/parser renderer/src/assets/data \
+    renderer/public/data/en/client_strings.js renderer/public/data/item-drop.json renderer/src/parser renderer/src/assets/data \
     renderer/src/web/price-check/filters \
     renderer/src/web/price-check/trade/common.ts \
     renderer/src/web/price-check/trade/pathofexile-trade.ts \
-    renderer/src/web/background/Leagues.ts \
+    renderer/src/web/background/Leagues.ts renderer/src/web/background/Prices.ts \
+    renderer/src/web/price-check/trends renderer/src/web/price-check/related-items renderer/src/web/price-check/expected-value \
     renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
     renderer/src/web/item-check/ItemInfo.vue \
     renderer/package.json renderer/package-lock.json \

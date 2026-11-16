@@ -3,7 +3,7 @@ use crate::{
         clipboard,
         wayland::{self, Snapshot},
     },
-    economy::{Economy, Quote},
+    economy::{Economy, Report},
     filters,
     item::Item,
     overlay::{DesktopState, HideReason, Overlay, State},
@@ -29,7 +29,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-type EconomyResult = Result<Option<Quote>, String>;
+type EconomyResult = Result<Report, String>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
     Price,
@@ -41,7 +41,7 @@ enum Event {
     TrackerError(String),
     Captured(u64, View, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
-    Economy(u64, Result<Option<Quote>, String>),
+    Economy(u64, Box<EconomyResult>),
     MapSettings(crate::inspection::Edit),
     FiltersChanged(u64, String),
 }
@@ -261,7 +261,7 @@ impl Ui {
                 self.item_filters.container.hide();
                 self.url.replace(None);
                 self.economy_panel.reset();
-                self.economy_panel.show(&Ok(None), None);
+                self.economy_panel.show(&Ok(Report::default()));
                 self.title.set_text("AWAKENED POE TRADE · RUST");
                 self.text.set_text("Panneau natif de validation\n\nClavier et clics restent au jeu.\nAucun prix simulé n'est affiché.");
                 self.show();
@@ -468,6 +468,10 @@ impl Ui {
         self.sync_generation();
         self.request.replace(None);
         self.url.replace(None);
+        if origin == "league" {
+            self.economy_result.replace(None);
+            self.economy_panel.league_changed();
+        }
         self.mod_expander.set_label(Some(&format!(
             "Filtres · {} actifs",
             self.stat_rows
@@ -526,7 +530,7 @@ impl Ui {
         self.url.replace(None);
         self.request.replace(None);
         self.economy_panel.reset();
-        self.economy_panel.show(&Ok(None), item.stack_size);
+        self.economy_panel.show(&Ok(Report::default()));
         let mut settings = self.settings.borrow().clone();
         settings.league = self.league.text().trim().to_string();
         settings.filters.online = self.online.is_active();
@@ -596,10 +600,9 @@ impl Ui {
             })
             .is_err()
         {
-            self.economy_panel.show(
-                &Err("une requête indicative est déjà en cours ; réessayez".into()),
-                item.stack_size,
-            );
+            self.economy_panel.show(&Err(
+                "une requête indicative est déjà en cours ; réessayez".into()
+            ));
         }
         self.text.set_text(&format!("Recherche dans {}…\n\nComparaison selon la portée et les filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
         match self.worker.try_send(Job {
@@ -723,7 +726,7 @@ impl Ui {
                         self.preset.hide();
                         self.item_filters.container.hide();
                         self.economy_panel.reset();
-                        self.economy_panel.show(&Ok(None), None);
+                        self.economy_panel.show(&Ok(Report::default()));
                         self.title.set_text("Impossible de lire l'objet");
                         self.text.set_text(&e);
                         eprintln!("capture error={e}");
@@ -797,6 +800,7 @@ impl Ui {
                 }
             }
             Event::Economy(generation, result) => {
+                let result = *result;
                 if !self.state.borrow().accepts(generation) {
                     eprintln!("discarded economy generation={generation}");
                     return;
@@ -804,16 +808,13 @@ impl Ui {
                 if let Err(e) = &result {
                     eprintln!("economy error generation={generation} error={e}");
                 }
-                if let Ok(Some(q)) = &result {
+                if let Some(q) = result.as_ref().ok().and_then(|r| r.quote.as_ref()) {
                     eprintln!(
                         "economy result generation={generation} chaos={} age_s={} cached={}",
                         q.chaos, q.age_seconds, q.from_cache
                     );
                 }
-                self.economy_panel.show(
-                    &result,
-                    self.item.borrow().as_ref().and_then(|i| i.stack_size),
-                );
+                self.economy_panel.show(&result);
                 self.economy_result.replace(Some((generation, result)));
             }
         }
@@ -842,7 +843,7 @@ pub fn run() -> Result<(), String> {
         }
         if args[0] == "economy" {
             let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
-            let quote = Economy::new()?.quote(&league, &item, 1, &Arc::new(AtomicU64::new(1)));
+            let quote = Economy::new()?.report(&league, &item, 1, &Arc::new(AtomicU64::new(1)));
             println!(
                 "{}",
                 serde_json::json!({"league":league,"item":item,"economy":quote})
@@ -1189,8 +1190,11 @@ pub fn run() -> Result<(), String> {
                 let result = economy
                     .as_mut()
                     .map_err(|e| e.clone())
-                    .and_then(|e| e.quote(&job.league, &job.item, job.generation, &current));
-                if sender.send(Event::Economy(job.generation, result)).is_err() {
+                    .and_then(|e| e.report(&job.league, &job.item, job.generation, &current));
+                if sender
+                    .send(Event::Economy(job.generation, Box::new(result)))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -1457,7 +1461,8 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

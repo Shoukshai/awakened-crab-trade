@@ -1,4 +1,4 @@
-use crate::economy::Quote;
+use crate::economy::{model::CurrencyValue, Report};
 use gtk::prelude::*;
 use std::{cell::RefCell, rc::Rc};
 
@@ -7,6 +7,8 @@ pub struct EconomyPanel {
     pub open: gtk::Button,
     label: gtk::Label,
     graph: gtk::DrawingArea,
+    related: gtk::Expander,
+    related_rows: gtk::Box,
     points: Rc<RefCell<Vec<Option<f64>>>>,
     url: RefCell<Option<String>>,
 }
@@ -73,11 +75,29 @@ impl EconomyPanel {
         container.pack_start(&label, false, false, 0);
         container.pack_start(&graph, false, false, 0);
         container.pack_start(&open, false, false, 0);
+        let related_rows = gtk::Box::new(gtk::Orientation::Vertical, 5);
+        let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+        scroll.set_min_content_height(100);
+        scroll.set_max_content_height(200);
+        scroll.set_propagate_natural_height(true);
+        scroll.add(&related_rows);
+        let related = gtk::Expander::new(Some("Objets liés et prix indicatifs"));
+        related.add(&scroll);
+        // The optional expander opts out of the window's show_all. Its child
+        // must still be visible before expansion can map the scrolling list.
+        scroll.show_all();
+        related.set_no_show_all(true);
+        related.hide();
+        container.pack_start(&related, false, false, 0);
+
         Self {
             container,
             open,
             label,
             graph,
+            related,
+            related_rows,
             points,
             url: RefCell::new(None),
         }
@@ -89,52 +109,133 @@ impl EconomyPanel {
         self.points.borrow_mut().clear();
         self.url.replace(None);
         self.open.set_sensitive(false);
+        self.related.hide();
+        self.related.set_expanded(false);
+        for child in self.related_rows.children() {
+            self.related_rows.remove(&child);
+        }
     }
-    pub fn show(&self, result: &Result<Option<Quote>, String>, stack: Option<u32>) {
+    pub fn league_changed(&self) {
+        self.reset();
+        self.label
+            .set_text("Ligue modifiée : cliquez Rechercher pour charger la cote.");
+    }
+    pub fn show(&self, result: &Result<Report, String>) {
         self.url.replace(None);
         self.open.set_sensitive(false);
-        match result {
-            Ok(Some(q)) => {
-                let unit = if q.category == "BaseType" {
-                    "Prix de la base seule"
-                } else {
-                    "Prix indicatif"
-                };
-                let stack = stack
-                    .filter(|n| *n > 1)
-                    .map(|n| format!(" · pile de {n} ≈ {:.5} chaos", q.chaos * n as f64))
-                    .unwrap_or_default();
-                self.label.set_text(&format!(
-                    "{unit} poe.ninja : {} chaos / objet{stack}\n{}{} · âge du cache à la consultation : {} min",
-                    format_amount(q.chaos),
-                    q.category,
-                    q.variant
-                        .as_ref()
-                        .map(|v| format!(" · {v}"))
-                        .unwrap_or_default(),
-                    q.age_seconds / 60
-                ));
-                self.points.replace(q.graph.clone());
-                if q.graph.iter().flatten().count() >= 2 {
-                    self.graph.show();
-                    self.graph.queue_draw();
-                } else {
-                    self.graph.hide();
-                }
-                self.url.replace(Some(q.url.clone()));
-                self.open.set_sensitive(true);
-            }
-            Ok(None) => {
-                self.label
-                    .set_text("Aucun prix poe.ninja pour cette identité et variante.");
-                self.graph.hide();
-            }
-            Err(e) => {
-                self.label
-                    .set_text(&format!("Prix indicatif indisponible : {e}"));
-                self.graph.hide();
-            }
+        self.graph.hide();
+        self.related.hide();
+        for child in self.related_rows.children() {
+            self.related_rows.remove(&child);
         }
+        match result {
+            Ok(report) => {
+                let mut text = if let Some(q) = &report.quote {
+                    let unit = if q.category == "BaseType" {
+                        "Prix de la base seule"
+                    } else {
+                        "Prix indicatif"
+                    };
+                    let price = report
+                        .price
+                        .as_ref()
+                        .map(money)
+                        .unwrap_or_else(|| format!("{} chaos", format_amount(q.chaos)));
+                    let mut text=format!("{unit} poe.ninja : {price} / objet\n{}{} · âge du cache à la consultation : {} min",q.category,q.variant.as_ref().map(|v|format!(" · {v}")).unwrap_or_default(),q.age_seconds/60);
+                    if let Some(stack) = &report.stack {
+                        if stack.have > 1 {
+                            text += &format!(
+                                "\nPile copiée × {} ≈ {}",
+                                stack.have,
+                                money(&stack.price)
+                            );
+                        }
+                        if let Some(maximum) = stack.maximum.zip(stack.full_stack_price.as_ref()) {
+                            text +=
+                                &format!(" · pile complète × {} ≈ {}", maximum.0, money(maximum.1));
+                        }
+                    }
+                    if let Some(trend) = &report.trend {
+                        text += &format!(
+                            "\nTendance {} · dispersion {}",
+                            match trend.forecast.as_str() {
+                                "up" => "en hausse",
+                                "down" => "en baisse",
+                                _ => "stable",
+                            },
+                            trend.text
+                        );
+                    }
+                    self.points
+                        .replace(q.graph.iter().take(64).copied().collect());
+                    if q.graph.iter().flatten().count() >= 2 {
+                        self.graph.show();
+                        self.graph.queue_draw();
+                    }
+                    self.url.replace(Some(q.url.clone()));
+                    self.open.set_sensitive(true);
+                    text
+                } else {
+                    "Aucun prix poe.ninja pour cette identité et variante.".into()
+                };
+                if let Some(warning) = &report.warning {
+                    text += &format!("\n{warning}");
+                }
+                self.label.set_text(&text);
+                if let Some(related) = &report.related {
+                    if let Some(error) = &related.error {
+                        self.related_rows.pack_start(
+                            &row_label(&format!("Catalogue lié : {error}")),
+                            false,
+                            false,
+                            0,
+                        );
+                    } else {
+                        for (title, rows) in [
+                            ("Ensemble lié", &related.related),
+                            ("Objets associés", &related.items),
+                        ] {
+                            if rows.is_empty() {
+                                continue;
+                            }
+                            self.related_rows
+                                .pack_start(&row_label(title), false, false, 0);
+                            for row in rows {
+                                let value = row
+                                    .price
+                                    .as_ref()
+                                    .map(money)
+                                    .unwrap_or_else(|| "prix indisponible".into());
+                                let variant = row
+                                    .key
+                                    .variant
+                                    .as_ref()
+                                    .map(|v| format!(" · {v}"))
+                                    .unwrap_or_default();
+                                self.related_rows.pack_start(
+                                    &row_label(&format!(
+                                        "{}{}{variant} : {value}",
+                                        if row.highlight { "→ " } else { "" },
+                                        row.name
+                                    )),
+                                    false,
+                                    false,
+                                    0,
+                                );
+                            }
+                        }
+                    }
+                    self.related_rows.show_all();
+                    self.related.show();
+                }
+            }
+            Err(error) => self
+                .label
+                .set_text(&format!("Prix indicatif indisponible : {error}")),
+        }
+    }
+    pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
+        serde_json::json!({"text":self.label.text().to_string(),"graph_visible":self.graph.is_visible(),"source_enabled":self.open.is_sensitive(),"url":*self.url.borrow(),"related":self.related.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.related.allocated_width(),"height":self.related.allocated_height(),"visible":self.related.is_visible(),"expanded":self.related.is_expanded()})),"related_rows":self.related_rows.children().len()})
     }
     pub fn url(&self) -> Option<String> {
         self.url.borrow().clone()
@@ -146,4 +247,15 @@ pub fn format_amount(value: f64) -> String {
     }
     let text = format!("{value:.5}");
     text.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+fn row_label(text: &str) -> gtk::Label {
+    let label = gtk::Label::new(Some(text));
+    label.set_xalign(0.);
+    label.set_line_wrap(true);
+    label.set_max_width_chars(60);
+    label
+}
+fn money(value: &CurrencyValue) -> String {
+    format!("{} {}", format_amount(value.min), value.currency)
 }

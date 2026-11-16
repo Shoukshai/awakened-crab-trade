@@ -18,7 +18,9 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
 | Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; Mercenary Warrant porté au jalon 0.11 ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
-| Prix poe.ninja, tendances, prix liés, valeur espérée (poussière locale portée dans l’évaluation) | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, valeur espérée (poussière locale portée dans l’évaluation) |
+| Prix poe.ninja, tendances, objets liés, valeurs des piles (`expected-value`) | oui | identités/variantes upstream, feed dense/cache 31 min partagé, chaos/divine, pile copiée/complète, graphe et dispersion, 392 relations, lien exact | 6 937 identités, 39 routes, 392 ensembles, 78 conversions, 508 graphes et 4 982 slugs comparés ; feed réel Covens, Wisdom réelle et fixtures au-dessus du jeu ; cycle privé incluant édition de ligue | images ; copies réelles des uniques spéciaux ; Filled Coffin absent du catalogue actuel ; cote générique Vinktar signalée |
+| Prédiction des rares (`price-prediction/poeprices.ts`) | oui | non | non | service, consentement de partage et rendu natif |
+| Résolution des non-identifiés (`unidentified-resolver`) | oui | non | non | choix d’identité et recalcul natifs |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
@@ -152,3 +154,30 @@ puis utilise l’ID serveur si elle aboutit. Une erreur ne supprime pas les crit
 La navigation reste un clic explicite, après révocation des entrées du panneau.
 Authentification native, images des compétences, copies réelles de Warrants et
 navigation réelle du navigateur restent non validées/non implémentées.
+
+
+## Jalon 0.12 : identités, tendances et objets liés
+
+`economy/identity.rs` porte `getDetailsId.ts` ; `economy/model.rs` porte les valeurs,
+conversions chaos/divine, dispersion/prévision et relations `item-drop.json`.
+Le catalogue et le feed sont partagés entre prix principal et objets liés.
+Les sources numériques conservent leur première contribution avant agrégation,
+nécessaire aux variantes. Le parseur conserve la quantité maximale des piles.
+Le format de cache version 1 reste lisible ; les requêtes, limites et annulations
+conservent les workers bornés. Les messages de résultat sont indirects pour ne
+pas agrandir tous les événements UI.
+
+Le panneau natif ajoute un volet défilant d’objets liés, les valeurs des piles,
+les avertissements de référence générique et un lien vers la fiche exacte.
+Modifier la ligue révoque immédiatement cote, graphe, lien et objets liés sans
+HTTP ; la recherche explicite charge la nouvelle ligue. Une réponse obsolète ne
+peut pas restaurer ces données. Les images upstream ne sont pas portées.
+
+Les comparaisons exécutent le parseur anglais et les fonctions TypeScript pures
+inchangées avec un feed déterministe, y compris prix absents et nuls. Elles ne
+prouvent pas la parité du parseur entier ni celle des cotations live. Les quatre
+anciennes références Vinktar ne correspondent plus au catalogue courant ; la
+cote générique disponible est signalée. Filled Coffin est absent du catalogue
+courant : les tests Rust de sa branche historique ne valident pas sa copie
+complète. Foulborn/Vestigial/foil utilisent uniquement une référence ordinaire,
+avec avertissement explicite, sans valorisation de leur trait.
