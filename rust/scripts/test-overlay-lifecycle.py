@@ -249,6 +249,54 @@ try:
     assert not s['economy_panel']['graph_visible'] and not s['economy_panel']['related']['visible'] and not s['economy_panel']['source_enabled'],s['economy_panel']
     report['economy_report']['new_item_clears_previous_rows']=True
     command('hide');focus_game()
+    def trade_searches():return (runtime/'overlay.log').read_text().count('trade search generation=')
+    def load_unique(name,view='check'):
+        command('hide');focus_game()
+        subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures'/name).read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+        before=trade_searches();command(view)
+        s=wait_for(lambda:state(state='Passive',rendered=True,visible=True),'unique copy visible')
+        assert s['game_active'] and s['keyboard_mode']=='None'
+        return s,before
+    def choose_identity(reference):
+        command('interact');wait_for(lambda:state(state='Interactive'),'identity interactive')
+        for _ in range(24):
+            s=status();panel=s['unidentified_resolver'];r=next(c['rect'] for c in panel['choices'] if c['reference']==reference);v=panel['scroll'];o=s['origin'];y=r['y']+r['height']/2
+            assert r['mapped'] and r['width']>20
+            if v['y']+12<y<v['y']+v['height']-12:
+                pointer(o['x']+r['x']+r['width']/2,o['y']+y,True)
+                return wait_for(lambda:status() if status()['item']['reference']==reference and not status()['unidentified_resolver']['visible'] else None,'identity chosen')
+            subprocess.run([str(target/'debug/examples/pointer'),str(int(o['x']+v['x']+v['width']/2)),str(int(o['y']+v['y']+v['height']/2)),'2560','1600','--scroll','60' if y>v['y']+v['height']/2 else '-60'],env=env,check=True)
+            time.sleep(.08)
+            after=status();assert after['generation']==s['generation'],'identity scrolling edited filters'
+            if after['unidentified_resolver']['scroll']['value']!=v['value']:report['identity_scroll_events']=report.get('identity_scroll_events',0)+1
+        raise RuntimeError('identity choice did not scroll into view')
+    s,before=load_unique('synthetic-unidentified-belt.txt')
+    assert s['unidentified_resolver']['visible'] and len(s['unidentified_resolver']['choices'])==12,s
+    command('prices');time.sleep(.15)
+    assert trade_searches()==before and status()['request'] is None and status()['economy'] is None
+    s=choose_identity('Mageblood')
+    assert report.get('identity_scroll_events',0)>0,'identity scroll coverage is required'
+    assert s['item']['unidentified'] and s['item']['namespace']=='UNIQUE' and s['state']=='Interactive',s
+    s=wait_for(lambda:status() if status()['request'] else None,'chosen unique query')
+    assert s['request']['query']['name']=='Mageblood' and s['request']['query']['filters']['misc_filters']['filters']['identified']['option']=='false',s['request']
+    assert trade_searches()==before+1
+    wait_for(lambda:status()['economy'] and status()['economy'].get('identity',{}).get('name')=='Mageblood','chosen economy identity')
+    assert 'reste non identifié' in status()['economy_panel']['text']
+    s,before=load_unique('synthetic-unidentified-wand.txt')
+    assert s['item']['reference']=='Lifesprig' and s['item']['unidentified'] and not s['unidentified_resolver']['visible'],s
+    assert s['request']['query']['name']=='Lifesprig' and trade_searches()==before+1,s
+    s,before=load_unique('synthetic-unidentified-belt.txt','inspect-check')
+    assert s['unidentified_resolver']['visible'] and s['view']=='Inspection' and trade_searches()==before
+    s=choose_identity('Mageblood')
+    assert s['inspection']['dust']>0 and trade_searches()==before and s['state']=='Interactive',s
+    command('hide');focus_game()
+    missing=(root/'src/fixtures/synthetic-unidentified-wand.txt').read_text().replace('Driftwood Wand','Accumulator Wand')
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=missing,env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+    before=trade_searches();show_price();s=status();assert s['unidentified_resolver']['visible'] and not s['unidentified_resolver']['choices'] and s['request'] is None and trade_searches()==before,s
+    report['unidentified_resolver']={'catalogue_choices':12,'unresolved_sends_no_query':True,'native_click_and_scroll':True,'chosen_query_keeps_unidentified':True,'one_candidate_automatic':True,'inspection_offline_with_dust':True,'no_candidate_blocks_query':True}
+    command('hide');focus_game()
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures/driftwood-wand.txt').read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+
     show_price();fixture_command('destroy');s=wait_for(lambda:state(state='Hidden',game_active=False),'game destroyed');assert s['last_hide_reason']=='GameGone',s
     new=fixture_command('create');assert new['game']!=first['game'];focus_game();assert status()['state']=='Hidden'
     show_price();command('hide');assert status()['keyboard_mode']=='None'
@@ -256,7 +304,7 @@ try:
     report['network']='external services blocked by private proxy environment'
     report['scope']='private headless River/XWayland at 2560x1600; fake game only; no real PoE input'
     report['binary_version']=subprocess.check_output([str(app),'--version'],env=env,text=True).strip()
-    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/mercenary_panel.rs','src/item/mercenary.rs','src/item/mercenary/query.rs','src/economy.rs','src/economy/identity.rs','src/economy/model.rs','src/ui/economy_panel.rs','src/item.rs','src/modifiers.rs']}
+    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/mercenary_panel.rs','src/item/mercenary.rs','src/item/mercenary/query.rs','src/economy.rs','src/economy/identity.rs','src/economy/model.rs','src/ui/economy_panel.rs','src/item.rs','src/modifiers.rs','src/item/unidentified.rs','src/ui/unidentified_panel.rs','src/desktop/xwayland_shortcuts.rs','examples/shortcut-replay.rs']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 finally:

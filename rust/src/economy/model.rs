@@ -235,7 +235,7 @@ impl Cached {
                 full_stack_price: item.stack_max.map(|n| money(q.chaos * n as f64)),
             });
         let related = self.related(key, now, from_cache, divine_rate);
-        let warning = if item.market.foulborn || item.market.vestigial || item.market.foil {
+        let mut warning = if item.market.foulborn || item.market.vestigial || item.market.foil {
             Some("Cote de l’identité ordinaire : cette correspondance ne distingue pas Foulborn, Vestigial ou Foil. Vérifiez les offres Trade.".into())
         } else if item.reference == "Vessel of Vinktar"
             && key.variant.is_none()
@@ -248,6 +248,13 @@ impl Cached {
         } else {
             None
         };
+        if item.unidentified {
+            let message = "Cote de l’identité choisie : l’objet reste non identifié, les mods cachés ne sont pas évalués.";
+            warning = Some(match warning {
+                Some(other) => format!("{message}\n{other}"),
+                None => message.into(),
+            });
+        }
         Report {
             identity: Some(key.clone()),
             trend: quote.as_ref().and_then(|q| Trend::of(&q.graph)),

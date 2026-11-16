@@ -104,6 +104,17 @@ signalée. Filled Coffin manque dans le catalogue anglais actuel : sa copie
 complète n’est pas validée. Images des objets liés et prédiction poeprices ne sont
 pas portées.
 
+Un unique non identifié propose les identités de sa base dans une liste native.
+Passer en interaction avec **Maj+Espace**, puis choisir l’identité à consulter.
+Une seule correspondance est sélectionnée automatiquement ; aucune correspondance
+bloque la recherche. Ce choix conserve le statut non identifié, le texte copié,
+les propriétés et les mods visibles. Il ne révèle aucun mod caché et n’effectue
+aucune identification dans le jeu. La recherche Trade conserve le critère
+**non identifié** ; la cote poe.ninja décrit seulement l’identité choisie.
+Une nouvelle copie réinitialise le choix. Les variantes d’un même unique restent
+regroupées selon le premier résultat du catalogue upstream ; pas d’icônes pour
+cette liste. Le choix fonctionne aussi avant l’évaluation locale de poussière.
+
 Le bouton **Évaluer** passe aux informations locales du dernier objet. Pour les
 cartes, contrats, blueprints, invitations, charts et logbooks, trois profils
 mémorisent les décisions danger/prudence/favorable/vu. Cliquer un mod fait avancer
@@ -172,7 +183,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.12.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.13.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -206,6 +217,8 @@ cargo build --locked --example mercenary
 node scripts/compare-mercenary.cjs
 cargo build --locked --example economy-identity
 node scripts/compare-economy.cjs
+cargo build --locked --example unidentified
+node scripts/compare-unidentified.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs

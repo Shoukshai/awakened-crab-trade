@@ -1,0 +1,19 @@
+{
+  "cases": 5773,
+  "base_groups": 547,
+  "automatic_groups": 286,
+  "selected_count": 5214,
+  "source_details_errors": 64,
+  "source_parse_rejections": [],
+  "mismatch_count": 0,
+  "failures": [],
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "scope": "Unchanged English parser, computed resolver callbacks, makeIdentifiedUnique, dust, poe.ninja identities, preset/item-filter models and complete effective Trade bodies; all catalogue base groups and deduplicated unique identities; synthetic copies. Original unidentified flag and raw text retained. Missing required unique-variant stats fail closed where upstream throws; no hidden mods inferred; no icon or live-copy parity.",
+  "source_sha256": {
+    "renderer/src/web/price-check/unidentified-resolver/UnidentifiedResolver.vue": "ad2b9dcb2d8e87430bb1a5dca2d3e5caf7b198308dc03938bfc3cb29431f3b8b",
+    "renderer/src/parser/Parser.ts": "1ab2d88158e44afbb69a8717eca2fc060f37b3001b486342587b7445dab50e6a",
+    "renderer/src/web/price-check/filters/create-presets.ts": "f498a7f65ffe410ff35f3f8ef8a6c4f05205f3db4d044c0791a4ec58868ef5b4",
+    "renderer/src/web/price-check/filters/create-item-filters.ts": "0b4966f370b6f252cc7c0315d618fb50b7580cf5ea9b4ec5f970583a2633811b",
+    "renderer/src/web/price-check/trade/pathofexile-trade.ts": "63af8d01171ba2d75038cd5246c7a275918d1e8e856a88b0fb30e884cf3f0c4b"
+  }
+}

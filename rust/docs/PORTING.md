@@ -20,7 +20,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; Mercenary Warrant porté au jalon 0.11 ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
 | Prix poe.ninja, tendances, objets liés, valeurs des piles (`expected-value`) | oui | identités/variantes upstream, feed dense/cache 31 min partagé, chaos/divine, pile copiée/complète, graphe et dispersion, 392 relations, lien exact | 6 937 identités, 39 routes, 392 ensembles, 78 conversions, 508 graphes et 4 982 slugs comparés ; feed réel Covens, Wisdom réelle et fixtures au-dessus du jeu ; cycle privé incluant édition de ligue | images ; copies réelles des uniques spéciaux ; Filled Coffin absent du catalogue actuel ; cote générique Vinktar signalée |
 | Prédiction des rares (`price-prediction/poeprices.ts`) | oui | non | non | service, consentement de partage et rendu natif |
-| Résolution des non-identifiés (`unidentified-resolver`) | oui | non | non | choix d’identité et recalcul natifs |
+| Résolution des non-identifiés (`unidentified-resolver`) | oui | choix natif avec défilement, première variante par référence, résolution automatique si choix unique ; propriétés/texte/statut préservés ; aucune recherche avant choix | 5 773 comparaisons sur 547 bases et 1 259 identités ; sélection/automatisme/sans candidat/inspection testés sur River privé ; fixtures consultées au-dessus de PoE | icônes, variantes distinguées ; copies réelles de ces uniques non identifiés |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
@@ -181,3 +181,34 @@ cote générique disponible est signalée. Filled Coffin est absent du catalogue
 courant : les tests Rust de sa branche historique ne valident pas sa copie
 complète. Foulborn/Vestigial/foil utilisent uniquement une référence ordinaire,
 avec avertissement explicite, sans valorisation de leur trait.
+
+
+## Jalon 0.13 : uniques non identifiés
+
+`item/unidentified.rs` porte les candidats de `UnidentifiedResolver.vue` et la
+transformation `makeIdentifiedUnique` : ordre du catalogue, déduplication par
+référence, première variante. Le choix remplace les métadonnées d’identité et
+recalcule la poussière ; il conserve le texte brut, la base copiée, les propriétés,
+mods, liens, influences et drapeaux, notamment « non identifié ». Une identité
+d’une autre base, inconnue ou déjà résolue est refusée.
+
+`ui/unidentified_panel.rs` fournit les boutons et le défilement natifs. L’affichage
+initial reste passif ; le choix demande l’interaction explicite. Sans candidat,
+ou tant que le choix manque, aucun job Trade/poe.ninja n’est émis. Un seul candidat
+est résolu avant la première recherche. Le changement d’identité recrée les
+contrôles, invalide les anciennes générations et garde l’état interactif sans
+activation. Les callbacks portent un jeton de copie : une sélection tardive ne
+peut s’appliquer à un nouvel objet ou rouvrir une fenêtre masquée.
+
+La cote indicative rappelle que l’objet reste non identifié et que ses mods
+cachés ne sont pas évalués. Les variantes sans stats nécessaires restent sans
+identité poe.ninja plutôt que de deviner ces stats ; dans 64 cas synthétiques,
+la fonction upstream lève une exception et le port Rust retourne une absence.
+Les images et la distinction des variantes ignorées par le résolveur upstream
+restent hors de cette implémentation. Cela ne prouve pas la parité du parseur
+complet ni la valeur d’un unique réel du personnage.
+
+L’anti-répétition XWayland est maintenant propre à chaque raccourci de copie :
+passer rapidement de l’inspection aux prix ne supprime plus le second appel.
+Les répétitions du même raccourci gardent leur garde de 300 ms, vérifiée avec
+une fenêtre de jeu émulée sur le serveur privé.

@@ -305,6 +305,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         println!("PASS: other X11 app received all 4 shortcuts; cached_game_active={stale_game_active}; no overlay action");
     }
+    // This same private window now emulates the game's X11 class. No real
+    // application is focused or receives these keys. Different copy actions
+    // must not suppress each other inside the repeat guard's 300 ms window.
+    probe
+        .connection
+        .change_property8(
+            PropMode::REPLACE,
+            window,
+            AtomEnum::WM_CLASS,
+            AtomEnum::STRING,
+            b"steam_app_238960\0steam_app_238960\0",
+        )?
+        .check()?;
+    active.store(true, Ordering::Release);
+    let started = Instant::now();
+    assert!(Command::new("xdotool")
+        .args([
+            "key",
+            "--delay",
+            "1",
+            "ctrl+alt+d",
+            "ctrl+d",
+            "shift+space",
+            "ctrl+shift+d"
+        ])
+        .status()?
+        .success());
+    let actions: Vec<_> = (0..4)
+        .map(|_| action_rx.recv_timeout(Duration::from_secs(1)).unwrap())
+        .collect();
+    assert_eq!(actions, ["inspect-copy", "copy", "interact", "hide"]);
+    assert!(
+        started.elapsed() < Duration::from_millis(250),
+        "rapid sequence timing unverified"
+    );
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "ctrl+d"])
+        .status()?
+        .success());
+    assert!(
+        action_rx.recv_timeout(Duration::from_millis(50)).is_err(),
+        "same copy shortcut was not debounced"
+    );
+    std::thread::sleep(Duration::from_millis(350));
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "ctrl+d"])
+        .status()?
+        .success());
+    assert_eq!(action_rx.recv_timeout(Duration::from_secs(1))?, "copy");
+    println!("PASS: rapid inspection/price/interact/hide remain distinct; repeated copy debounced and accepted after guard");
     println!("PASS: closing probe on isolated desktop");
     Ok(())
 }

@@ -864,3 +864,64 @@ surface occupée par la liste avant de réussir. Le Trade live du fragment Dawn
 rejette par ailleurs son tag d’échange historique (`No valid exchange want tags`),
 sans retry ; les prix liés du feed restent consultables indépendamment. Cela ne
 valide pas le parcours Trade des fragments historiques sur Covens.
+
+
+## Jalon 0.13 : identité des uniques non identifiés
+
+103 tests Rust et Clippy toutes cibles réussis. Trois tests métier couvrent
+l’ordre/déduplication des choix et l’isolation par base, la conservation du texte
+et des propriétés/drapeaux après le choix, les candidats uniques/absents et les
+refus pour d’autres raretés ou une identité déjà résolue.
+
+[unidentified-0.13.json](unidentified-0.13.json) : 5 773 cas, zéro écart. Les
+547 groupes de bases et leurs 1 259 identités dédupliquées sont parcourus ;
+286 bases ont un candidat unique. Les 5 214 transformations sélectionnées
+comparent identité/namespace/base, texte conservé, statut non identifié,
+corruption/miroir/foil, poussière, identité poe.ninja, presets, modèles complets
+des filtres d’objet et corps Trade effectifs. La comparaison exécute le parseur
+anglais, les callbacks `computed` du résolveur et `makeIdentifiedUnique` inchangés.
+Les copies sont synthétiques, avec des sections distinctes pour les drapeaux.
+Niveaux 1/84, niveaux spéciaux Watcher’s Eye/Agnerod, liens, influences et drapeaux
+supplémentaires sont couverts. Les non-candidats, autres raretés et identités
+incompatibles sont vérifiés. Aucune fonction de l’oracle n’est corrigée.
+
+Pour 64 sélections nécessitant un nombre de sockets/passifs invisible sur ces
+copies, `getDetailsId` upstream lève une exception. Le port Rust retourne une
+identité absente : aucune propriété cachée n’est déduite. Cela est distingué
+d’une parité du comportement d’erreur. Les 6 937 cas d’identité du jalon économie,
+39 routes, 392 ensembles, 78 conversions, 508 tendances et 4 982 slugs sont
+rejoués sans écart après l’ajout de l’avertissement sur les non-identifiés.
+
+[overlay-lifecycle-0.13.json](overlay-lifecycle-0.13.json) reprend les contrôles
+précédents et ajoute une vraie copie de fixture dans le presse-papiers privé :
+12 candidats Heavy Belt, aucune requête même après `prices`, défilement natif sans
+édition de génération, choix Mageblood avec une seule recherche et filtre Trade
+`identified=false`, avertissement de cote, résolution automatique Lifesprig sans
+vol de focus, choix avant inspection/poussière sans HTTP et refus sans candidat.
+Les services externes sont bloqués ; ces touches ne quittent pas le bureau privé.
+
+Au-dessus du vrai PoE, release avec les textes synthétiques Heavy Belt et
+Driftwood Wand uniques non identifiés : la liste reste passive jusqu’à l’action
+explicite, le défilement et le choix Mageblood fonctionnent au clic. La recherche
+conserve `identified=false` : trois résultats/trois offres, 610 ms réseau lors de
+l’observation. Aucune cote Mageblood n’est présente pour cette identité dans le
+feed Covens observé ; l’absence et le statut non identifié sont affichés.
+Le cas à candidat unique devient Lifesprig, toujours non identifié, avec le jeu
+actif : 76 résultats/10 offres, 587 ms. Les captures du choix et du résultat ont
+été inspectées. Aucun de ces deux uniques n’a été créé, identifié ou copié dans
+le jeu. Une vraie copie Ctrl+Alt+D de la wand normale est ensuite comparée à la
+fixture ; DPS local 11, aucun HTTP, panneau masqué et jeu actif.
+
+Les autres langues, copies réelles d’uniques non identifiés, images, autres
+configurations et réduction réelle gardent leurs limites documentées. Aucun
+gain de performance n’est revendiqué pour ce jalon.
+
+La première vérification du paquet a aussi mis en évidence un raccourci perdu :
+Ctrl+D envoyé moins de 300 ms après Ctrl+Alt+D était supprimé par l’anti-répétition
+commun aux deux actions. Les horodatages sont maintenant distincts par raccourci.
+Le test `test-shortcut-replay.sh` émule la classe du jeu sur son serveur privé et
+vérifie inspection → prix → interaction → fermeture en moins de 250 ms, puis le
+refus d’une répétition du même Ctrl+D et son acceptation après 350 ms. Les contrôles
+de replay vers une autre application et de libération après conflit restent inclus.
+Ce défaut observé explique cette touche ignorée, pas le symptôme de focus signalé
+sur l’autre configuration ni le clic isolé du jalon 0.8.

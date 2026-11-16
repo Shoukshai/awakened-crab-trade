@@ -1,6 +1,7 @@
 //! X11 passive grabs apply only within XWayland. They cannot observe native
 //! Wayland apps. Unrelated X11 applications receive replayed key events.
 use std::{
+    collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -84,7 +85,7 @@ pub fn run(
     eprintln!("shortcuts backend=XWayland keys=Ctrl+D,Shift+Space,Ctrl+Shift+D,Ctrl+Alt+D scope=X11-only replay_other_apps=true");
     ready();
     let mut armed = None;
-    let mut last = Instant::now() - Duration::from_secs(1);
+    let mut last_copy: HashMap<&'static str, Instant> = HashMap::new();
     loop {
         match connection.wait_for_event().map_err(|e| e.to_string())? {
             Event::KeyPress(e) => {
@@ -123,11 +124,13 @@ pub fn run(
                         if active.load(Ordering::Acquire)
                             && focused_game(&connection)
                             && (!command.ends_with("copy")
-                                || last.elapsed() >= Duration::from_millis(300))
+                                || last_copy.get(command).is_none_or(|last| {
+                                    last.elapsed() >= Duration::from_millis(300)
+                                }))
                         {
                             send(command);
                             if command.ends_with("copy") {
-                                last = Instant::now();
+                                last_copy.insert(command, Instant::now());
                             }
                         }
                     }

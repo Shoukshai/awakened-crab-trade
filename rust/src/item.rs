@@ -4,6 +4,8 @@
 pub mod mercenary;
 #[path = "item/special.rs"]
 mod special;
+#[path = "item/unidentified.rs"]
+pub mod unidentified;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 

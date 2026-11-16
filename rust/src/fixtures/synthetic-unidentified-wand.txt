@@ -1,0 +1,14 @@
+Item Class: Wands
+Rarity: Unique
+Driftwood Wand
+--------
+Wand
+Physical Damage: 5-9
+Critical Strike Chance: 8.30%
+Attacks per Second: 1.50
+--------
+Sockets: W-W
+--------
+Item Level: 1
+--------
+Unidentified

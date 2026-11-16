@@ -15,6 +15,7 @@ mod inspection_panel;
 mod item_filters_panel;
 mod mercenary_panel;
 mod stat_row;
+mod unidentified_panel;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -44,6 +45,7 @@ enum Event {
     Economy(u64, Box<EconomyResult>),
     MapSettings(crate::inspection::Edit),
     FiltersChanged(u64, String),
+    IdentifyUnique(u64, String),
 }
 struct EconomyJob {
     generation: u64,
@@ -72,6 +74,8 @@ struct Ui {
     search_range: gtk::SpinButton,
     currency: gtk::ComboBoxText,
     economy_panel: economy_panel::EconomyPanel,
+    unidentified: unidentified_panel::Panel,
+    identity_epoch: Cell<u64>,
     economy_worker: SyncSender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
     mod_box: gtk::Box,
@@ -315,6 +319,13 @@ impl Ui {
         self.request.replace(None);
         self.url.replace(None);
         self.view.set(view);
+        if item.needs_unique_identity() {
+            self.stack.set_visible_child_name("identify");
+            if !self.window.is_visible() {
+                self.show();
+            }
+            return;
+        }
         if view == View::Inspection {
             let report = crate::inspection::report(&item, &self.settings.borrow().map_check);
             self.inspection
@@ -330,6 +341,113 @@ impl Ui {
         }
         if view == View::Price {
             self.search();
+        }
+    }
+    fn prepare_item(&self, mut item: Item, view: View, epoch: u64) {
+        self.identity_epoch.set(epoch);
+        let choices = item.unique_identity_choices();
+        if choices.len() == 1 {
+            if let Ok(chosen) = item.with_unique_identity(&choices[0].reference) {
+                eprintln!(
+                    "unique identity automatic=true reference={:?} unidentified=true",
+                    chosen.reference
+                );
+                item = chosen;
+            }
+        }
+        self.result.replace(None);
+        self.request.replace(None);
+        self.url.replace(None);
+        self.economy_result.replace(None);
+        self.economy_panel.reset();
+        self.inspection_result.replace(None);
+        if item.needs_unique_identity() {
+            self.title.set_text(&item.description());
+            self.view.set(view);
+            let sender = self.events.clone();
+            self.unidentified
+                .show(&item, epoch, move |epoch, reference| {
+                    let _ = sender.send(Event::IdentifyUnique(epoch, reference));
+                });
+            self.stack.set_visible_child_name("identify");
+            self.stat_rows.borrow_mut().clear();
+            self.mercenary_panel.replace(None);
+            for child in self.mod_box.children() {
+                self.mod_box.remove(&child);
+            }
+            self.item.replace(Some(item));
+            return;
+        }
+        self.title.set_text(&item.description());
+        self.currency.set_sensitive(item.trade_tag.is_some());
+        if item.trade_tag.as_deref() == self.currency.active_id().as_deref() {
+            self.currency
+                .set_active_id(Some(if item.trade_tag.as_deref() == Some("chaos") {
+                    "divine"
+                } else {
+                    "chaos"
+                }));
+        }
+        self.updating_preset.set(true);
+        self.preset.remove_all();
+        let modes = crate::presets::available(&item);
+        if modes.is_empty() {
+            self.preset.append(Some("calculated"), "Filtres calculés");
+        } else {
+            for mode in &modes {
+                self.preset.append(Some(mode.id()), mode.label());
+            }
+        }
+        self.preset.set_sensitive(modes.len() > 1);
+        self.preset.set_active(Some(0));
+        self.updating_preset.set(false);
+        self.build_stat_rows(&item);
+        self.reset_item_filters(&item);
+        self.item.replace(Some(item));
+        self.view.set(view);
+        if view == View::Inspection {
+            let report = crate::inspection::report(
+                self.item.borrow().as_ref().unwrap(),
+                &self.settings.borrow().map_check,
+            );
+            eprintln!(
+                "inspection prepared map_like={} stats={} unknown={} offline=true",
+                report.map_like,
+                report.stats.len(),
+                report.unknown.len()
+            );
+            self.inspection
+                .show(report.clone(), &self.settings.borrow().map_check);
+            self.inspection_result.replace(Some(report));
+            self.stack.set_visible_child_name("inspection");
+        } else {
+            self.inspection_result.replace(None);
+            self.stack.set_visible_child_name("price");
+        }
+    }
+    fn identify_unique(&self, epoch: u64, reference: &str) {
+        if epoch != self.identity_epoch.get()
+            || !self.window.is_visible()
+            || self.state.borrow().state != State::Interactive
+        {
+            eprintln!("discarded unique identity epoch={epoch}");
+            return;
+        }
+        let Some(item) = self.item.borrow().clone() else {
+            return;
+        };
+        match item.with_unique_identity(reference) {
+            Ok(chosen) => {
+                self.state.borrow_mut().generation += 1;
+                self.sync_generation();
+                let generation = self.state.borrow().generation;
+                eprintln!("unique identity automatic=false reference={reference:?} generation={generation} unidentified=true");
+                self.prepare_item(chosen, self.view.get(), generation);
+                if self.view.get() == View::Price {
+                    self.search();
+                }
+            }
+            Err(error) => eprintln!("unique identity rejected: {error}"),
         }
     }
     fn build_stat_rows(&self, item: &Item) {
@@ -522,6 +640,10 @@ impl Ui {
         let Some(item) = self.item.borrow().clone() else {
             return;
         };
+        if item.needs_unique_identity() {
+            eprintln!("search refused: unresolved unique identity; automatic_http=false");
+            return;
+        }
         // Even a locally rejected edit supersedes pending results. Otherwise an
         // older response could replace the validation error with stale prices.
         self.state.borrow_mut().generation += 1;
@@ -622,6 +744,7 @@ impl Ui {
     fn event(&self, event: Event) {
         match event {
             Event::Shortcut(command) => self.command(command),
+            Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
             Event::Windows(s) => {
                 let active = s.game_active();
                 if self.state.borrow().game_active != active {
@@ -662,53 +785,7 @@ impl Ui {
                         eprintln!(
                             "capture parsed processing_ms={elapsed} clipboard_before_overlay=true"
                         );
-                        self.title.set_text(&item.description());
-                        self.currency.set_sensitive(item.trade_tag.is_some());
-                        if item.trade_tag.as_deref() == self.currency.active_id().as_deref() {
-                            self.currency.set_active_id(Some(
-                                if item.trade_tag.as_deref() == Some("chaos") {
-                                    "divine"
-                                } else {
-                                    "chaos"
-                                },
-                            ));
-                        }
-                        self.updating_preset.set(true);
-                        self.preset.remove_all();
-                        let modes = crate::presets::available(&item);
-                        if modes.is_empty() {
-                            self.preset.append(Some("calculated"), "Filtres calculés");
-                        } else {
-                            for mode in &modes {
-                                self.preset.append(Some(mode.id()), mode.label());
-                            }
-                        }
-                        self.preset.set_sensitive(modes.len() > 1);
-                        self.preset.set_active(Some(0));
-                        self.updating_preset.set(false);
-                        self.build_stat_rows(&item);
-                        self.reset_item_filters(&item);
-                        self.item.replace(Some(item));
-                        self.view.set(view);
-                        if view == View::Inspection {
-                            let report = crate::inspection::report(
-                                self.item.borrow().as_ref().unwrap(),
-                                &self.settings.borrow().map_check,
-                            );
-                            eprintln!(
-                                "inspection prepared map_like={} stats={} unknown={} offline=true",
-                                report.map_like,
-                                report.stats.len(),
-                                report.unknown.len()
-                            );
-                            self.inspection
-                                .show(report.clone(), &self.settings.borrow().map_check);
-                            self.inspection_result.replace(Some(report));
-                            self.stack.set_visible_child_name("inspection");
-                        } else {
-                            self.inspection_result.replace(None);
-                            self.stack.set_visible_child_name("price");
-                        }
+                        self.prepare_item(item, view, generation);
                         eprintln!(
                             "filters prepared count={} ui_ms={}",
                             self.stat_rows.borrow().len(),
@@ -1106,6 +1183,11 @@ pub fn run() -> Result<(), String> {
     let hint = gtk::Label::new(None);
     hint.set_line_wrap(true);
     hint.set_xalign(0.);
+    let unidentified = unidentified_panel::Panel::new();
+    let close_sender = sender.clone();
+    unidentified.close.connect_clicked(move |_| {
+        let _ = close_sender.send(Event::Shortcut("hide"));
+    });
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
@@ -1123,6 +1205,8 @@ pub fn run() -> Result<(), String> {
     let inspection = inspection_panel::Panel::new(move |edit| {
         let _ = inspection_sender.send(Event::MapSettings(edit));
     });
+    stack.add_named(&unidentified.container, "identify");
+    unidentified.container.show_all();
     stack.add_named(&price_content, "price");
     stack.add_named(&inspection.container, "inspection");
     // GtkStack ignores requests for an invisible child. Make both pages
@@ -1212,6 +1296,8 @@ pub fn run() -> Result<(), String> {
         search_range,
         currency,
         economy_panel,
+        unidentified,
+        identity_epoch: Cell::new(0),
         economy_worker,
         economy_result: RefCell::new(None),
         mod_box,
@@ -1461,7 +1547,8 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        value["unidentified_resolver"] = ui.unidentified.diagnostics(&ui.window);
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
