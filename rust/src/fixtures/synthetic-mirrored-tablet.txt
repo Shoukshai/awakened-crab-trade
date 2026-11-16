@@ -1,0 +1,14 @@
+Item Class: Misc Map Items
+Rarity: Normal
+Mirrored Tablet
+--------
+Area Level: 83
+--------
+Reflection of Paradise (Difficulty 3)
+Reflection of Paradise (Difficulty 12)
+Reflection of Delirium (Difficulty 7)
+Reflection of Delirium (Difficulty 2)
+Reflection of the Sun (Difficulty 8)
+Reflection of the Chasm (Difficulty 7)
+Reflection of the Chasm (Difficulty 9)
+Reflection of Kalandra (Difficulty 16)

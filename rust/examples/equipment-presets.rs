@@ -30,6 +30,8 @@ struct Input {
     range: f64,
     #[serde(default)]
     enable_empty: bool,
+    #[serde(default)]
+    enable_all: bool,
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Read;
@@ -43,12 +45,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let modes=presets::available(&item);
   let cases:Vec<_>=modes.iter().map(|m|{
    let mut preset=presets::create(&item,i.range,*m);
+   if i.enable_all { for f in &mut preset.filters {f.disabled=false;} }
    if i.enable_empty {for f in &mut preset.filters {if f.modifier.id=="item.has_empty_modifier" {f.disabled=false;}}}
    let plan=item_filters::create(&item,&item_filters::Options {league:"Covens".into(),merchant_only:false,exact:m.exact(),..Default::default()}).unwrap();
    let query=filters::query(&item,&filters::Filters {item:Some(plan.clone()),stats:preset.filters.iter().filter(|c|!c.disabled).map(filters::StatFilter::from_candidate).collect(),..Default::default()}).unwrap();
    serde_json::json!({"mode":m.id(),"filters":preset.filters,"plan":plan,"query":query})
   }).collect();
-  Ok::<_,String>(serde_json::json!({"modes":modes.iter().map(|m|m.id()).collect::<Vec<_>>(),"presets":cases,"area":item.area,"modifiers":item.modifiers}))
+  Ok::<_,String>(serde_json::json!({"modes":modes.iter().map(|m|m.id()).collect::<Vec<_>>(),"presets":cases,"area":item.area,"modifiers":item.modifiers,"unknown":item.unknown_modifiers}))
  }).collect::<Result<_,_>>()?;
     println!("{}", serde_json::to_string(&output)?);
     Ok(())

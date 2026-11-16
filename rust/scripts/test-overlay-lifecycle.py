@@ -132,6 +132,22 @@ try:
         assert s['last_hide_reason']=='GameGone',s
         fixture_command('map');focus_game();assert status()['state']=='Hidden'
     report['unmap_remap_modes']=['Passive','Interactive']
+    # Special item controls use the same native panel and generation policy.
+    command('hide');focus_game()
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures/synthetic-logbook.txt').read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+    s=show_price();assert s['preset']=='I',s
+    assert [f['id'] for f in s['stat_controls']]==['pseudo.pseudo_logbook_faction_mercenaries','implicit.stat_3159649981|2'],s
+    command('interact');s=wait_for(lambda:state(state='Interactive'),'logbook interactive')
+    r=s['preset_control'];o=s['origin']
+    pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']/2,True)
+    wait_for(popup_open,'logbook zone menu')
+    pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']*1.5,True)
+    s=wait_for(lambda:state(state='Interactive',preset='II'),'logbook second zone')
+    time.sleep(.1);s=status()
+    assert s['state']=='Interactive' and s['query'] is None and s['request'] is None,s
+    assert [f['id'] for f in s['stat_controls']]==['pseudo.pseudo_logbook_faction_druids'],s
+    report['logbook_zone_change']={'from':'I','to':'II','clears_prices':True,'faction_and_boss_isolated':True}
+    command('hide');focus_game()
     show_price();fixture_command('destroy');s=wait_for(lambda:state(state='Hidden',game_active=False),'game destroyed');assert s['last_hide_reason']=='GameGone',s
     new=fixture_command('create');assert new['game']!=first['game'];focus_game();assert status()['state']=='Hidden'
     show_price();command('hide');assert status()['keyboard_mode']=='None'

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::HashMap,
+    io::Read,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -81,8 +82,26 @@ impl Trade {
             ));
         }
         if !status.is_success() {
+            // The API supplies useful validation errors (for example obsolete
+            // stat IDs). Bound the body and message; never display an HTML page.
+            let mut body = Vec::new();
+            let detail = response
+                .take(16 * 1024)
+                .read_to_end(&mut body)
+                .ok()
+                .and_then(|_| serde_json::from_slice::<Value>(&body).ok())
+                .and_then(|v| v["error"]["message"].as_str().map(str::to_owned))
+                .map(|s| {
+                    s.chars()
+                        .take(300)
+                        .map(|c| if c.is_control() { ' ' } else { c })
+                        .collect::<String>()
+                })
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| format!(": {s}"))
+                .unwrap_or_default();
             return Err(format!(
-                "Trade HTTP {}. No retry was sent.",
+                "Trade HTTP {}{detail}. No retry was sent.",
                 status.as_u16()
             ));
         }
@@ -503,7 +522,8 @@ mod tests {
         );
         thread.join().unwrap();
     }
-    fn server(response: &'static str) -> (String, std::thread::JoinHandle<()>) {
+    fn server(response: &str) -> (String, std::thread::JoinHandle<()>) {
+        let response = response.to_string();
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let h = std::thread::spawn(move || {
@@ -535,6 +555,46 @@ mod tests {
             .search("Standard", &serde_json::json!({}), 1, &generation)
             .unwrap_err()
             .contains("cooldown"));
+    }
+    #[test]
+    fn validation_error_explains_rejected_stat_without_retrying_or_broadening_search() {
+        let body = r#"{"error":{"code":2,"message":"Unknown stat provided: pseudo.lake_50846"}}"#;
+        let response = format!(
+            "HTTP/1.1 400 Bad Request\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let (url, h) = server(&response);
+        let mut t = Trade::new().unwrap();
+        t.base = url;
+        let current = Arc::new(AtomicU64::new(1));
+        let query = serde_json::json!({"query":{"stats":[{"id":"pseudo.lake_50846"}]}});
+        let error = t.search("Covens", &query, 1, &current).unwrap_err();
+        assert!(error.contains("400: Unknown stat provided: pseudo.lake_50846"));
+        assert!(error.contains("No retry"));
+        h.join().unwrap();
+        assert!(t
+            .search("Covens", &query, 1, &current)
+            .unwrap_err()
+            .contains("cooldown"));
+    }
+    #[test]
+    fn error_page_is_not_exposed_as_a_trade_message() {
+        let (url, h) = server(
+            "HTTP/1.1 503 Unavailable\r\nContent-Length: 7\r\nConnection: close\r\n\r\n<html/>",
+        );
+        let mut t = Trade::new().unwrap();
+        t.base = url;
+        assert_eq!(
+            t.search(
+                "Covens",
+                &serde_json::json!({}),
+                1,
+                &Arc::new(AtomicU64::new(1))
+            )
+            .unwrap_err(),
+            "Trade HTTP 503. No retry was sent."
+        );
+        h.join().unwrap();
     }
     #[test]
     fn malformed_json_is_an_error() {

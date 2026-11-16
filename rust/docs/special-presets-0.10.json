@@ -1,0 +1,22 @@
+{
+  "cases": 2599,
+  "temple_cases": 1024,
+  "tablet_cases": 848,
+  "logbook_cases": 720,
+  "logbook_presets": 1446,
+  "mismatch_count": 0,
+  "failures": [],
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "catalogue_room_anomalies": [
+    "Has Room: Splinter Research Lab (Tier 1)"
+  ],
+  "scope": "Full unchanged upstream English parser, temple/tablet/logbook presets, complete item-filter models and effective Trade query bodies. All room rules tested with printed room names (one malformed catalogue entry remains unknown), all reflection stats and max duplicate difficulty, four factions/four bosses, 1-3 logbook zones. Initial selections and explicit selection of all retained filters. Synthetic special items; actual copied ordinary wand. Mercenary excluded.",
+  "source_sha256": {
+    "renderer/src/parser/Parser.ts": "1ab2d88158e44afbb69a8717eca2fc060f37b3001b486342587b7445dab50e6a",
+    "renderer/src/web/price-check/filters/create-presets.ts": "f498a7f65ffe410ff35f3f8ef8a6c4f05205f3db4d044c0791a4ec58868ef5b4",
+    "renderer/src/web/price-check/filters/create-stat-filters.ts": "29ff2a7b6a7a567a7754ac6b770cc79ca9cdde62ee43ddcadc0089395ec911a1",
+    "renderer/src/web/price-check/filters/pseudo/atzoatl-rules.ts": "09f9d471a0204ad1c0b56f27d49839ac865d680a971a677589bb49d2311f1c3c",
+    "renderer/src/web/price-check/filters/pseudo/reflection-rules.ts": "99e2df25b1bb4ef38067904ac47f9bb51dff03b6dd907a7f875d6cb5785d6b1a",
+    "renderer/src/web/price-check/trade/pathofexile-trade.ts": "63af8d01171ba2d75038cd5246c7a275918d1e8e856a88b0fb30e884cf3f0c4b"
+  }
+}

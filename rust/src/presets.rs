@@ -2,6 +2,8 @@
 //! pseudo/{maps,heist,flasks} and equipment/final selection rules.
 #[path = "presets/equipment.rs"]
 mod equipment;
+#[path = "presets/special.rs"]
+mod special;
 use crate::{
     calculated::Candidate,
     item::{Item, Rarity},
@@ -11,6 +13,7 @@ use serde::Serialize;
 const MAX: f64 = 9_007_199_254_740_991.;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Mode {
+    Logbook(u8),
     Properties,
     Bulk,
     Exact,
@@ -20,6 +23,7 @@ pub enum Mode {
 impl Mode {
     pub fn id(self) -> &'static str {
         match self {
+            Self::Logbook(index) => ["I", "II", "III"][usize::from(index).min(2)],
             Self::Properties => "properties",
             Self::Bulk => "bulk",
             Self::Exact => "exact",
@@ -29,6 +33,7 @@ impl Mode {
     }
     pub fn label(self) -> &'static str {
         match self {
+            Self::Logbook(index) => ["Zone I", "Zone II", "Zone III"][usize::from(index).min(2)],
             Self::Properties => "Propriétés de zone",
             Self::Bulk => "Cartes en lot (plage ≤ 2 %)",
             Self::Exact => "Objet exact (plage ≤ 2 %)",
@@ -109,6 +114,11 @@ fn exclusion(item: &Item, reference: &str, kind: &str, negate_text: bool) -> Can
     filter
 }
 pub fn available(item: &Item) -> Vec<Mode> {
+    if item.reference == "Expedition Logbook" {
+        return (0..item.logbook_areas.len().min(3))
+            .map(|i| Mode::Logbook(i as u8))
+            .collect();
+    }
     let category = item.category.as_deref();
     if [Some("Map"), Some("Chart")].contains(&category)
         && item.rarity != Rarity::Unique
@@ -162,6 +172,17 @@ fn is_blighted(item: &Item) -> bool {
     )
 }
 pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
+    if let Mode::Logbook(index) = mode {
+        let mut area_item = item.clone();
+        area_item.modifiers = item
+            .logbook_areas
+            .get(usize::from(index))
+            .cloned()
+            .unwrap_or_default();
+        let mut preset = create(&area_item, range, Mode::Exact);
+        preset.mode = mode;
+        return preset;
+    }
     if mode == Mode::Calculated {
         return Preset {
             mode,
@@ -288,6 +309,9 @@ pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
             filter.initial_min = filter.display_value;
         }
         filters.push(filter);
+    }
+    if special::apply(item, &mut filters) {
+        return Preset { mode, filters };
     }
     if category == Some("Cluster Jewel") {
         equipment::cluster(&mut filters, true);

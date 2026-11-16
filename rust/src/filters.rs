@@ -278,6 +278,9 @@ fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
 }
 /// Mirrors upstream's choice: stat filters require ordinary Trade even for currency.
 pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
+    if item.reference == "Expedition Logbook" && item.logbook_areas.is_empty() {
+        return Err("Zones du logbook absentes ou non reconnues. Copiez sa description avancée avant de rechercher.".into());
+    }
     if item.rarity != Rarity::Unique
         && [
             Some("Heist Contract"),

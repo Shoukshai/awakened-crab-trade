@@ -158,7 +158,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.9.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.10.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -186,6 +186,8 @@ node scripts/compare-item-filters.cjs
 cargo build --locked --example equipment-presets
 node scripts/export-mod-mechanics.cjs --check
 node scripts/compare-equipment-presets.cjs
+node scripts/export-special-rules.cjs --check
+node scripts/compare-special-presets.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
@@ -209,6 +211,13 @@ anglais. La recherche est limitée aux premières 10 offres Trade ou 20 offres
 en lot, cache de 60 s, pas de retry automatique. Les réponses 429 et les limites serveur sont
 respectées. Une requête en vol a un timeout ; sa réponse est invalidée à la
 fermeture ou au changement d'objet, sans réouverture ni activation.
+
+Les logbooks proposent une zone I, II ou III : choisir une autre zone efface
+les offres précédentes sans lancer de recherche. Les salles d’Atzoatl tiennent
+compte des explosifs accessibles. Le Tablet utilise la difficulté maximale des
+reflets répétés ; son parcours réseau reste limité : les filtres lake ont été
+rejetés par le serveur Covens malgré leur présence dans son catalogue public.
+Le panneau affiche l’erreur serveur et ne retire pas ces critères automatiquement.
 
 Ce n'est pas encore un remplacement complet d'Awakened PoE Trade. Inventaire et
 travail restant : [PORTING.md](docs/PORTING.md). Preuves, observations et tests

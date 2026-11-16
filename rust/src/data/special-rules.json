@@ -1,0 +1,398 @@
+{
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "source_sha256": {
+    "renderer/src/web/price-check/filters/pseudo/atzoatl-rules.ts": "09f9d471a0204ad1c0b56f27d49839ac865d680a971a677589bb49d2311f1c3c",
+    "renderer/src/web/price-check/filters/pseudo/reflection-rules.ts": "99e2df25b1bb4ef38067904ac47f9bb51dff03b6dd907a7f875d6cb5785d6b1a",
+    "renderer/public/data/en/client_strings.js": "1ff5328903621b324bcc34824e31e2e76195a2c2f5669ac04741c97725ea7d84"
+  },
+  "open_rooms": "Open Rooms:",
+  "obstructed_rooms": "Obstructed Rooms:",
+  "atzoatl": [
+    {
+      "ref": "Has Room: Banquet Hall",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Antechamber",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Passageways",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Cloister",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Tunnels",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Cellar",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Chasm",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Halls",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Tombs",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Pits",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Shrine of Empowerment (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Sanctum of Unity (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Temple Nexus (Tier 3)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Explosives Room (Tier 1)",
+      "remove": true,
+      "explosivesRoom": true
+    },
+    {
+      "ref": "Has Room: Demolition Lab (Tier 2)",
+      "remove": true,
+      "explosivesRoom": true
+    },
+    {
+      "ref": "Has Room: Shrine of Unmaking (Tier 3)",
+      "remove": true,
+      "explosivesRoom": true
+    },
+    {
+      "ref": "Has Room: Apex of Atzoatl",
+      "disabled": false
+    },
+    {
+      "ref": "Has Room: Corruption Chamber (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Catalyst of Corruption (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Locus of Corruption (Tier 3)",
+      "disabled": false
+    },
+    {
+      "ref": "Has Room: Gemcutter's Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Department of Thaumaturgy (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Doryani's Institute (Tier 3)",
+      "disabled": false
+    },
+    {
+      "ref": "Has Room: Sacrificial Chamber (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hall of Offerings (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Apex of Ascension (Tier 3)",
+      "disabled": false
+    },
+    {
+      "ref": "Has Room: Vault (Tier 1)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Treasury (Tier 2)"
+    },
+    {
+      "ref": "Has Room: Wealth of the Vaal (Tier 3)",
+      "disabled": false
+    },
+    {
+      "ref": "Has Room: Surveyor's Study (Tier 1)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Office of Cartography (Tier 2)"
+    },
+    {
+      "ref": "Has Room: Atlas of Worlds (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Hall of Mettle (Tier 1)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Hall of Heroes (Tier 2)"
+    },
+    {
+      "ref": "Has Room: Hall of Legends (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Storage Room (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Warehouses (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Museum of Artefacts (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Guardhouse (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Barracks (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Hall of War (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Engineering Department (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Factory (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Royal Meeting Room (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hall of Lords (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Throne of Atziri (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Torment Cells (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Torture Cages (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Sadist's Den (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Strongbox Chamber (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hall of Locks (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Court of Sealed Death (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Jeweller's Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Jewellery Forge (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Glittering Halls (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Splinter Research Lab (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Breach Containment Chamber (Tier 2)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: House of the Others (Tier 3)"
+    },
+    {
+      "ref": "Has Room: Tempest Generator (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hurricane Engine (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Storm of Corruption (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Armourer's Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Armoury (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Chamber of Iron (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Sparring Room (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Arena of Valour (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hall of Champions (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Poison Garden (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Cultivar Chamber (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Toxic Grove (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Hatchery (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Automaton Lab (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Hybridisation Chamber (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Trap Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Temple Defense Workshop (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Defense Research Lab (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Flame Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Omnitect Forge (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Crucible of Flame (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Lightning Workshop (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Omnitect Reactor Plant (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Conduit of Lightning (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    },
+    {
+      "ref": "Has Room: Pools of Restoration (Tier 1)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Sanctum of Vitality (Tier 2)",
+      "remove": true
+    },
+    {
+      "ref": "Has Room: Sanctum of Immortality (Tier 3)",
+      "hidden": "filters.hide_greedy"
+    }
+  ],
+  "reflections": [
+    {
+      "ref": "Reflection of the Breachlord (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Delirium (Difficulty #)",
+      "difficulty": "any"
+    },
+    {
+      "ref": "Reflection of Tyranny (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of the Trove (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Thralldom (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Phaaryl (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Perverted Faith (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Kalandra (Difficulty #)",
+      "disabled": false
+    },
+    {
+      "ref": "Reflection of Experimentation (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of the Sun (Difficulty #)",
+      "disabled": false
+    },
+    {
+      "ref": "Reflection of the Monolith (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of the Nightmare (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Azurite (Difficulty #)"
+    },
+    {
+      "ref": "Reflection of Paradise (Difficulty #)",
+      "disabled": false
+    },
+    {
+      "ref": "Reflection of Angling (Difficulty #)",
+      "disabled": false
+    }
+  ]
+}

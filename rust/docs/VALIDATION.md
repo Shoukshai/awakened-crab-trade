@@ -693,3 +693,57 @@ normalisée, DPS physique local 11 et aucun HTTP. Après masquage, RSS 75 412 Ki
 constitue ni un benchmark comparatif ni une preuve d’absence de fuite. Les
 préférences sont identiques à leur sauvegarde initiale. PoE et River restent
 ouverts ; le service 0.9 est masqué.
+
+
+## Jalon 0.10 : zones des logbooks, salles et reflets
+
+91 tests Rust et Clippy toutes cibles réussis. Les nouveaux tests vérifient
+l’accessibilité du Locus avec/sans explosifs, l’isolation faction/boss entre les
+zones I/II/III, la difficulté maximale des reflets répétés, Delirium sans condition
+de difficulté et le refus d’un logbook sans zone. Deux tests réseau vérifient le
+message de validation HTTP, l’absence de retry et le rejet d’une page HTML comme
+message. Les erreurs JSON sont lues sur 16 Kio au maximum ; seul le message
+`error.message`, limité à 300 caractères sans caractères de contrôle, est affiché.
+
+Le comparateur [special-presets-0.10.json](special-presets-0.10.json) compte 2 599
+cas, zéro écart : 1 024 cas temple, 848 cas Tablet, 720 cas logbook, les trois
+fixtures natives et la vraie wand ordinaire. Il couvre les trois raretés des
+logbooks, 1–3 zones, quatre factions et quatre bosses, 1 446 presets de zones,
+les sélections initiales et l’activation explicite de tous les filtres retenus.
+Sont comparés le choix de preset, les références/IDs/options/valeurs/bornes,
+sélections/masquages/tags, le modèle des filtres d’objet et le corps Trade complet
+effectif. Les salles sont générées depuis leurs noms imprimés. L’entrée upstream
+Splinter Research Lab (Tier 1) possède un matcher mal formé et reste inconnue des
+deux parseurs ; ses lignes inconnues sont également comparées. Aucune règle ni
+fonction upstream n’est corrigée dans l’oracle pour faire passer le test.
+
+Les corpus précédents sont rejoués sans écart : 55 961 traductions/effets,
+1 651 calculs/bornes, 3 144 inspections et 1 875 décisions, 221 presets
+cartes/charts/flacons/Heist, 2 312 politiques de filtres d’objet et 1 145 presets
+d’équipement. Cette couverture ne démontre pas la parité du parseur entier.
+
+Sur River privé, [overlay-lifecycle-0.10.json](overlay-lifecycle-0.10.json) reprend
+les 30 clics, menus/masquage, changement d’application, disparition/réapparition
+et nouvel XID du jalon précédent. Il ajoute un changement de zone I → II par le
+vrai menu GTK : faction seule de la seconde zone, aucun boss de la première,
+prix/requête effacés et panneau toujours interactif. Les services externes sont
+bloqués dans ce banc ; aucune touche n’est envoyée au vrai PoE.
+
+Observations release au-dessus du PoE ouvert, avec textes spéciaux synthétiques
+collés dans le presse-papiers (aucun objet spécial créé ou copié dans le jeu) :
+
+- Logbook I, Black Scythe/Vorana : 33 résultats/10 offres, 744 ms réseau.
+  Le choix natif Zone II efface les prix/requête et retire le boss ; le panneau
+  garde son focus. Recherche explicite Druids : 1 370 résultats/10 offres, 616 ms.
+- Atzoatl, Doryani accessible et Locus bloqué avec explosifs accessibles : 431
+  résultats/10 offres, 613 ms réseau. Le panneau passif laisse le jeu actif.
+- Tablet : les trois reflets choisis sont présents ; réponse HTTP 400. Une
+  demande diagnostique explicite du même corps précise `Unknown stat provided:
+  pseudo.lake_50846`. Les endpoints publics Trade `data/stats` et `data/items`
+  listent pourtant l’ID et Mirrored Tablet. La cause de cette incohérence côté
+  service n’est pas établie. Le parcours réseau du Tablet reste non validé ; ni
+  retry automatique ni retrait silencieux des filtres n’a été ajouté.
+
+Ces contrôles ne valident pas les copies réelles de ces objets spéciaux. La
+réduction réelle, le clavier des menus, Windows et les autres configurations
+restent dans les limites déjà décrites. Aucun gain de performance n’est revendiqué.

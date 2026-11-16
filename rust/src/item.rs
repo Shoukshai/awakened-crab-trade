@@ -1,5 +1,7 @@
 //! First parser port: English item text and the upstream item catalogue.
 //! Unsupported modifiers remain in the raw text and never become guessed filters.
+#[path = "item/special.rs"]
+mod special;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -43,6 +45,8 @@ pub struct Item {
     pub map_area: Option<String>,
     pub unique_dust_value: Option<f64>,
     pub area: AreaProperties,
+    #[serde(default)]
+    pub logbook_areas: Vec<Vec<crate::modifiers::Modifier>>,
     pub market: MarketMetadata,
 }
 
@@ -350,7 +354,12 @@ impl Item {
             .find(|v| v.namespace == "ITEM" && v.name == base)
             .map(|v| v.armour.clone())
             .unwrap_or_default();
-        let (mut modifiers, unknown_modifiers) = crate::modifiers::parse_detailed(text, category);
+        let reference = info
+            .map(|v| v.reference.clone())
+            .unwrap_or_else(|| identity.clone());
+        let parsed = special::parse(text, &reference, category);
+        let mut modifiers = parsed.modifiers;
+        let unknown_modifiers = parsed.unknown;
         if [Some("Amulet"), Some("Belt"), Some("Ring"), Some("Quiver")].contains(&category) {
             let quality: Vec<_> = lines
                 .iter()
@@ -362,9 +371,6 @@ impl Item {
                 .collect();
             modifiers.splice(0..0, quality);
         }
-        let reference = info
-            .map(|v| v.reference.clone())
-            .unwrap_or_else(|| identity.clone());
         let map_area = lines
             .iter()
             .find_map(|l| l.strip_prefix("Map Area: "))
@@ -534,6 +540,7 @@ impl Item {
             map_area,
             unique_dust_value: info.and_then(|v| v.unique.as_ref().and_then(|u| u.dust)),
             area,
+            logbook_areas: parsed.logbook_areas,
             market,
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),

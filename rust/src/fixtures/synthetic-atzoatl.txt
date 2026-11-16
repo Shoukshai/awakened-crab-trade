@@ -1,0 +1,12 @@
+Item Class: Misc Map Items
+Rarity: Normal
+Chronicle of Atzoatl
+--------
+Area Level: 83
+--------
+Open Rooms:
+Explosives Room (Tier 1)
+Doryani's Institute (Tier 3)
+Obstructed Rooms:
+Locus of Corruption (Tier 3)
+Vault (Tier 1)

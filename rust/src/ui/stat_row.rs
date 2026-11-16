@@ -74,6 +74,14 @@ impl StatRow {
                     Some(2.) => "Un suffixe libre ou crafté".to_string(),
                     _ => "Un emplacement libre ou crafté".to_string(),
                 }
+            } else if modifier.id.starts_with("pseudo.pseudo_temple_") {
+                if modifier.value == Some(1.) {
+                    "Salle accessible".to_string()
+                } else if modifier.value.is_none() {
+                    "Salle accessible ou bloquée (explosifs présents)".to_string()
+                } else {
+                    "Salle bloquée".to_string()
+                }
             } else {
                 format!("Variante : {option}")
             };
@@ -107,6 +115,15 @@ impl StatRow {
             note.set_xalign(0.);
             container.pack_start(&note, false, false, 0);
             container.pack_start(&controls, false, false, 0);
+        }
+        if modifier.reference == "Reflection of Delirium (Difficulty #)" && modifier.value.is_none()
+        {
+            container.pack_start(
+                &gtk::Label::new(Some("Sans condition de difficulté.")),
+                false,
+                false,
+                0,
+            );
         }
         if let Some(oils) = &candidate.oils {
             let label = gtk::Label::new(Some(&format!("Anointment : {}", oils.join(" + "))));

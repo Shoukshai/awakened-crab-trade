@@ -1,0 +1,29 @@
+{
+  "interactive_clicks": 30,
+  "native_preset_popup": true,
+  "popup_input": "pointer; virtual keyboard commit remains unvalidated",
+  "hide_dismisses_popup": true,
+  "application_switch_reason": "OtherApplication",
+  "unmap_remap_modes": [
+    "Passive",
+    "Interactive"
+  ],
+  "logbook_zone_change": {
+    "from": "I",
+    "to": "II",
+    "clears_prices": true,
+    "faction_and_boss_isolated": true
+  },
+  "new_window_rediscovered": true,
+  "network": "external services blocked by private proxy environment",
+  "scope": "private headless River/XWayland at 2560x1600; fake game only; no real PoE input",
+  "binary_version": "awakened-poe-trade-rs 0.10.0",
+  "source_sha256": {
+    "scripts/test-overlay-lifecycle.py": "3fea4a4f460477f59d60a1ca26267843f80f654281246a26b6f2478693c23a57",
+    "examples/overlay-fixture.rs": "293a3745d7a4524095a88b17b8a839170f95f74c41d05756e3709096a99a5543",
+    "src/desktop/wayland.rs": "09c2021c237e29bb0502e09f9e73be61655d39e74c07363e66eb7ad8921d86c2",
+    "src/overlay.rs": "e6c5db7b176c43766feacb4388bf6793dd9a16e43288cdb3aa76f2e4f821b737",
+    "src/ui.rs": "c5efe39c35ff815f5ce1129f263483150231c877204dc3341d8a60f77be3a6bb",
+    "src/ui/stat_row.rs": "1636556ae0e48823d0d20d829fc0450cc76cf782fac8ec36a89e036ce76ca80a"
+  }
+}
