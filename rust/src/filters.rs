@@ -19,11 +19,16 @@ pub struct Filters {
     pub bulk_currency: String,
     pub minimum_stock: Option<u32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct StatFilter {
     pub id: String,
     pub min: Option<f64>,
     pub max: Option<f64>,
+    pub alternatives: Vec<String>,
+    pub option: Option<f64>,
+    pub roll_value: Option<f64>,
+    pub inverted: bool,
 }
 impl Default for Filters {
     fn default() -> Self {
@@ -38,7 +43,21 @@ impl Default for Filters {
     }
 }
 pub fn query(item: &Item, filters: &Filters) -> Value {
-    let mut q = json!({"status":{"option":if filters.online {"online"} else {"any"}},"type":item.base,"stats":[{"type":"and","filters":filters.stats.iter().map(|s| json!({"id":s.id,"value":{"min":s.min,"max":s.max}})).collect::<Vec<_>>() }],"filters":{}});
+    let mut and = Vec::new();
+    let mut groups = Vec::new();
+    for stat in &filters.stats {
+        let ids: Vec<_> = std::iter::once(&stat.id)
+            .chain(stat.alternatives.iter())
+            .collect();
+        let values: Vec<_> = ids.iter().map(|id| stat_to_query(id, stat)).collect();
+        if values.len() == 1 {
+            and.extend(values);
+        } else {
+            groups.push(json!({"type":"count","value":{"min":1},"filters":values}));
+        }
+    }
+    groups.insert(0, json!({"type":"and","filters":and}));
+    let mut q = json!({"status":{"option":if filters.online {"online"} else {"any"}},"type":item.base,"stats":groups,"filters":{}});
     if item.rarity == Rarity::Unique && !item.unidentified {
         q["name"] = json!(item.name);
     }
@@ -70,8 +89,56 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     }
     json!({"query":q,"sort":{"price":"asc"}})
 }
+fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
+    let divisor = if id.starts_with("{div_by_100}") {
+        100.
+    } else {
+        1.
+    };
+    let empty = id.starts_with("{empty}")
+        || (id.starts_with("{empty_if_100}") && stat.roll_value == Some(100.));
+    let id = if id.starts_with('{') {
+        id.split_once('}').map(|(_, s)| s).unwrap_or(id)
+    } else {
+        id
+    };
+    let (id, fixed_option) = id
+        .split_once('|')
+        .map(|(id, value)| (id, value.parse::<f64>().ok()))
+        .unwrap_or((id, None));
+    let mut value = json!({});
+    if !empty {
+        let (min, max) = if stat.inverted {
+            (stat.max.map(|v| -v), stat.min.map(|v| -v))
+        } else {
+            (stat.min, stat.max)
+        };
+        if let Some(min) = min {
+            value["min"] = json!(min / divisor);
+        }
+        if let Some(max) = max {
+            value["max"] = json!(max / divisor);
+        }
+    }
+    if let Some(option) = fixed_option.or(stat.option) {
+        value["option"] = json!(option);
+    }
+    json!({"id":id,"value":value})
+}
 /// Mirrors upstream's choice: stat filters require ordinary Trade even for currency.
 pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
+    for stat in &filters.stats {
+        if [stat.min, stat.max, stat.option, stat.roll_value]
+            .into_iter()
+            .flatten()
+            .any(|v| !v.is_finite())
+        {
+            return Err("Les valeurs des mods doivent être des nombres finis.".into());
+        }
+        if stat.min.zip(stat.max).is_some_and(|(min, max)| min > max) {
+            return Err("Le minimum d’un mod dépasse son maximum.".into());
+        }
+    }
     if filters.stats.is_empty() {
         if let Some(want) = &item.trade_tag {
             let have = &filters.bulk_currency;
@@ -93,6 +160,83 @@ pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn alternative_ids_form_one_or_condition_instead_of_requiring_both() {
+        let item =
+            Item::parse("Item Class: Utility Flasks\nRarity: Magic\nGranite Flask\n--------")
+                .unwrap();
+        let filters = Filters {
+            stats: vec![StatFilter {
+                id: "explicit.stat_1619168299".into(),
+                alternatives: vec!["explicit.stat_1053326368".into()],
+                min: Some(7.),
+                ..StatFilter::default()
+            }],
+            ..Filters::default()
+        };
+        let body = query(&item, &filters);
+        assert_eq!(body["query"]["stats"][0]["filters"], json!([]));
+        let group = &body["query"]["stats"][1];
+        assert_eq!(group["type"], "count");
+        assert_eq!(group["value"]["min"], 1);
+        assert_eq!(group["filters"].as_array().unwrap().len(), 2);
+        assert_eq!(group["filters"][1]["value"]["min"], 7.);
+    }
+    #[test]
+    fn trade_transforms_options_and_inverse_bounds_match_upstream() {
+        let stat = StatFilter {
+            min: Some(20.),
+            max: Some(80.),
+            roll_value: Some(100.),
+            ..StatFilter::default()
+        };
+        assert_eq!(
+            stat_to_query("{div_by_100}explicit.stat_1", &stat),
+            json!({"id":"explicit.stat_1","value":{"min":0.2,"max":0.8}})
+        );
+        assert_eq!(
+            stat_to_query("{empty_if_100}explicit.stat_1", &stat),
+            json!({"id":"explicit.stat_1","value":{}})
+        );
+        assert_eq!(
+            stat_to_query("{empty}explicit.stat_1", &stat)["value"],
+            json!({})
+        );
+        assert_eq!(
+            stat_to_query("enchant.stat_1|49", &StatFilter::default()),
+            json!({"id":"enchant.stat_1","value":{"option":49.}})
+        );
+        let inverted = StatFilter {
+            inverted: true,
+            ..stat
+        };
+        assert_eq!(
+            stat_to_query("explicit.stat_1", &inverted)["value"],
+            json!({"min":-80.,"max":-20.})
+        );
+        let old: StatFilter =
+            serde_json::from_str(r#"{"id":"explicit.stat_1","min":8,"max":null}"#).unwrap();
+        assert!(old.alternatives.is_empty());
+        assert_eq!(stat_to_query(&old.id, &old)["value"], json!({"min":8.}));
+    }
+    #[test]
+    fn invalid_stat_ranges_are_rejected_before_a_search_is_queued() {
+        let item = Item::parse(include_str!("fixtures/driftwood-wand.txt")).unwrap();
+        let mut filters = Filters {
+            stats: vec![StatFilter {
+                id: "implicit.stat_2974417149".into(),
+                min: Some(12.),
+                max: Some(8.),
+                ..StatFilter::default()
+            }],
+            ..Filters::default()
+        };
+        assert!(search_query(&item, &filters)
+            .unwrap_err()
+            .contains("minimum"));
+        filters.stats[0].max = Some(f64::NAN);
+        assert!(search_query(&item, &filters).unwrap_err().contains("finis"));
+    }
     #[test]
     fn currency_exchange_uses_catalogue_tags_and_stock() {
         let item=Item::parse("Item Class: Stackable Currency\nRarity: Currency\nScroll of Wisdom\n--------\nStack Size: 9/40").unwrap();
@@ -119,6 +263,7 @@ mod tests {
                 id: "explicit.stat_test".into(),
                 min: Some(1.),
                 max: None,
+                ..StatFilter::default()
             }],
             ..Filters::default()
         };

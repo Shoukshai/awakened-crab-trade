@@ -142,6 +142,14 @@ impl Item {
                 && (rarity != Rarity::Unique
                     || v.unique.as_ref().and_then(|u| u.base.as_deref()) == Some(base.as_str()))
         });
+        let category = info
+            .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+            .or_else(|| {
+                catalogue()
+                    .iter()
+                    .find(|v| v.namespace == "ITEM" && v.name == base)
+                    .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+            });
         let prop = |key: &str| {
             lines
                 .iter()
@@ -170,15 +178,13 @@ impl Item {
             corrupted: lines.contains(&"Corrupted"),
             unidentified: lines.contains(&"Unidentified"),
             raw: text.to_string(),
-            modifiers: crate::modifiers::parse(text),
+            modifiers: crate::modifiers::parse(text, category),
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
             trade_discriminator: info
                 .and_then(|v| v.trade_discriminator.as_deref())
                 .map(str::to_owned),
-            category: info
-                .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
-                .map(str::to_owned),
+            category: category.map(str::to_owned),
             stack_size: prop("Stack Size: "),
             influences: [
                 "Shaper", "Elder", "Crusader", "Hunter", "Redeemer", "Warlord",
@@ -215,7 +221,7 @@ mod tests {
         assert_eq!(item.links, 2);
         assert_eq!(item.modifiers.len(), 1);
         assert_eq!(item.modifiers[0].id, "implicit.stat_2974417149");
-        assert_eq!(item.modifiers[0].value, 8.);
+        assert_eq!(item.modifiers[0].value, Some(8.));
     }
     #[test]
     fn rare_name_is_not_a_trade_base() {
@@ -228,6 +234,12 @@ mod tests {
     fn magic_base_comes_from_upstream() {
         let i = Item::parse("Item Class: Wands\nRarity: Magic\nLacquered Driftwood Wand of the Fox\n--------\nItem Level: 4").unwrap();
         assert_eq!(i.base, "Driftwood Wand");
+    }
+    #[test]
+    fn unique_uses_base_category_for_local_stat_resolution() {
+        let i=Item::parse("Item Class: Wands\nRarity: Unique\nLifesprig\nDriftwood Wand\n--------\nItem Level: 1\n--------\n{ Unique Modifier }\nAdds 7 to 13 Fire Damage").unwrap();
+        assert_eq!(i.category.as_deref(), Some("Wand"));
+        assert_eq!(i.modifiers[0].id, "explicit.stat_709508406");
     }
     #[test]
     fn sockets_gem_quality_and_level() {

@@ -11,6 +11,9 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     rust/Cargo.toml rust/Cargo.lock rust/src rust/examples rust/scripts \
     rust/packaging rust/README.md rust/docs \
     renderer/public/data/en/items.ndjson renderer/public/data/en/stats.ndjson \
+    renderer/public/data/en/stats-matcher.index.bin renderer/public/data/en/client_strings.js \
+    renderer/src/parser/stat-translations.ts renderer/src/parser/advanced-mod-desc.ts \
+    renderer/src/parser/meta.ts renderer/package.json renderer/package-lock.json \
     main/build/icons/128x128.png -C "$rust_dir/dist" license-bundle
 apt_source_sha=$(sha256sum "rust/dist/native-source-${apt_pkg_version}.tar.gz" | cut -d ' ' -f 1)
 sed "s/sha256sums=('SKIP')/sha256sums=('$apt_source_sha')/" rust/packaging/PKGBUILD > rust/dist/PKGBUILD

@@ -24,7 +24,14 @@ Le programme démarre masqué. Dans PoE, survoler un objet :
 La ligue est visible et éditable ; sélectionner **Covens** pour le personnage
 testé. Défaut d'une installation neuve : Standard. Les premières offres comparées
 par base ne suffisent pas à estimer un rare : choisir ses mods et leurs valeurs
-minimum avant **Rechercher**. Les mods complexes ne sont pas encore portés.
+minimum/maximum avant **Rechercher**. Les mods traduits utilisent désormais les
+règles upstream : dégâts X à Y (moyenne), lignes multiples, flags, variantes,
+types implicite/craft/fracture, effet des modificateurs et contributions cumulées.
+Les cases Min/Max activent chaque borne ; un mod sans valeur numérique demande
+seulement sa présence. Les variantes utilisent leur option Trade exacte.
+Les groupes d'identifiants alternatifs sont une condition « au moins un », et
+non plusieurs conditions obligatoires. Les filtres pseudo, propriétés calculées
+et règles propres à certains objets restent à porter.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
 en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
@@ -82,7 +89,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.3.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -95,10 +102,15 @@ local. Aucun rendu périodique n'est demandé lorsque l'interface est inactive.
 ```sh
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked --example stat-translation
+node scripts/compare-stat-translations.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```
 
+La comparaison TypeScript est un test de développement hors ligne : elle exige
+Node et les dépendances upstream (`npm ci` dans `../renderer`, voir DEVELOPING.md).
+Elle n'est pas requise pour construire ou utiliser l'application Rust.
 Le test de raccourcis exige River et xdotool, démarre son propre serveur sans écran
 et ne transmet ses touches qu'à sa fenêtre de test. Il vérifie aussi la libération
 des grabs partiels après conflit. Le test `smoke-overlay.py` nécessite le service

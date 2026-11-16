@@ -193,3 +193,60 @@ python3 scripts/benchmark.py economy-cache /chemin/avant /chemin/apres --cache "
 Les binaires de référence de cette séance sont conservés localement dans
 `dist/benchmarks/` (hors Git et paquet). Le script mesure CPU/RSS avec wait4 Linux
 et vérifie l'égalité des sorties. Il n'envoie ni touche ni requête HTTP utile.
+
+## Jalon 0.3 : traduction des mods et bornes
+
+47 tests Rust et Clippy avec avertissements refusés passent. Le métier gère
+maintenant les matchers à deux valeurs (moyenne), les nombres littéraux dans
+les descriptions, les lignes multiples, les flags sans valeur, les options,
+les résolutions `select`, `trivial-merge`, `percent-merge`, `flag-merge`, les
+bounds avancées, les valeurs négatives et anciennes, l'effet des modificateurs
+et les contributions cumulées par type. Les uniques récupèrent la catégorie
+de leur base pour distinguer un mod local d'arme d'un mod global sur bijou.
+Les requêtes conservent les identifiants alternatifs en groupe « au moins un »,
+les transformations de valeur upstream et les options après `|`. Les plages
+inversées et les valeurs non finies sont rejetées avant mise en file réseau.
+Une nouvelle recherche invalide la génération précédente avant la validation
+locale, pour qu'une ancienne réponse ne remplace pas une erreur de saisie.
+
+`scripts/compare-stat-translations.cjs` exécute le TypeScript upstream inchangé
+avec son vrai index binaire de matchers. 55 961 cas générés depuis le catalogue,
+dont 1 132 avec effet augmenté ou valeur non scalable : 51 045 traductions
+reconnues et zéro différence sur référence, IDs, valeur, bornes, décimales,
+legacy, option, inversion et sens de comparaison. Le reste est rejeté par les
+deux implémentations. Le calcul de l'effet est comparé à `applyIncr` upstream.
+L'index natif reproduit son tri stable et sa recherche binaire, y compris les
+matchers avancés et les collisions/ambiguïtés du catalogue. Rapport conservé :
+[stat-translations-0.3.json](stat-translations-0.3.json).
+
+Ce corpus est synthétique et porte sur traduction/effet. Il ne prouve pas la
+parité du parsing d'objets entiers, du regroupement de tous les types de mods,
+des propriétés, des pseudo-stats ni de l'interface upstream complète. Des tests
+Rust distincts couvrent les blocs, types, rappels ignorés et sommes de sources.
+La comparaison exige Node et les dépendances de développement renderer ; aucune
+interface JavaScript n'est embarquée dans le binaire Rust.
+
+Sur le PoE resté ouvert : Ctrl+D copie de nouveau la vraie Driftwood Wand avant
+affichage, 401 résultats et 10 offres Trade, 779 ms réseau ; panneau passif sans
+focus. Le premier rendu mesure 76 ms et la copie/parsing 69 ms sur cet essai froid.
+Maj+Espace puis ouverture de l'expandeur : mod implicite affiché, contrôle Min
+actif à 8, Max activé puis saisi à 12. Après clic Rechercher, `status.request`
+confirme exactement `implicit.stat_2974417149` avec `{min:8,max:12}` ; 404 résultats,
+10 offres, 608 ms réseau. Capture inspectée. Échap masque le panneau et le focus
+X11 est vérifié sur Path of Exile. Cinq ouvertures/fermetures passives réussissent
+ensuite. Ces mesures sont des observations ponctuelles, sans optimisation
+supplémentaire revendiquée à ce jalon.
+
+Paquet 0.3.0-1 : makepkg hors ligne et ses 47 tests réussis, source comparée aux
+383 fichiers locaux, 344 fichiers du paquet vérifiés root/root, licences/hashes
+de 188 crates et de la bibliothèque standard contrôlés. Le binaire extrait a
+réussi cinq cycles passifs puis une vraie copie de la wand : 407 résultats,
+10 offres, 628 ms réseau, 70 ms copie/parsing et 4 ms premier rendu à chaud.
+La saisie Min=8, Max=4 affiche l'erreur locale ; la génération passe de 13 à 14,
+sans requête ni résultat actif, aucun `trade search` pour 14 dans le journal.
+Après correction à Max=12 : génération 15, requête vérifiée avec les deux bornes,
+405 résultats, 10 offres et 599 ms réseau. Échap masque le panneau, PoE reprend
+le focus. RSS ensuite à 69 248 Kio (67,63 Mio), 0 tick CPU sur 3 s à CLK_TCK=100.
+Les offres varient avec le marché. Les branches UI des flags et options ont une
+couverture de traduction/requête, mais pas encore d'inspection graphique sur
+des objets réels correspondants.

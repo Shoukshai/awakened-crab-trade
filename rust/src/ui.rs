@@ -11,6 +11,7 @@ use crate::{
     trade::{Prices, SearchKind, Trade},
 };
 mod economy_panel;
+mod stat_row;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -64,7 +65,7 @@ struct Ui {
     economy_worker: SyncSender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
     mod_box: gtk::Box,
-    stat_rows: RefCell<Vec<(gtk::CheckButton, gtk::SpinButton, String)>>,
+    stat_rows: RefCell<Vec<stat_row::StatRow>>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
     item: RefCell<Option<Item>>,
@@ -74,6 +75,7 @@ struct Ui {
     url: RefCell<Option<String>>,
     shown: RefCell<Option<Instant>>,
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
+    request: RefCell<Option<(u64, serde_json::Value)>>,
 }
 fn socket_path() -> Result<std::path::PathBuf, String> {
     std::env::var_os("XDG_RUNTIME_DIR")
@@ -194,6 +196,15 @@ impl Ui {
         let Some(item) = self.item.borrow().clone() else {
             return;
         };
+        // Even a locally rejected edit supersedes pending results. Otherwise an
+        // older response could replace the validation error with stale prices.
+        self.state.borrow_mut().generation += 1;
+        self.sync_generation();
+        let generation = self.state.borrow().generation;
+        self.url.replace(None);
+        self.request.replace(None);
+        self.economy_panel.reset();
+        self.economy_panel.show(&Ok(None), item.stack_size);
         let mut settings = self.settings.borrow().clone();
         settings.league = self.league.text().trim().to_string();
         settings.filters.online = self.online.is_active();
@@ -216,12 +227,7 @@ impl Ui {
             self.stat_rows
                 .borrow()
                 .iter()
-                .filter(|(check, _, _)| check.is_active())
-                .map(|(_, value, id)| filters::StatFilter {
-                    id: id.clone(),
-                    min: Some(value.value()),
-                    max: None,
-                }),
+                .filter_map(stat_row::StatRow::selected_filter),
         );
         let query = match filters::search_query(&item, &selected) {
             Ok(query) => query,
@@ -230,10 +236,7 @@ impl Ui {
                 return;
             }
         };
-        self.state.borrow_mut().generation += 1;
-        self.sync_generation();
-        let generation = self.state.borrow().generation;
-        self.url.replace(None);
+        self.request.replace(Some((generation, query.clone())));
         self.economy_panel.reset();
         if self
             .economy_worker
@@ -321,27 +324,19 @@ impl Ui {
                         }
                         self.stat_rows.borrow_mut().clear();
                         for modifier in &item.modifiers {
-                            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                            let check = gtk::CheckButton::new();
-                            let label = gtk::Label::new(Some(&modifier.text));
-                            label.set_line_wrap(true);
-                            label.set_max_width_chars(45);
-                            label.set_xalign(0.);
-                            check.add(&label);
-                            check.set_tooltip_text(Some(&modifier.id));
-                            let value = gtk::SpinButton::with_range(-100000., 100000., 1.);
-                            value.set_digits(1);
-                            value.set_value(modifier.value);
-                            value.set_tooltip_text(Some("Valeur minimum à rechercher"));
-                            row.pack_start(&check, true, true, 0);
-                            row.pack_start(&value, false, false, 0);
-                            self.mod_box.pack_start(&row, false, false, 0);
-                            self.stat_rows
-                                .borrow_mut()
-                                .push((check, value, modifier.id.clone()));
+                            let row = stat_row::StatRow::new(modifier);
+                            self.mod_box.pack_start(&row.container, false, false, 0);
+                            self.stat_rows.borrow_mut().push(row);
                         }
                         if item.modifiers.is_empty() {
-                            self.mod_box.pack_start(&gtk::Label::new(Some("Aucun mod simple reconnu. Les mods complexes restent à porter.")),false,false,0);
+                            self.mod_box.pack_start(
+                                &gtk::Label::new(Some(
+                                    "Aucun mod reconnu dans le catalogue de traductions.",
+                                )),
+                                false,
+                                false,
+                                0,
+                            );
                         }
                         self.item.replace(Some(item));
                         if self.show() {
@@ -736,6 +731,7 @@ pub fn run() -> Result<(), String> {
         url: RefCell::new(None),
         shown: RefCell::new(None),
         result: RefCell::new(None),
+        request: RefCell::new(None),
     });
     {
         let ui = ui.clone();
@@ -858,7 +854,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;
