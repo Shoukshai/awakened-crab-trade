@@ -37,6 +37,18 @@ impl Settings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        if !crate::filters::PAYMENT_CURRENCIES
+            .iter()
+            .any(|(tag, _)| *tag == self.filters.bulk_currency)
+        {
+            return Err("Unsupported payment currency in settings".into());
+        }
+        if self.filters.min_item_level.is_some_and(|n| n > 100)
+            || self.filters.min_links.is_some_and(|n| n > 6)
+            || self.filters.minimum_stock.is_some_and(|n| n > 1_000_000)
+        {
+            return Err("Filter value exceeds the supported UI range".into());
+        }
         if self.league.trim().is_empty() || self.league.len() > 100 {
             return Err("League must contain 1–100 characters".into());
         }
@@ -56,5 +68,28 @@ impl Settings {
         )
         .map_err(|e| e.to_string())?;
         std::fs::rename(tmp, path).map_err(|e| e.to_string())
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn version_01_settings_keep_new_exchange_defaults() {
+        let settings:Settings=serde_json::from_str(r#"{"league":"Covens","filters":{"online":true,"min_item_level":null,"min_links":null,"stats":[]},"scale":1}"#).unwrap();
+        settings.validate().unwrap();
+        assert_eq!(settings.filters.bulk_currency, "chaos");
+        assert_eq!(settings.filters.minimum_stock, None);
+    }
+    #[test]
+    fn invalid_settings_are_rejected_before_the_ui_can_silently_clamp_them() {
+        let mut s = Settings::default();
+        s.filters.minimum_stock = Some(1_000_001);
+        assert!(s.validate().is_err());
+        s.filters.minimum_stock = None;
+        s.filters.bulk_currency = "unknown".into();
+        assert!(s.validate().is_err());
+        s.filters.bulk_currency = "chaos".into();
+        s.scale = f64::NAN;
+        assert!(s.validate().is_err());
     }
 }

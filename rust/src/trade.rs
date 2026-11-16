@@ -20,9 +20,22 @@ pub struct Listing {
     pub amount: f64,
     pub currency: String,
     pub seller: String,
+    pub bulk: Option<BulkOffer>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkOffer {
+    pub exchange_amount: f64,
+    pub item_amount: f64,
+    pub stock: f64,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SearchKind {
+    Item,
+    Bulk,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Prices {
+    pub kind: SearchKind,
     pub total: u64,
     pub listings: Vec<Listing>,
     pub url: String,
@@ -39,7 +52,11 @@ impl Trade {
     pub fn new() -> Result<Self, String> {
         Ok(Self {
             client: Client::builder()
-                .user_agent("Awakened-PoE-Trade-Rust/0.1 (native Linux development)")
+                .user_agent(concat!(
+                    "Awakened-PoE-Trade-Rust/",
+                    env!("CARGO_PKG_VERSION"),
+                    " (native Linux development)"
+                ))
                 .connect_timeout(Duration::from_secs(5))
                 .timeout(Duration::from_secs(15))
                 .build()
@@ -110,7 +127,17 @@ impl Trade {
             ));
         }
         let start = Instant::now();
-        let mut url = reqwest::Url::parse(&format!("{}/api/trade/search/", self.base))
+        let kind = if query["engine"] == "new" {
+            SearchKind::Bulk
+        } else {
+            SearchKind::Item
+        };
+        let route = if kind == SearchKind::Bulk {
+            "exchange"
+        } else {
+            "search"
+        };
+        let mut url = reqwest::Url::parse(&format!("{}/api/trade/{route}/", self.base))
             .map_err(|e| e.to_string())?;
         url.path_segments_mut()
             .map_err(|_| "Invalid Trade URL")?
@@ -133,6 +160,18 @@ impl Trade {
         if !valid_search_id(id) {
             return Err("Invalid search ID".into());
         }
+        if kind == SearchKind::Bulk {
+            let mut prices = decode_bulk(&result, query)?;
+            prices.url = format!(
+                "{}/trade/exchange/{}/{}",
+                self.base,
+                encode_segment(league),
+                id
+            );
+            prices.network_ms = start.elapsed().as_millis();
+            self.remember(key, &prices);
+            return Ok(prices);
+        }
         let ids = result["result"]
             .as_array()
             .ok_or("Trade search response missing results")?
@@ -147,6 +186,7 @@ impl Trade {
             return Err("Invalid listing ID".into());
         }
         let mut prices = Prices {
+            kind,
             total: result["total"]
                 .as_u64()
                 .ok_or("Trade search missing total")?,
@@ -186,19 +226,94 @@ impl Trade {
                             .as_str()
                             .unwrap_or("?")
                             .into(),
+                        bulk: None,
                     });
                 }
             }
         }
         prices.network_ms = start.elapsed().as_millis();
+        self.remember(key, &prices);
+        Ok(prices)
+    }
+    fn remember(&mut self, key: String, prices: &Prices) {
         self.cache
             .retain(|_, (at, _)| at.elapsed() < Duration::from_secs(60));
         if self.cache.len() >= 64 {
             self.cache.clear();
         }
         self.cache.insert(key, (Instant::now(), prices.clone()));
-        Ok(prices)
     }
+}
+fn decode_bulk(data: &Value, query: &Value) -> Result<Prices, String> {
+    let results = data["result"]
+        .as_object()
+        .ok_or("Exchange response missing result object")?;
+    let have = query["query"]["have"][0]
+        .as_str()
+        .ok_or("Exchange payment currency missing")?;
+    let want = query["query"]["want"][0]
+        .as_str()
+        .ok_or("Exchange wanted currency missing")?;
+    let minimum = query["query"]["minimum"].as_f64().unwrap_or(0.);
+    let mut listings = Vec::new();
+    for entry in results.values() {
+        let Some(offers) = entry["listing"]["offers"]
+            .as_array()
+            .filter(|a| a.len() == 1)
+        else {
+            continue;
+        };
+        let offer = &offers[0];
+        if offer["exchange"]["currency"] != have || offer["item"]["currency"] != want {
+            continue;
+        }
+        let (Some(paid), Some(received), Some(stock)) = (
+            offer["exchange"]["amount"].as_f64(),
+            offer["item"]["amount"].as_f64(),
+            offer["item"]["stock"].as_f64(),
+        ) else {
+            continue;
+        };
+        if !paid.is_finite()
+            || !received.is_finite()
+            || !stock.is_finite()
+            || paid <= 0.
+            || received <= 0.
+            || stock < minimum
+            || stock < received
+        {
+            continue;
+        }
+        let unit = paid / received;
+        if !unit.is_finite() || unit <= 0. {
+            continue;
+        }
+        listings.push(Listing {
+            amount: unit,
+            currency: have.into(),
+            seller: entry["listing"]["account"]["name"]
+                .as_str()
+                .unwrap_or("?")
+                .into(),
+            bulk: Some(BulkOffer {
+                exchange_amount: paid,
+                item_amount: received,
+                stock,
+            }),
+        });
+    }
+    listings.sort_by(|a, b| a.amount.total_cmp(&b.amount));
+    listings.truncate(20);
+    Ok(Prices {
+        kind: SearchKind::Bulk,
+        total: data["total"]
+            .as_u64()
+            .ok_or("Exchange response missing total")?,
+        listings,
+        url: String::new(),
+        network_ms: 0,
+        cached: false,
+    })
 }
 fn valid_search_id(id: &str) -> bool {
     !id.is_empty()
@@ -207,7 +322,7 @@ fn valid_search_id(id: &str) -> bool {
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"-_".contains(&c))
 }
-fn encode_segment(text: &str) -> String {
+pub(crate) fn encode_segment(text: &str) -> String {
     text.bytes()
         .map(|c| {
             if c.is_ascii_alphanumeric() || b"-._~".contains(&c) {
@@ -218,7 +333,7 @@ fn encode_segment(text: &str) -> String {
         })
         .collect()
 }
-fn header_cooldown(headers: &HeaderMap) -> Duration {
+pub(crate) fn header_cooldown(headers: &HeaderMap) -> Duration {
     let mut seconds = headers
         .get("retry-after")
         .and_then(|s| s.to_str().ok())
@@ -256,7 +371,7 @@ fn header_cooldown(headers: &HeaderMap) -> Duration {
 mod tests {
     use super::*;
     use std::io::{Read, Write};
-    fn read_request(socket: &mut std::net::TcpStream) {
+    fn read_request(socket: &mut std::net::TcpStream) -> String {
         socket
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();
@@ -278,9 +393,57 @@ mod tests {
             .unwrap_or(0);
         assert!(length < 8192);
         socket.read_exact(&mut vec![0; length]).unwrap();
+        headers
     }
     fn json_response(value: &str) -> String {
         format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",value.len(),value)
+    }
+    #[test]
+    fn exchange_uses_one_request_and_preserves_price_direction_and_cache() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let thread = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let request = read_request(&mut socket);
+            assert!(request.starts_with("POST /api/trade/exchange/Hardcore%20Covens "));
+            socket.write_all(json_response(r#"{"id":"bulk_123-a","total":1,"result":{"row":{"listing":{"account":{"name":"seller"},"offers":[{"exchange":{"currency":"chaos","amount":1},"item":{"currency":"wisdom","amount":125,"stock":1000}}]}}}}"#).as_bytes()).unwrap();
+        });
+        let mut trade = Trade::new().unwrap();
+        trade.base = url;
+        let query =
+            serde_json::json!({"engine":"new","query":{"have":["chaos"],"want":["wisdom"]}});
+        let current = Arc::new(AtomicU64::new(1));
+        let p = trade
+            .search("Hardcore Covens", &query, 1, &current)
+            .unwrap();
+        thread.join().unwrap();
+        assert_eq!(p.kind, SearchKind::Bulk);
+        assert_eq!(p.listings.len(), 1);
+        assert_eq!(p.listings[0].amount, 0.008);
+        let offer = p.listings[0].bulk.as_ref().unwrap();
+        assert_eq!(offer.item_amount, 125.);
+        assert_eq!(offer.exchange_amount, 1.);
+        assert_eq!(offer.stock, 1000.);
+        assert!(p
+            .url
+            .contains("/trade/exchange/Hardcore%20Covens/bulk_123-a"));
+        assert!(
+            trade
+                .search("Hardcore Covens", &query, 1, &current)
+                .unwrap()
+                .cached
+        );
+    }
+    #[test]
+    fn exchange_rejects_invalid_lots_and_applies_stock_and_currency_filters() {
+        let offer = |paid: f64, received: f64, stock: f64, currency: &str| serde_json::json!({"listing":{"offers":[{"exchange":{"currency":currency,"amount":paid},"item":{"currency":"wisdom","amount":received,"stock":stock}}]}});
+        let data = serde_json::json!({"total":5,"result":{"cheap":offer(1.,100.,500.,"chaos"),"expensive":offer(2.,100.,500.,"chaos"),"zero":offer(1.,0.,500.,"chaos"),"stock":offer(1.,10.,20.,"chaos"),"other":offer(1.,100.,500.,"divine")}});
+        let query = serde_json::json!({"query":{"have":["chaos"],"want":["wisdom"],"minimum":100}});
+        let p = decode_bulk(&data, &query).unwrap();
+        assert_eq!(p.listings.len(), 2);
+        assert_eq!(p.listings[0].amount, 0.01);
+        assert_eq!(p.listings[1].amount, 0.02);
+        assert!(decode_bulk(&serde_json::json!({"result":[],"total":0}), &query).is_err());
     }
     #[test]
     fn search_fetch_and_cache_preserve_listing_currencies() {

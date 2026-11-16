@@ -3,12 +3,14 @@ use crate::{
         clipboard,
         wayland::{self, Snapshot},
     },
+    economy::{Economy, Quote},
     filters,
     item::Item,
     overlay::{Overlay, State},
     settings::Settings,
-    trade::{Prices, Trade},
+    trade::{Prices, SearchKind, Trade},
 };
+mod economy_panel;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -23,12 +25,19 @@ use std::{
     time::{Duration, Instant},
 };
 
+type EconomyResult = Result<Option<Quote>, String>;
 enum Event {
     Shortcut(&'static str),
     Windows(Snapshot),
     TrackerError(String),
     Captured(u64, Result<(Item, u128), String>),
     Prices(u64, Result<Prices, String>),
+    Economy(u64, Result<Option<Quote>, String>),
+}
+struct EconomyJob {
+    generation: u64,
+    league: String,
+    item: Item,
 }
 enum Job {
     Capture {
@@ -49,6 +58,11 @@ struct Ui {
     league: gtk::Entry,
     ilvl: gtk::SpinButton,
     online: gtk::CheckButton,
+    currency: gtk::ComboBoxText,
+    stock: gtk::SpinButton,
+    economy_panel: economy_panel::EconomyPanel,
+    economy_worker: SyncSender<EconomyJob>,
+    economy_result: RefCell<Option<(u64, EconomyResult)>>,
     mod_box: gtk::Box,
     stat_rows: RefCell<Vec<(gtk::CheckButton, gtk::SpinButton, String)>>,
     state: RefCell<Overlay>,
@@ -111,7 +125,7 @@ impl Ui {
         self.window.show_all();
         self.window.queue_draw();
         self.hint
-            .set_text("Passif · le jeu garde les entrées · commande interact pour les contrôles");
+            .set_text("Passif · Maj+Espace pour interagir · Ctrl+Maj+D pour fermer");
         eprintln!(
             "overlay state=Preparing generation={} scale={}",
             self.state.borrow().generation,
@@ -135,6 +149,10 @@ impl Ui {
         }
         match command {
             "demo" => {
+                self.item.replace(None);
+                self.url.replace(None);
+                self.economy_panel.reset();
+                self.economy_panel.show(&Ok(None), None);
                 self.title.set_text("AWAKENED POE TRADE · RUST");
                 self.text.set_text("Panneau natif de validation\n\nClavier et clics restent au jeu.\nAucun prix simulé n'est affiché.");
                 self.show();
@@ -181,6 +199,13 @@ impl Ui {
         settings.filters.online = self.online.is_active();
         settings.filters.min_item_level =
             (self.ilvl.value_as_int() > 0).then_some(self.ilvl.value_as_int() as u32);
+        settings.filters.bulk_currency = self
+            .currency
+            .active_id()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "chaos".into());
+        settings.filters.minimum_stock =
+            (self.stock.value_as_int() > 0).then_some(self.stock.value_as_int() as u32);
         if let Err(e) = settings.save() {
             self.text.set_text(&e);
             return;
@@ -198,11 +223,32 @@ impl Ui {
                     max: None,
                 }),
         );
-        let query = filters::query(&item, &selected);
+        let query = match filters::search_query(&item, &selected) {
+            Ok(query) => query,
+            Err(e) => {
+                self.text.set_text(&e);
+                return;
+            }
+        };
         self.state.borrow_mut().generation += 1;
         self.sync_generation();
         let generation = self.state.borrow().generation;
         self.url.replace(None);
+        self.economy_panel.reset();
+        if self
+            .economy_worker
+            .try_send(EconomyJob {
+                generation,
+                league: settings.league.clone(),
+                item: item.clone(),
+            })
+            .is_err()
+        {
+            self.economy_panel.show(
+                &Err("une requête indicative est déjà en cours ; réessayez".into()),
+                item.stack_size,
+            );
+        }
         self.text.set_text(&format!("Recherche dans {}…\n\nComparaison par base et filtres sélectionnés.\nLes mods sont sélectionnés explicitement dans le panneau.",settings.league));
         match self.worker.try_send(Job::Search {
             generation,
@@ -259,6 +305,17 @@ impl Ui {
                             "capture parsed processing_ms={elapsed} clipboard_before_overlay=true"
                         );
                         self.title.set_text(&item.description());
+                        self.currency.set_sensitive(item.trade_tag.is_some());
+                        self.stock.set_sensitive(item.trade_tag.is_some());
+                        if item.trade_tag.as_deref() == self.currency.active_id().as_deref() {
+                            self.currency.set_active_id(Some(
+                                if item.trade_tag.as_deref() == Some("chaos") {
+                                    "divine"
+                                } else {
+                                    "chaos"
+                                },
+                            ));
+                        }
                         for child in self.mod_box.children() {
                             self.mod_box.remove(&child);
                         }
@@ -293,6 +350,8 @@ impl Ui {
                     }
                     Err(e) => {
                         self.item.replace(None);
+                        self.economy_panel.reset();
+                        self.economy_panel.show(&Ok(None), None);
                         self.title.set_text("Impossible de lire l'objet");
                         self.text.set_text(&e);
                         eprintln!("capture error={e}");
@@ -311,10 +370,21 @@ impl Ui {
                         let rows = p
                             .listings
                             .iter()
-                            .map(|l| format!("{:>8} {:<16} {}", l.amount, l.currency, l.seller))
+                            .map(|l| match &l.bulk {
+                                Some(b) => format!(
+                                    "{} {}/objet · {} pour {} · stock {} · {}",
+                                    economy_panel::format_amount(l.amount),
+                                    l.currency,
+                                    b.exchange_amount,
+                                    b.item_amount,
+                                    b.stock,
+                                    l.seller
+                                ),
+                                None => format!("{:>8} {:<16} {}", l.amount, l.currency, l.seller),
+                            })
                             .collect::<Vec<_>>()
                             .join("\n");
-                        self.text.set_text(&format!("{} résultats · {} offres affichées\n{}\n\n{}\n\nComparaison par base et filtres sélectionnés.\nVérifiez les mods et la ligue avant d'estimer un rare.",p.total,p.listings.len(),if p.cached {"Cache (< 60 s)".into()} else {format!("Réseau : {} ms",p.network_ms)},if rows.is_empty() {"Aucune offre avec prix."} else {&rows}));
+                        self.text.set_text(&format!("{} · {} résultats · {} offres\n{}\n\n{}\n\n{}",if p.kind==SearchKind::Bulk {"Échange en gros"} else {"Recherche d'objet"},p.total,p.listings.len(),if p.cached {"Cache (< 60 s)".into()} else {format!("Réseau : {} ms",p.network_ms)},if rows.is_empty() {"Aucune offre avec prix."} else {&rows},if p.kind==SearchKind::Bulk {"Prix par objet, lot et stock conservés. Vérifiez la devise choisie."} else {"Comparaison par base et filtres sélectionnés. Vérifiez les mods avant d'estimer un rare."}));
                         self.url.replace(Some(p.url));
                         eprintln!(
                             "trade result generation={generation} total={} network_ms={} cached={}",
@@ -327,14 +397,81 @@ impl Ui {
                     }
                 }
             }
+            Event::Economy(generation, result) => {
+                if !self.state.borrow().accepts(generation) {
+                    eprintln!("discarded economy generation={generation}");
+                    return;
+                }
+                if let Err(e) = &result {
+                    eprintln!("economy error generation={generation} error={e}");
+                }
+                if let Ok(Some(q)) = &result {
+                    eprintln!(
+                        "economy result generation={generation} chaos={} age_s={} cached={}",
+                        q.chaos, q.age_seconds, q.from_cache
+                    );
+                }
+                self.economy_panel.show(
+                    &result,
+                    self.item.borrow().as_ref().and_then(|i| i.stack_size),
+                );
+                self.economy_result.replace(Some((generation, result)));
+            }
         }
     }
 }
 #[allow(deprecated)] // GTK3's matching glib 0.18 channel; wakes the main loop without polling.
 pub fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args
+        .first()
+        .is_some_and(|a| a == "inspect" || a == "lookup" || a == "economy")
+    {
+        let path = args
+            .get(1)
+            .ok_or("Usage: inspect FILE or lookup FILE [LEAGUE] [PAYMENT_CURRENCY]")?;
+        let inspect_started = Instant::now();
+        let item = Item::parse(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)?;
+        if args[0] == "economy" {
+            let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
+            let quote = Economy::new()?.quote(&league, &item, 1, &Arc::new(AtomicU64::new(1)));
+            println!(
+                "{}",
+                serde_json::json!({"league":league,"item":item,"economy":quote})
+            );
+            return Ok(());
+        }
+        let mut filters = filters::Filters::default();
+        if let Some(currency) = args.get(3) {
+            filters.bulk_currency = currency.clone();
+        } else if item.trade_tag.as_deref() == Some("chaos") {
+            filters.bulk_currency = "divine".into();
+        }
+        let query = filters::search_query(&item, &filters)?;
+        if args[0] == "inspect" {
+            eprintln!(
+                "inspect processing_us={}",
+                inspect_started.elapsed().as_micros()
+            );
+            println!("{}", serde_json::json!({"item":item,"query":query}));
+            return Ok(());
+        }
+        let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
+        let current = Arc::new(AtomicU64::new(1));
+        let prices = Trade::new()?.search(&league, &query, 1, &current);
+        let economy = Economy::new()?.quote(&league, &item, 1, &current);
+        println!(
+            "{}",
+            serde_json::json!({"league":league,"item":item,"request":query,"trade":prices,"economy":economy})
+        );
+        return Ok(());
+    }
+    if args.first().is_some_and(|a| a == "--version") {
+        println!("awakened-poe-trade-rs {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|check|copy|interact|hide|quit|windows]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -466,6 +603,27 @@ pub fn run() -> Result<(), String> {
     row.pack_start(&ilvl, false, false, 0);
     row.pack_start(&online, false, false, 0);
     let mod_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    let bulk_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let currency = gtk::ComboBoxText::new();
+    for &(id, label) in filters::PAYMENT_CURRENCIES {
+        currency.append(Some(id), label);
+    }
+    currency.set_active_id(Some(&settings.filters.bulk_currency));
+    currency.set_sensitive(false);
+    let stock = gtk::SpinButton::with_range(0., 1000000., 1.);
+    stock.set_value(settings.filters.minimum_stock.unwrap_or(0) as f64);
+    stock.set_sensitive(false);
+    stock.set_tooltip_text(Some("Stock minimum du vendeur ; 0 = pas de filtre"));
+    bulk_row.pack_start(
+        &gtk::Label::new(Some("Échange : paiement")),
+        false,
+        false,
+        0,
+    );
+    bulk_row.pack_start(&currency, true, true, 0);
+    bulk_row.pack_start(&gtk::Label::new(Some("Stock ≥")), false, false, 0);
+    bulk_row.pack_start(&stock, false, false, 0);
+    let economy_panel = economy_panel::EconomyPanel::new();
     let mod_scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
     mod_scroll.set_min_content_height(90);
     mod_scroll.set_max_content_height(180);
@@ -486,6 +644,8 @@ pub fn run() -> Result<(), String> {
     content.pack_start(&title, false, false, 0);
     content.pack_start(&scroll, true, true, 0);
     content.pack_start(&row, false, false, 0);
+    content.pack_start(&bulk_row, false, false, 0);
+    content.pack_start(&economy_panel.container, false, false, 0);
     content.pack_start(&mod_expander, false, false, 0);
     content.pack_start(&actions, false, false, 0);
     content.pack_start(&hint, false, false, 0);
@@ -535,6 +695,23 @@ pub fn run() -> Result<(), String> {
             }
         });
     }
+    let (economy_worker, economy_jobs) = mpsc::sync_channel::<EconomyJob>(1);
+    {
+        let sender = sender.clone();
+        let current = current.clone();
+        std::thread::spawn(move || {
+            let mut economy = Economy::new();
+            while let Ok(job) = economy_jobs.recv() {
+                let result = economy
+                    .as_mut()
+                    .map_err(|e| e.clone())
+                    .and_then(|e| e.quote(&job.league, &job.item, job.generation, &current));
+                if sender.send(Event::Economy(job.generation, result)).is_err() {
+                    break;
+                }
+            }
+        });
+    }
     let ui = Rc::new(Ui {
         window: window.clone(),
         title,
@@ -543,6 +720,11 @@ pub fn run() -> Result<(), String> {
         league,
         ilvl,
         online,
+        currency,
+        stock,
+        economy_panel,
+        economy_worker,
+        economy_result: RefCell::new(None),
         mod_box,
         stat_rows: RefCell::new(Vec::new()),
         state: RefCell::new(Overlay::default()),
@@ -570,6 +752,18 @@ pub fn run() -> Result<(), String> {
                 ui.hide();
                 if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
                     eprintln!("open Trade: {e}");
+                }
+            }
+        });
+    }
+    {
+        let ui = ui.clone();
+        let open = ui.economy_panel.open.clone();
+        open.connect_clicked(move |_| {
+            if let Some(url) = ui.economy_panel.url() {
+                ui.hide();
+                if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
+                    eprintln!("open economy: {e}");
                 }
             }
         });
@@ -644,9 +838,13 @@ pub fn run() -> Result<(), String> {
         let sender = sender.clone();
         let active = ui.game_active.clone();
         std::thread::spawn(move || {
-            if let Err(e) = crate::desktop::xwayland_shortcuts::run(active, move |command| {
-                let _ = sender.send(Event::Shortcut(command));
-            }) {
+            if let Err(e) = crate::desktop::xwayland_shortcuts::run(
+                active,
+                move |command| {
+                    let _ = sender.send(Event::Shortcut(command));
+                },
+                || (),
+            ) {
                 eprintln!("shortcuts unavailable: {e}");
             }
         });
@@ -660,7 +858,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"total":p.total,"listings":p.listings.len(),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

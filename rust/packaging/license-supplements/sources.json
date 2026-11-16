@@ -1,0 +1,10 @@
+{
+  "gtk-layer-shell@0.8.2": {
+    "file": "gtk-layer-shell-gir-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/pentamassiv/gtk-layer-shell-gir/67edd0df984e2d86a952ef9fd7bfeeb6c3b7440f/LICENSE.txt"
+  },
+  "gtk-layer-shell-sys@0.7.2": {
+    "file": "gtk-layer-shell-gir-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/pentamassiv/gtk-layer-shell-gir/9931b887a80bc8a9f59c3dbab96cbf17881758c7/LICENSE.txt"
+  }
+}

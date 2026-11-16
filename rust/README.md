@@ -26,6 +26,14 @@ testé. Défaut d'une installation neuve : Standard. Les premières offres compa
 par base ne suffisent pas à estimer un rare : choisir ses mods et leurs valeurs
 minimum avant **Rechercher**. Les mods complexes ne sont pas encore portés.
 
+Les objets possédant un identifiant d'échange upstream utilisent la recherche
+en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
+stock minimum, prix unitaire et quantités de chaque offre. Les autres objets
+utilisent la recherche Trade normale. Le prix indicatif poe.ninja apparaît
+séparément, avec sa tendance et le total de la pile ; il ne valorise pas les mods
+d'un rare. Son cache mémoire/disque dure 31 minutes. Les variantes complexes de
+certains uniques ne sont pas encore prises en charge et restent sans estimation.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -41,7 +49,19 @@ Commandes utiles depuis un outil qui garde PoE actif :
 ./target/release/awakened-poe-trade-rs check  # après Ctrl+Alt+C manuel
 ./target/release/awakened-poe-trade-rs hide
 ./target/release/awakened-poe-trade-rs quit
+./target/release/awakened-poe-trade-rs --version
 ```
+
+Diagnostics sans interface ni entrée envoyée au jeu :
+
+```sh
+./target/release/awakened-poe-trade-rs inspect src/fixtures/driftwood-wand.txt
+./target/release/awakened-poe-trade-rs lookup src/fixtures/scroll-of-wisdom.txt Covens chaos
+./target/release/awakened-poe-trade-rs economy src/fixtures/scroll-of-wisdom.txt Covens
+```
+
+`lookup` et `economy` consultent les services publics et leurs caches ; `inspect`
+reste local. Les journaux séparent traitement, réseau et cache.
 
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le champ `scale` (0,75–2,5) s'applique
@@ -62,7 +82,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.2.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -74,17 +94,22 @@ local. Aucun rendu périodique n'est demandé lorsque l'interface est inactive.
 
 ```sh
 cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```
 
-Le second test nécessite le service lancé et PoE actif ; il ouvre et ferme cinq
+Le test de raccourcis exige River et xdotool, démarre son propre serveur sans écran
+et ne transmet ses touches qu'à sa fenêtre de test. Il vérifie aussi la libération
+des grabs partiels après conflit. Le test `smoke-overlay.py` nécessite le service
+lancé et PoE actif ; il ouvre et ferme cinq
 panneaux passifs, sans envoyer de commande de jeu. Les exemples de contrôle du
 pointeur et des fenêtres sont des outils de validation manuelle.
 
 L'overlay exige layer-shell v4 et foreign-toplevel. La détection actuelle cible
 précisément `steam_app_238960` / `Path of Exile`. Le parsing prend en charge le texte
-anglais. La recherche est limitée aux premières 10 offres avec prix, cache de
-60 s, pas de retry automatique. Les réponses 429 et les limites serveur sont
+anglais. La recherche est limitée aux premières 10 offres Trade ou 20 offres
+en lot, cache de 60 s, pas de retry automatique. Les réponses 429 et les limites serveur sont
 respectées. Une requête en vol a un timeout ; sa réponse est invalidée à la
 fermeture ou au changement d'objet, sans réouverture ni activation.
 
@@ -94,5 +119,9 @@ manuels restants : [VALIDATION.md](docs/VALIDATION.md). X11 natif, Windows, autr
 compositeurs, autres langues et autres facteurs d'écran ne sont pas validés.
 
 MIT, copyright Alexander Drozdov ; licence et attributions upstream conservées
-dans `../LICENSE` et `../README.md`. Catalogue et traductions de stats réutilisés
+dans `../LICENSE` et `../README.md`. Le paquet inclut les licences des dépendances
+de l'hôte et la notice de la bibliothèque standard Rust. Le collecteur utilise
+les sources Cargo locales et `share/doc/rust/COPYRIGHT-library.html` du sysroot ;
+les compléments GTK sont fournis avec leurs références exactes dans `packaging/`.
+Catalogue et traductions de stats réutilisés
 depuis upstream ; pas de service web embarqué dans l'interface Rust.

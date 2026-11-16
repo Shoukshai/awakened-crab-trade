@@ -1,13 +1,23 @@
 use crate::item::{Item, Rarity};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+pub const PAYMENT_CURRENCIES: &[(&str, &str)] = &[
+    ("chaos", "Chaos Orb"),
+    ("divine", "Divine Orb"),
+    ("exalted", "Exalted Orb"),
+    ("alch", "Orb of Alchemy"),
+    ("alt", "Orb of Alteration"),
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Filters {
     pub online: bool,
     pub min_item_level: Option<u32>,
     pub min_links: Option<u32>,
     pub stats: Vec<StatFilter>,
+    pub bulk_currency: String,
+    pub minimum_stock: Option<u32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatFilter {
@@ -22,6 +32,8 @@ impl Default for Filters {
             min_item_level: None,
             min_links: None,
             stats: vec![],
+            bulk_currency: "chaos".into(),
+            minimum_stock: None,
         }
     }
 }
@@ -29,6 +41,9 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     let mut q = json!({"status":{"option":if filters.online {"online"} else {"any"}},"type":item.base,"stats":[{"type":"and","filters":filters.stats.iter().map(|s| json!({"id":s.id,"value":{"min":s.min,"max":s.max}})).collect::<Vec<_>>() }],"filters":{}});
     if item.rarity == Rarity::Unique && !item.unidentified {
         q["name"] = json!(item.name);
+    }
+    if let Some(discriminator) = &item.trade_discriminator {
+        q["type"] = json!({"option":item.base,"discriminator":discriminator});
     }
     if matches!(item.rarity, Rarity::Normal | Rarity::Magic | Rarity::Rare) {
         q["filters"]["type_filters"] = json!({"filters":{"rarity":{"option":"nonunique"}}});
@@ -55,9 +70,76 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     }
     json!({"query":q,"sort":{"price":"asc"}})
 }
+/// Mirrors upstream's choice: stat filters require ordinary Trade even for currency.
+pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
+    if filters.stats.is_empty() {
+        if let Some(want) = &item.trade_tag {
+            let have = &filters.bulk_currency;
+            if !PAYMENT_CURRENCIES.iter().any(|(tag, _)| *tag == have) {
+                return Err("Unsupported exchange currency".into());
+            }
+            if want == have {
+                return Err("Choose a payment currency different from this item".into());
+            }
+            let mut query = json!({"engine":"new","query":{"status":{"option":if filters.online {"online"} else {"any"}},"have":[have],"want":[want]},"sort":{"have":"asc"}});
+            if let Some(stock) = filters.minimum_stock {
+                query["query"]["minimum"] = json!(stock);
+            }
+            return Ok(query);
+        }
+    }
+    Ok(query(item, filters))
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn currency_exchange_uses_catalogue_tags_and_stock() {
+        let item=Item::parse("Item Class: Stackable Currency\nRarity: Currency\nScroll of Wisdom\n--------\nStack Size: 9/40").unwrap();
+        assert_eq!(item.trade_tag.as_deref(), Some("wisdom"));
+        assert_eq!(item.stack_size, Some(9));
+        let filters = Filters {
+            minimum_stock: Some(100),
+            ..Filters::default()
+        };
+        let body = search_query(&item, &filters).unwrap();
+        assert_eq!(body["engine"], "new");
+        assert_eq!(body["query"]["have"][0], "chaos");
+        assert_eq!(body["query"]["want"][0], "wisdom");
+        assert_eq!(body["query"]["minimum"], 100);
+    }
+    #[test]
+    fn selected_stats_force_item_search_and_same_currency_is_rejected() {
+        let item =
+            Item::parse("Item Class: Stackable Currency\nRarity: Currency\nChaos Orb\n--------")
+                .unwrap();
+        assert!(search_query(&item, &Filters::default()).is_err());
+        let filters = Filters {
+            stats: vec![StatFilter {
+                id: "explicit.stat_test".into(),
+                min: Some(1.),
+                max: None,
+            }],
+            ..Filters::default()
+        };
+        assert!(search_query(&item, &filters)
+            .unwrap()
+            .get("engine")
+            .is_none());
+    }
+    #[test]
+    fn exchangeable_without_a_tag_does_not_invent_an_exchange_id() {
+        let item = Item::parse(
+            "Item Class: Divination Cards\nRarity: Divination Card\nThe Doctor\n--------",
+        )
+        .unwrap();
+        assert_eq!(item.namespace, "DIVINATION_CARD");
+        assert!(item.trade_tag.is_none());
+        assert!(search_query(&item, &Filters::default())
+            .unwrap()
+            .get("engine")
+            .is_none());
+    }
     #[test]
     fn rare_query_uses_base_not_random_name() {
         let i = Item::parse(

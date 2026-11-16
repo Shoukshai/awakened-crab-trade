@@ -87,8 +87,8 @@ L'application upstream de test a été fermée ; PoE a été conservé.
   défaut dans la configuration lue.
 - Réduction/restauration, fermeture et réapparition contrôlées du jeu ; la
   réapparition a été observée, pas une campagne complète de ces transitions.
-- Saisie de ligue à vérifier graphiquement (la commande de ligue et sa persistance
-  sont vérifiées) ; replay des raccourcis dans une autre application X11 ; conflits de raccourcis.
+- La saisie native de ligue, le replay et les conflits ont depuis été testés au
+  jalon 0.2 ci-dessous ; le replay utilise un serveur isolé.
 - Plusieurs sorties, facteur d'écran différent de 1, mise à l'échelle de
   l'application, branchements d'écran et géométrie au-dessus d'un jeu fenêtré.
 - Fenêtres de jeu natives Wayland, PoE hors Steam, X11 natif et Windows : non testés.
@@ -111,3 +111,85 @@ CPU mathématiquement nul. Un panneau statique avant parsing avait donné 46,76 
 et 0 tick sur 2 s. Pas d'optimisation spécifique revendiquée ; la boucle reste
 événementielle, sans rendu permanent. Optimisations supplémentaires à décider
 sur une campagne de mesures après extension fonctionnelle.
+
+## Jalon 0.2 : bulk et économie
+
+37 tests unitaires passent, ainsi que Clippy avec avertissements refusés.
+Les ajouts couvrent les identifiants de bulk, piles et influences, les ratios
+et stocks des offres, les devises différentes, les variantes poe.ninja,
+les erreurs/cache/annulations et les réglages compatibles avec la version 0.1.
+
+Sur le PoE resté ouvert, copie Ctrl+D d'une pile de 3 Scroll of Wisdom : recherche
+bulk Covens, 23 résultats et 20 offres visibles, 409 ms réseau (build debug).
+Prix poe.ninja séparé à 0,008005 chaos/unité, total de la pile et graphe inspectés.
+Le panneau passif reste sans focus. Saisie native d'un stock minimum de 100 :
+une offre restante, stock 1 925, 19 chaos pour 200 parchemins, soit 0,095/unité.
+Sélection de Divine Orb dans la liste native puis recherche : 3 offres, 352 ms
+réseau. Échap masque le panneau et rend le focus au jeu. Les réglages de test
+devise/stock ont été restaurés à chaos/sans minimum après ces essais.
+Le build release intermédiaire donne 72 ms copie/parsing, 73 ms premier rendu,
+347 ms réseau bulk ; ces échantillons dépendent de la charge et du marché vivant.
+
+Le paquet Artix 0.2.0-1 a été construit hors ligne par makepkg avec ses 37 tests,
+inspecté par pacman, extrait et exécuté sans installation système. Propriétaires
+root/root vérifiés pour ses 343 fichiers ; les hashes des licences de 188 crates
+de l'hôte et de la bibliothèque standard Rust correspondent à l'index embarqué.
+L'archive source correspond aux fichiers locaux et exclut le bytecode Python.
+Le PKGBUILD généré vérifie le SHA256 concret de l'archive source.
+
+Depuis ce binaire extrait : cinq cycles passifs réussis ; Ctrl+D sur la pile
+réelle donne 24 résultats, 20 offres bulk, 450 ms réseau et un cache poe.ninja âgé
+de 27 min. Une seconde copie sur la baguette donne 411 résultats, 10 offres Trade,
+605 ms réseau et aucun agrégat poe.ninja de mauvaise variante. Captures inspectées,
+focus conservé au jeu dans les deux cas. Copie/parsing : 104 ms à froid, 50 ms
+à chaud ; premier rendu 5 puis 4 ms. Lecture du cache économie : 15,767 ms.
+Maj+Espace puis clic dans le champ Ligue donne le focus au panneau visible ;
+saisie native de `Covens`, clic Rechercher, résultat depuis le cache Trade,
+puis Échap : panneau masqué et focus vérifié sur Path of Exile.
+
+Après ces parcours et masquage, le processus graphique complet utilise
+71 640 Kio de RSS (69,96 Mio), avec 0 tick CPU supplémentaire sur 3 s à CLK_TCK=100.
+Ce RSS inclut maintenant les données économie et n'est pas directement comparable
+au diagnostic de parsing ni une réduction revendiquée par rapport à la 0.1.
+
+Le premier essai de replay sur le bureau réel est invalide : River n'a pas donné
+le focus à la fenêtre de test devant PoE. Un clic destiné à cette fenêtre a pu
+atteindre le jeu ; cet essai a été abandonné et n'est pas compté comme réussite.
+`scripts/test-shortcut-replay.sh` démarre désormais son propre River sans écran,
+avec un répertoire runtime et un serveur XWayland distincts. Le module de
+production y rejoue Ctrl+D, Maj+Espace et Ctrl+Maj+D vers une autre application
+X11, avec snapshot de jeu actif faux puis volontairement obsolète/vrai ; aucune
+action d'overlay n'est déclenchée. Un conflit sur le troisième raccourci rejette
+l'enregistrement et libère les grabs précédents. Le programme de test refuse
+l'exécution hors de ce serveur isolé. Cela teste le protocole XWayland, sans
+constituer une nouvelle preuve graphique de l'overlay réel.
+
+## Optimisations mesurées en 0.2
+
+Le catalogue conserve toutes ses données upstream ; le chargement ne désérialise
+plus ses propriétés inutilisées dans le diagnostic. Cinq processus froids par
+objet/version, release, sans réseau, résultats item/requête strictement égaux :
+parsing médian de la wand 23,553 → 18,802 ms, Wisdom 24,094 → 18,221 ms ; pic RSS
+médian du diagnostic respectivement 31,69 → 24,50 et 31,29 → 24,09 Mio.
+Données brutes : [parser-measurements-0.2.json](parser-measurements-0.2.json).
+
+Le cache poe.ninja était désérialisé directement depuis un fichier non tamponné.
+Lecture et écriture utilisent maintenant BufReader/BufWriter. Trois paires de
+diagnostics froids avec le même cache réel compact de 2 436 243 octets, profil
+temporaire, proxy réseau fermé et résultats imposés depuis le cache : médiane
+murale 1 418,429 → 46,813 ms, CPU 1 417,531 → 46,541 ms. Prix et graphes identiques,
+seul l'âge est exclu de la comparaison. Le timestamp local du cache de test est
+rafraîchi pour conserver le parcours hors ligne, sans modifier le fichier réel.
+Données : [economy-cache-measurements-0.2.json](economy-cache-measurements-0.2.json).
+Ces mesures concernent les processus diagnostics, pas le RSS de toute l'interface.
+
+Reproduction avec deux binaires conservés des versions à comparer :
+
+```sh
+python3 scripts/benchmark.py parser /chemin/avant /chemin/apres --runs 5 --output /tmp/parser.json
+python3 scripts/benchmark.py economy-cache /chemin/avant /chemin/apres --cache "$HOME/.cache/awakened-poe-trade-rs/economy/Covens.json" --output /tmp/cache.json
+```
+
+Les binaires de référence de cette séance sont conservés localement dans
+`dist/benchmarks/` (hors Git et paquet). Le script mesure CPU/RSS avec wait4 Linux
+et vérifie l'égalité des sorties. Il n'envoie ni touche ni requête HTTP utile.

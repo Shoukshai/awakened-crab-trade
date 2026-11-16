@@ -1,7 +1,6 @@
 //! First parser port: English item text and the upstream item catalogue.
 //! Unknown modifiers remain visible; they are never silently converted to filters.
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,9 +28,37 @@ pub struct Item {
     pub unidentified: bool,
     pub raw: String,
     pub modifiers: Vec<crate::modifiers::Modifier>,
+    pub namespace: String,
+    pub trade_tag: Option<String>,
+    pub trade_discriminator: Option<String>,
+    pub category: Option<String>,
+    pub stack_size: Option<u32>,
+    pub influences: Vec<String>,
 }
-fn catalogue() -> &'static Vec<Value> {
-    static ITEMS: OnceLock<Vec<Value>> = OnceLock::new();
+// Keep the complete upstream asset, but decode only fields used by the business
+// layer. In particular icon URLs and unrelated area/build records need no JSON
+// object trees in memory on every launch.
+#[derive(Deserialize)]
+struct CatalogueEntry {
+    name: String,
+    namespace: String,
+    #[serde(rename = "tradeTag")]
+    trade_tag: Option<String>,
+    #[serde(rename = "tradeDisc")]
+    trade_discriminator: Option<String>,
+    craftable: Option<Craftable>,
+    unique: Option<Unique>,
+}
+#[derive(Deserialize)]
+struct Craftable {
+    category: Option<String>,
+}
+#[derive(Deserialize)]
+struct Unique {
+    base: Option<String>,
+}
+fn catalogue() -> &'static Vec<CatalogueEntry> {
+    static ITEMS: OnceLock<Vec<CatalogueEntry>> = OnceLock::new();
     ITEMS.get_or_init(|| {
         include_str!("../../renderer/public/data/en/items.ndjson")
             .lines()
@@ -39,6 +66,7 @@ fn catalogue() -> &'static Vec<Value> {
             .collect()
     })
 }
+
 fn number(text: &str) -> Option<u32> {
     text.split(|c: char| !c.is_ascii_digit())
         .find(|s| !s.is_empty())?
@@ -84,8 +112,8 @@ impl Item {
         if rarity == Rarity::Magic {
             base = catalogue()
                 .iter()
-                .filter(|v| v["namespace"] == "ITEM" && v.get("craftable").is_some())
-                .filter_map(|v| v["name"].as_str())
+                .filter(|v| v.namespace == "ITEM" && v.craftable.is_some())
+                .map(|v| v.name.as_str())
                 .filter(|s| {
                     name == *s
                         || name.starts_with(&format!("{s} "))
@@ -97,6 +125,23 @@ impl Item {
                 .to_string();
         }
         base = base.strip_prefix("Superior ").unwrap_or(&base).to_string();
+        let namespace = match rarity {
+            Rarity::Unique => "UNIQUE",
+            Rarity::Gem => "GEM",
+            Rarity::Divination => "DIVINATION_CARD",
+            _ => "ITEM",
+        };
+        let identity = if rarity == Rarity::Unique {
+            &name
+        } else {
+            &base
+        };
+        let info = catalogue().iter().find(|v| {
+            v.namespace == namespace
+                && v.name == *identity
+                && (rarity != Rarity::Unique
+                    || v.unique.as_ref().and_then(|u| u.base.as_deref()) == Some(base.as_str()))
+        });
         let prop = |key: &str| {
             lines
                 .iter()
@@ -126,6 +171,22 @@ impl Item {
             unidentified: lines.contains(&"Unidentified"),
             raw: text.to_string(),
             modifiers: crate::modifiers::parse(text),
+            namespace: namespace.into(),
+            trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
+            trade_discriminator: info
+                .and_then(|v| v.trade_discriminator.as_deref())
+                .map(str::to_owned),
+            category: info
+                .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+                .map(str::to_owned),
+            stack_size: prop("Stack Size: "),
+            influences: [
+                "Shaper", "Elder", "Crusader", "Hunter", "Redeemer", "Warlord",
+            ]
+            .into_iter()
+            .filter(|name| lines.contains(&format!("{name} Item").as_str()))
+            .map(str::to_owned)
+            .collect(),
         })
     }
     pub fn description(&self) -> String {

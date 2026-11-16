@@ -10,13 +10,17 @@ use std::{
 use x11rb::{
     connection::Connection,
     protocol::{
-        xproto::{Allow, ConnectionExt, GrabMode, KeyButMask, ModMask},
+        xproto::{Allow, AtomEnum, ConnectionExt, GrabMode, KeyButMask, ModMask},
         Event,
     },
     CURRENT_TIME,
 };
 
-pub fn run(active: Arc<AtomicBool>, send: impl Fn(&'static str)) -> Result<(), String> {
+pub fn run(
+    active: Arc<AtomicBool>,
+    send: impl Fn(&'static str),
+    ready: impl FnOnce(),
+) -> Result<(), String> {
     let (connection, screen) = x11rb::connect(None).map_err(|e| e.to_string())?;
     let root = connection.setup().roots[screen].root;
     let first = connection.setup().min_keycode;
@@ -77,12 +81,16 @@ pub fn run(active: Arc<AtomicBool>, send: impl Fn(&'static str)) -> Result<(), S
     }
     connection.flush().map_err(|e| e.to_string())?;
     eprintln!("shortcuts backend=XWayland keys=Ctrl+D,Shift+Space,Ctrl+Shift+D scope=X11-only replay_other_apps=true");
+    ready();
     let mut armed = None;
     let mut last = Instant::now() - Duration::from_secs(1);
     loop {
         match connection.wait_for_event().map_err(|e| e.to_string())? {
             Event::KeyPress(e) => {
-                if !active.load(Ordering::Acquire) {
+                // The Wayland snapshot can lag a just-completed desktop switch.
+                // Verify X input focus before consuming a key from another X11 app.
+                let focused_game = active.load(Ordering::Acquire) && focused_game(&connection);
+                if !focused_game {
                     connection
                         .allow_events(Allow::REPLAY_KEYBOARD, CURRENT_TIME)
                         .map_err(|e| e.to_string())?;
@@ -112,6 +120,7 @@ pub fn run(active: Arc<AtomicBool>, send: impl Fn(&'static str)) -> Result<(), S
                     if key == e.detail {
                         armed = None;
                         if active.load(Ordering::Acquire)
+                            && focused_game(&connection)
                             && (command != "copy" || last.elapsed() >= Duration::from_millis(300))
                         {
                             send(command);
@@ -125,4 +134,44 @@ pub fn run(active: Arc<AtomicBool>, send: impl Fn(&'static str)) -> Result<(), S
             _ => (),
         }
     }
+}
+
+fn focused_game(connection: &impl Connection) -> bool {
+    let Ok(cookie) = connection.get_input_focus() else {
+        return false;
+    };
+    let Ok(reply) = cookie.reply() else {
+        return false;
+    };
+    let mut window = reply.focus;
+    for _ in 0..8 {
+        if window <= 1 {
+            return false;
+        }
+        let Ok(cookie) =
+            connection.get_property(false, window, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 128)
+        else {
+            return false;
+        };
+        let Ok(class) = cookie.reply() else {
+            return false;
+        };
+        if !class.value.is_empty() {
+            return class
+                .value
+                .split(|b| *b == 0)
+                .any(|s| s == b"steam_app_238960");
+        }
+        let Ok(cookie) = connection.query_tree(window) else {
+            return false;
+        };
+        let Ok(tree) = cookie.reply() else {
+            return false;
+        };
+        if tree.parent == window || tree.parent == tree.root {
+            return false;
+        }
+        window = tree.parent;
+    }
+    false
 }

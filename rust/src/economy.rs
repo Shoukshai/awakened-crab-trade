@@ -1,0 +1,622 @@
+//! poe.ninja's dense economy feed, matching upstream identity/variant rules.
+//! This is an indicative market aggregate, never a valuation of a rare's mods.
+use crate::{
+    item::{Item, Rarity},
+    trade::{encode_segment, header_cooldown},
+};
+use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    io::{BufReader, BufWriter, Read, Write},
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+
+const TTL: u64 = 31 * 60;
+const MAX_BYTES: u64 = 32 * 1024 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Key {
+    pub namespace: String,
+    pub name: String,
+    pub variant: Option<String>,
+}
+impl Key {
+    pub fn for_item(item: &Item) -> Option<Self> {
+        let variant = if item.class.ends_with("Maps") {
+            Some(if item.rarity == Rarity::Unique {
+                "T0".into()
+            } else {
+                format!(
+                    "T{}, {}",
+                    item.map_tier.unwrap_or(0),
+                    if item.map_tier.is_some() {
+                        "Gen-24"
+                    } else {
+                        "Atlas"
+                    }
+                )
+            })
+        } else if item.rarity == Rarity::Gem {
+            let level = item.gem_level?;
+            let special = ["Empower Support", "Enlighten Support", "Enhance Support"]
+                .contains(&item.base.as_str());
+            let exact = special
+                || ["Portal", "Brand Recall", "Blood and Sand"].contains(&item.base.as_str())
+                || level >= 20;
+            let mut variant = if exact { level } else { 1 }.to_string();
+            if let Some(q) = item
+                .quality
+                .filter(|q| *q > 0 && !special && !(item.base == "Brand Recall" && item.corrupted))
+            {
+                variant += &format!("/{}", if (16..=20).contains(&q) { 20 } else { q });
+            }
+            if item.corrupted && item.base != "Portal" {
+                variant.push('c');
+            }
+            Some(variant)
+        } else if item.rarity == Rarity::Unique {
+            if item.unidentified {
+                return None;
+            }
+            // These need additional variant rules; refuse an aggregate of a different item.
+            if [
+                "Vessel of Vinktar",
+                "Atziri's Splendour",
+                "Bubonic Trail",
+                "Lightpoacher",
+                "Shroud of the Lightless",
+                "Tombfist",
+                "Volkuur's Guidance",
+                "Yriel's Fostering",
+                "Doryani's Invitation",
+                "Impresence",
+                "Voices",
+                "The First Crest",
+            ]
+            .contains(&item.name.as_str())
+            {
+                return None;
+            }
+            if item.class.contains("Flasks") {
+                None
+            } else {
+                let mut v = if item.class.contains("Relic") {
+                    "Relic".to_string()
+                } else {
+                    item.base.clone()
+                };
+                if item.links >= 5 {
+                    v += &format!(", {}L", item.links);
+                }
+                Some(v)
+            }
+        } else if item.category.is_some() {
+            if item.influences.len() > 1 {
+                return None;
+            }
+            let level = item.item_level?;
+            let mut v = if level >= 86 {
+                "86+".into()
+            } else {
+                level.to_string()
+            };
+            if let Some(influence) = item.influences.first() {
+                v += &format!(", {influence}");
+            }
+            Some(v)
+        } else {
+            None
+        };
+        Some(Self {
+            namespace: item.namespace.clone(),
+            name: if item.rarity == Rarity::Unique {
+                item.name.clone()
+            } else {
+                item.base.clone()
+            },
+            variant,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Quote {
+    pub chaos: f64,
+    pub graph: Vec<Option<f64>>,
+    pub category: String,
+    pub variant: Option<String>,
+    pub age_seconds: u64,
+    pub url: String,
+    pub from_cache: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Line {
+    name: String,
+    variant: Option<String>,
+    chaos: f64,
+    #[serde(default)]
+    graph: Vec<Option<f64>>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Overview {
+    #[serde(rename = "type")]
+    kind: String,
+    lines: Vec<Line>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Snapshot {
+    #[serde(rename = "currencyOverviews", default)]
+    currency: Vec<Overview>,
+    #[serde(rename = "itemOverviews", default)]
+    items: Vec<Overview>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Cached {
+    version: u32,
+    league: String,
+    fetched: u64,
+    data: Snapshot,
+}
+impl Cached {
+    fn fresh(&self, league: &str, now: u64) -> bool {
+        self.version == 1
+            && self.league == league
+            && self.fetched <= now
+            && now - self.fetched < TTL
+    }
+    fn find(&self, key: &Key, now: u64, from_cache: bool) -> Option<Quote> {
+        self.data
+            .currency
+            .iter()
+            .chain(&self.data.items)
+            .find_map(|overview| {
+                let (namespace, route) = category(&overview.kind)?;
+                if key.namespace != namespace {
+                    return None;
+                }
+                let line = overview.lines.iter().find(|line| {
+                    line.name == key.name
+                        && line.variant == key.variant
+                        && line.chaos.is_finite()
+                        && line.chaos >= 0.
+                })?;
+                let league_slug = if self.league.starts_with("Hardcore ") {
+                    format!(
+                        "{}hc",
+                        self.league.trim_start_matches("Hardcore ").to_lowercase()
+                    )
+                } else {
+                    self.league.to_lowercase()
+                };
+                Some(Quote {
+                    chaos: line.chaos,
+                    graph: line
+                        .graph
+                        .iter()
+                        .take(64)
+                        .map(|p| p.filter(|n| n.is_finite()))
+                        .collect(),
+                    category: overview.kind.clone(),
+                    variant: line.variant.clone(),
+                    age_seconds: now.saturating_sub(self.fetched),
+                    url: format!(
+                        "https://poe.ninja/poe1/economy/{}/{}",
+                        encode_segment(&league_slug),
+                        route
+                    ),
+                    from_cache,
+                })
+            })
+    }
+}
+fn category(kind: &str) -> Option<(&'static str, &'static str)> {
+    Some(match kind {
+        "Currency" => ("ITEM", "currency"),
+        "Fragment" => ("ITEM", "fragments"),
+        "BaseType" => ("ITEM", "base-types"),
+        "Map" => ("ITEM", "maps"),
+        "DivinationCard" => ("DIVINATION_CARD", "divination-cards"),
+        "SkillGem" => ("GEM", "skill-gems"),
+        "Beast" => ("CAPTURED_BEAST", "beasts"),
+        "UniqueWeapon" => ("UNIQUE", "unique-weapons"),
+        "UniqueArmour" => ("UNIQUE", "unique-armours"),
+        "UniqueAccessory" => ("UNIQUE", "unique-accessories"),
+        "UniqueFlask" => ("UNIQUE", "unique-flasks"),
+        "UniqueJewel" => ("UNIQUE", "unique-jewels"),
+        "UniqueMap" => ("UNIQUE", "unique-maps"),
+        "UniqueRelic" => ("UNIQUE", "unique-relics"),
+        "UniqueTincture" => ("UNIQUE", "unique-tinctures"),
+        "DeliriumOrb" => ("ITEM", "delirium-orbs"),
+        "Scarab" => ("ITEM", "scarabs"),
+        "Artifact" => ("ITEM", "artifacts"),
+        "Fossil" => ("ITEM", "fossils"),
+        "Resonator" => ("ITEM", "resonators"),
+        "Incubator" => ("ITEM", "incubators"),
+        "Oil" => ("ITEM", "oils"),
+        "Vial" => ("ITEM", "vials"),
+        "Invitation" => ("ITEM", "invitations"),
+        "BlightedMap" => ("ITEM", "blighted-maps"),
+        "BlightRavagedMap" => ("ITEM", "blight-ravaged-maps"),
+        "Essence" => ("ITEM", "essences"),
+        "Tattoo" => ("ITEM", "tattoos"),
+        "Omen" => ("ITEM", "omens"),
+        "Coffin" => ("ITEM", "coffins"),
+        "AllflameEmber" => ("ITEM", "allflame-embers"),
+        "DjinnCoin" => ("ITEM", "djinn-coins"),
+        "Astrolabe" => ("ITEM", "astrolabes"),
+        "Runegraft" => ("ITEM", "runegrafts"),
+        "Ducat" => ("ITEM", "ducats"),
+        "EnshroudingCrystal" => ("ITEM", "enshrouding-crystals"),
+        "Corpse" => ("ITEM", "corpses"),
+        _ => return None,
+    })
+}
+pub struct Economy {
+    client: Client,
+    base: String,
+    cache_dir: PathBuf,
+    memory: HashMap<String, Cached>,
+    next: Instant,
+}
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+impl Economy {
+    pub fn new() -> Result<Self, String> {
+        let cache = std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache")
+            });
+        Ok(Self {
+            client: Client::builder()
+                .user_agent(concat!(
+                    "Awakened-PoE-Trade-Rust/",
+                    env!("CARGO_PKG_VERSION")
+                ))
+                .connect_timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(15))
+                .build()
+                .map_err(|e| e.to_string())?,
+            base: "https://poe.ninja".into(),
+            cache_dir: cache.join("awakened-poe-trade-rs/economy"),
+            memory: HashMap::new(),
+            next: Instant::now(),
+        })
+    }
+    pub fn quote(
+        &mut self,
+        league: &str,
+        item: &Item,
+        generation: u64,
+        current: &Arc<AtomicU64>,
+    ) -> Result<Option<Quote>, String> {
+        let valid = || current.load(Ordering::Acquire) == generation;
+        if !valid() {
+            return Err("Cancelled".into());
+        }
+        let Some(key) = Key::for_item(item) else {
+            return Ok(None);
+        };
+        if league.trim().is_empty() || league.len() > 100 {
+            return Err("Invalid economy league".into());
+        }
+        let timestamp = now();
+        let path = self
+            .cache_dir
+            .join(format!("{}.json", encode_segment(league)));
+        if !self.memory.contains_key(league) {
+            let read_started = Instant::now();
+            if let Ok(file) = std::fs::File::open(&path) {
+                if file.metadata().is_ok_and(|m| m.len() <= MAX_BYTES) {
+                    if let Ok(cached) = serde_json::from_reader::<_, Cached>(BufReader::new(file)) {
+                        if cached.fresh(league, timestamp) {
+                            self.memory.insert(league.into(), cached);
+                            eprintln!(
+                                "economy disk_read_us={}",
+                                read_started.elapsed().as_micros()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(cached) = self
+            .memory
+            .get(league)
+            .filter(|c| c.fresh(league, timestamp))
+        {
+            return Ok(cached.find(&key, timestamp, true));
+        }
+        if self.next > Instant::now() {
+            return Err("poe.ninja cooldown; retry later".into());
+        }
+        self.next = Instant::now() + Duration::from_secs(30);
+        let network_started = Instant::now();
+        let response = self
+            .client
+            .get(format!(
+                "{}/poe1/api/economy/current/dense/overviews",
+                self.base
+            ))
+            .query(&[("league", league), ("language", "en")])
+            .send()
+            .map_err(|e| format!("poe.ninja: {e}"))?;
+        self.next = self
+            .next
+            .max(Instant::now() + header_cooldown(response.headers()));
+        if !response.status().is_success() {
+            return Err(format!(
+                "poe.ninja HTTP {}; no automatic retry",
+                response.status().as_u16()
+            ));
+        }
+        let mut bytes = Vec::new();
+        response
+            .take(MAX_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|e| e.to_string())?;
+        if bytes.len() as u64 > MAX_BYTES {
+            return Err("poe.ninja response exceeds 32 MiB".into());
+        }
+        let network_us = network_started.elapsed().as_micros();
+        let decode_started = Instant::now();
+        let data: Snapshot =
+            serde_json::from_slice(&bytes).map_err(|e| format!("poe.ninja JSON: {e}"))?;
+        if data.currency.is_empty() && data.items.is_empty() {
+            return Err("poe.ninja returned no economy overviews".into());
+        }
+        if !valid() {
+            return Err("Cancelled".into());
+        }
+        let cached = Cached {
+            version: 1,
+            league: league.into(),
+            fetched: now(),
+            data,
+        };
+        let decode_us = decode_started.elapsed().as_micros();
+        let write_started = Instant::now();
+        // Cache IO failures leave a usable in-memory result and are logged separately.
+        if let Err(e) = self.save(&path, &cached) {
+            eprintln!("economy cache write error={e}");
+        }
+        eprintln!(
+            "economy network_us={network_us} decode_us={decode_us} cache_write_us={}",
+            write_started.elapsed().as_micros()
+        );
+        let quote = cached.find(&key, now(), false);
+        if self.memory.len() >= 4 {
+            self.memory.clear();
+        }
+        self.memory.insert(league.into(), cached);
+        Ok(quote)
+    }
+    fn save(&self, path: &std::path::Path, data: &Cached) -> Result<(), String> {
+        std::fs::create_dir_all(&self.cache_dir).map_err(|e| e.to_string())?;
+        let tmp = path.with_extension(format!("tmp-{}", std::process::id()));
+        {
+            let file = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
+            let mut writer = BufWriter::new(file);
+            serde_json::to_writer(&mut writer, data).map_err(|e| e.to_string())?;
+            writer.flush().map_err(|e| e.to_string())?;
+        }
+        std::fs::rename(tmp, path).map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn item(rarity: &str, name: &str, body: &str) -> Item {
+        Item::parse(&format!(
+            "Item Class: Test\nRarity: {rarity}\n{name}\n--------\n{body}"
+        ))
+        .unwrap()
+    }
+    fn server(
+        status: &str,
+        body: &str,
+        extra: &str,
+        current: Option<Arc<AtomicU64>>,
+    ) -> (String, std::thread::JoinHandle<()>) {
+        use std::io::{BufRead, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let response=format!("HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n{body}",body.len());
+        let thread = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut reader = std::io::BufReader::new(&mut socket);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                assert!(reader.read_line(&mut line).unwrap() > 0);
+                if line == "\r\n" {
+                    break;
+                }
+            }
+            if let Some(current) = current {
+                current.store(2, Ordering::Release);
+            }
+            socket.write_all(response.as_bytes()).unwrap();
+        });
+        (url, thread)
+    }
+    #[test]
+    fn base_quotes_keep_item_level_and_influence_and_reject_double_influence() {
+        let mut i = item("Normal", "Vaal Regalia", "Item Level: 87\nShaper Item");
+        assert_eq!(
+            Key::for_item(&i).unwrap().variant.as_deref(),
+            Some("86+, Shaper")
+        );
+        i.influences.push("Elder".into());
+        assert!(Key::for_item(&i).is_none());
+        let i = item("Unique", "Lifesprig\nDriftwood Wand", "Unidentified");
+        assert!(Key::for_item(&i).is_none());
+    }
+    #[test]
+    fn economy_fetch_persists_cache_and_reuses_it_without_network() {
+        let body = r#"{"currencyOverviews":[{"type":"Currency","lines":[{"name":"Scroll of Wisdom","chaos":0.008,"graph":[null,0,1]}]}]}"#;
+        let (url, thread) = server("200 OK", body, "", None);
+        let mut economy = Economy::new().unwrap();
+        economy.base = url;
+        let path = std::env::temp_dir().join(format!(
+            "apt-economy-cache-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        economy.cache_dir = path.clone();
+        let current = Arc::new(AtomicU64::new(1));
+        let i = item("Currency", "Scroll of Wisdom", "");
+        let q = economy.quote("Covens", &i, 1, &current).unwrap().unwrap();
+        thread.join().unwrap();
+        assert_eq!(q.chaos, 0.008);
+        assert!(!q.from_cache);
+        let mut restarted = Economy::new().unwrap();
+        restarted.base = "http://127.0.0.1:1".into();
+        restarted.cache_dir = path.clone();
+        assert!(
+            restarted
+                .quote("Covens", &i, 1, &current)
+                .unwrap()
+                .unwrap()
+                .from_cache
+        );
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn economy_429_blocks_retries_and_cancelled_fetch_does_not_cache() {
+        let (url, thread) = server("429 Too Many Requests", "{}", "Retry-After: 60\r\n", None);
+        let mut economy = Economy::new().unwrap();
+        economy.base = url;
+        economy.cache_dir = std::env::temp_dir().join(format!(
+            "apt-economy-errors-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let current = Arc::new(AtomicU64::new(1));
+        let i = item("Currency", "Scroll of Wisdom", "");
+        assert!(economy
+            .quote("Covens", &i, 1, &current)
+            .unwrap_err()
+            .contains("429"));
+        thread.join().unwrap();
+        assert!(economy.next > Instant::now() + Duration::from_secs(55));
+        assert!(economy
+            .quote("Covens", &i, 1, &current)
+            .unwrap_err()
+            .contains("cooldown"));
+        let (url, thread) = server(
+            "200 OK",
+            r#"{"currencyOverviews":[{"type":"Currency","lines":[]}]}"#,
+            "",
+            Some(current.clone()),
+        );
+        economy.base = url;
+        economy.next = Instant::now();
+        assert_eq!(
+            economy.quote("Covens", &i, 1, &current).unwrap_err(),
+            "Cancelled"
+        );
+        thread.join().unwrap();
+        assert!(economy.memory.is_empty());
+    }
+    #[test]
+    fn gem_variants_do_not_mix_quality_or_corruption() {
+        let i = item("Gem", "Fireball", "Level: 20\nQuality: +18%\nCorrupted");
+        assert_eq!(
+            Key::for_item(&i).unwrap().variant.as_deref(),
+            Some("20/20c")
+        );
+        let i = item("Gem", "Empower Support", "Level: 4\nQuality: +20%");
+        assert_eq!(Key::for_item(&i).unwrap().variant.as_deref(), Some("4"));
+    }
+    #[test]
+    fn unique_links_and_base_are_part_of_the_identity() {
+        let i = item(
+            "Unique",
+            "Lifesprig\nDriftwood Wand",
+            "Sockets: R-G-B-R-G-B",
+        );
+        assert_eq!(
+            Key::for_item(&i).unwrap().variant.as_deref(),
+            Some("Driftwood Wand, 6L")
+        );
+    }
+    #[test]
+    fn cache_never_crosses_leagues_and_does_not_survive_clock_rollback() {
+        let cache = Cached {
+            version: 1,
+            league: "Covens".into(),
+            fetched: 100,
+            data: Snapshot {
+                currency: vec![],
+                items: vec![],
+            },
+        };
+        assert!(cache.fresh("Covens", 101));
+        assert!(!cache.fresh("Standard", 101));
+        assert!(!cache.fresh("Covens", 99));
+        assert!(!cache.fresh("Covens", 100 + TTL));
+    }
+    #[test]
+    fn dense_quote_matches_namespace_and_exact_variant_preserving_gaps() {
+        let data:Snapshot = serde_json::from_value(serde_json::json!({"itemOverviews":[{"type":"SkillGem","lines":[{"name":"Fireball","variant":"20/20","chaos":20,"graph":[null,0,-10]},{"name":"Fireball","variant":"20/20c","chaos":8.7}]}]})).unwrap();
+        let cache = Cached {
+            version: 1,
+            league: "Covens".into(),
+            fetched: 100,
+            data,
+        };
+        let key = Key {
+            namespace: "GEM".into(),
+            name: "Fireball".into(),
+            variant: Some("20/20".into()),
+        };
+        let q = cache.find(&key, 103, true).unwrap();
+        assert_eq!(q.chaos, 20.);
+        assert_eq!(q.graph, vec![None, Some(0.), Some(-10.)]);
+        assert_eq!(q.age_seconds, 3);
+        assert!(cache
+            .find(
+                &Key {
+                    namespace: "ITEM".into(),
+                    ..key
+                },
+                103,
+                true
+            )
+            .is_none());
+    }
+    #[test]
+    fn cancellation_prevents_any_economy_request() {
+        let mut economy = Economy::new().unwrap();
+        economy.base = "http://127.0.0.1:1".into();
+        assert_eq!(
+            economy
+                .quote(
+                    "Covens",
+                    &item("Currency", "Chaos Orb", ""),
+                    1,
+                    &Arc::new(AtomicU64::new(2))
+                )
+                .unwrap_err(),
+            "Cancelled"
+        );
+    }
+}

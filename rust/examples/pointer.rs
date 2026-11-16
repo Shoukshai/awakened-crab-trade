@@ -35,6 +35,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
 }
 delegate_noop!(State: ignore ZwlrVirtualPointerManagerV1);
 delegate_noop!(State: ignore ZwlrVirtualPointerV1);
+fn timestamp() -> u32 {
+    let now = rustix::time::clock_gettime(rustix::time::ClockId::Monotonic);
+    (now.tv_sec as u64 * 1000 + now.tv_nsec as u64 / 1_000_000) as u32
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() < 4 {
@@ -51,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("virtual pointer unavailable")?
         .create_virtual_pointer(None, &q.handle(), ());
     p.motion_absolute(
-        0,
+        timestamp(),
         args[0].parse()?,
         args[1].parse()?,
         args[2].parse()?,
@@ -60,10 +64,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p.frame();
     q.roundtrip(&mut s)?;
     if args.get(4).is_some_and(|s| s == "--click") {
-        p.button(1, 0x110, wl_pointer::ButtonState::Pressed);
+        p.button(timestamp(), 0x110, wl_pointer::ButtonState::Pressed);
         p.frame();
         q.roundtrip(&mut s)?;
-        p.button(2, 0x110, wl_pointer::ButtonState::Released);
+        p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released);
         p.frame();
         q.roundtrip(&mut s)?;
     }

@@ -1,0 +1,169 @@
+{
+  "description": "Cold process inspect; same release profile; no network; JSON item and query compared byte for byte. Five runs per item and implementation. Peak RSS is for the diagnostic process, not the whole graphical app.",
+  "before_binary_sha256": "1fbbb069416de2e92bd2f7e71454b7cd171403b98eb9b35075361be535126c34",
+  "after_binary_sha256": "d570b3659f74932976b54418576687c0c38e9c9b2b99d2d54268dcc629cf75e1",
+  "before": [
+    {
+      "fixture": "driftwood-wand",
+      "run": 0,
+      "processing_us": 25058,
+      "elapsed_ms": 38.288,
+      "cpu_ms": 36.972,
+      "peak_rss_kib": 30920
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 1,
+      "processing_us": 23485,
+      "elapsed_ms": 36.924,
+      "cpu_ms": 36.529,
+      "peak_rss_kib": 31452
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 2,
+      "processing_us": 23470,
+      "elapsed_ms": 34.195,
+      "cpu_ms": 34.056,
+      "peak_rss_kib": 32744
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 3,
+      "processing_us": 23553,
+      "elapsed_ms": 33.957,
+      "cpu_ms": 33.756,
+      "peak_rss_kib": 32472
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 4,
+      "processing_us": 24310,
+      "elapsed_ms": 35.991,
+      "cpu_ms": 35.839,
+      "peak_rss_kib": 32452
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 0,
+      "processing_us": 24514,
+      "elapsed_ms": 35.657,
+      "cpu_ms": 35.46,
+      "peak_rss_kib": 31528
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 1,
+      "processing_us": 23526,
+      "elapsed_ms": 34.54,
+      "cpu_ms": 34.411,
+      "peak_rss_kib": 32340
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 2,
+      "processing_us": 22950,
+      "elapsed_ms": 34.358,
+      "cpu_ms": 34.23,
+      "peak_rss_kib": 32132
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 3,
+      "processing_us": 24192,
+      "elapsed_ms": 35.256,
+      "cpu_ms": 35.037,
+      "peak_rss_kib": 32040
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 4,
+      "processing_us": 24094,
+      "elapsed_ms": 35.315,
+      "cpu_ms": 35.07,
+      "peak_rss_kib": 31000
+    }
+  ],
+  "after": [
+    {
+      "fixture": "driftwood-wand",
+      "run": 0,
+      "processing_us": 18802,
+      "elapsed_ms": 29.718,
+      "cpu_ms": 29.401,
+      "peak_rss_kib": 25092
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 1,
+      "processing_us": 18848,
+      "elapsed_ms": 30.027,
+      "cpu_ms": 29.861,
+      "peak_rss_kib": 25504
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 2,
+      "processing_us": 18828,
+      "elapsed_ms": 29.753,
+      "cpu_ms": 29.591,
+      "peak_rss_kib": 25696
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 3,
+      "processing_us": 18529,
+      "elapsed_ms": 29.743,
+      "cpu_ms": 29.466,
+      "peak_rss_kib": 23836
+    },
+    {
+      "fixture": "driftwood-wand",
+      "run": 4,
+      "processing_us": 18716,
+      "elapsed_ms": 29.49,
+      "cpu_ms": 29.223,
+      "peak_rss_kib": 24296
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 0,
+      "processing_us": 17498,
+      "elapsed_ms": 27.87,
+      "cpu_ms": 27.653,
+      "peak_rss_kib": 24944
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 1,
+      "processing_us": 18321,
+      "elapsed_ms": 28.712,
+      "cpu_ms": 28.516,
+      "peak_rss_kib": 24664
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 2,
+      "processing_us": 17599,
+      "elapsed_ms": 27.397,
+      "cpu_ms": 27.292,
+      "peak_rss_kib": 25664
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 3,
+      "processing_us": 18221,
+      "elapsed_ms": 28.303,
+      "cpu_ms": 27.906,
+      "peak_rss_kib": 24600
+    },
+    {
+      "fixture": "scroll-of-wisdom",
+      "run": 4,
+      "processing_us": 18595,
+      "elapsed_ms": 28.707,
+      "cpu_ms": 28.5,
+      "peak_rss_kib": 24600
+    }
+  ]
+}
