@@ -204,11 +204,50 @@ pub fn pseudo(reference: &str) -> Option<Modifier> {
                     better: stat.better,
                     source_count: 0,
                     fractured_t1: false,
+                    tier: None,
                 });
             }
         }
     }
     None
+}
+/// Resolve an absent stat for an exclusion, using upstream category selection.
+pub fn exclusion(
+    reference: &str,
+    kind: &str,
+    category: Option<&str>,
+    negate_text: bool,
+) -> Option<Modifier> {
+    let record = database()
+        .records
+        .iter()
+        .find(|r| r.stats().iter().any(|s| s.reference == reference))?;
+    let stat = resolve(record, "", kind, category, None)?;
+    let ids = stat.trade.ids.get(kind)?;
+    let matcher = stat
+        .matchers
+        .iter()
+        .find(|m| m.negate == negate_text)
+        .or_else(|| stat.matchers.first())?;
+    Some(Modifier {
+        text: matcher.string.clone(),
+        id: ids.first()?.clone(),
+        ids: ids.clone(),
+        reference: stat.reference,
+        kind: kind.into(),
+        value: None,
+        min: None,
+        max: None,
+        decimal: stat.dp,
+        legacy: false,
+        unscalable: false,
+        option: false,
+        inverted: false,
+        better: stat.better,
+        source_count: 0,
+        fractured_t1: false,
+        tier: None,
+    })
 }
 fn lookup(text: &str) -> Option<&'static Record> {
     let data = database();
@@ -527,6 +566,7 @@ pub fn translate(
             better: stat.better,
             source_count: 1,
             fractured_t1: false,
+            tier: None,
         });
     }
     None

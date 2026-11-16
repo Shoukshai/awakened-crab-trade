@@ -33,6 +33,7 @@ pub struct Candidate {
     pub initial_max: Option<f64>,
     pub disabled: bool,
     pub hidden: Option<String>,
+    pub exclude: bool,
 }
 fn precision(value: f64, decimal: bool) -> f64 {
     if !decimal || value.abs() >= 10. {
@@ -57,15 +58,19 @@ fn percent(value: f64, delta: f64, pct: f64, ceil: bool, decimal: bool) -> f64 {
     }
 }
 impl Candidate {
-    pub fn new(mut modifier: Modifier, item: &Item, range: f64, disabled: bool) -> Self {
-        let rarity = &item.rarity;
-        let roll = Roll::of(&modifier);
-        let decimal = modifier.decimal;
-        let mut pct = if *rarity == Rarity::Normal {
+    pub fn new(modifier: Modifier, item: &Item, range: f64, disabled: bool) -> Self {
+        let range = if item.rarity == Rarity::Normal {
             100.
         } else {
             range
         };
+        Self::with_range(modifier, item, range, disabled)
+    }
+    pub fn with_range(mut modifier: Modifier, item: &Item, range: f64, disabled: bool) -> Self {
+        let rarity = &item.rarity;
+        let roll = Roll::of(&modifier);
+        let decimal = modifier.decimal;
+        let mut pct = range;
         let mut display_value = modifier.value.map(|v| round_roll(v, decimal));
         let (mut initial_min, mut initial_max) = (None, None);
         if let Some(roll) = roll.filter(|_| !modifier.option) {
@@ -125,6 +130,7 @@ impl Candidate {
             initial_max,
             disabled,
             hidden: None,
+            exclude: false,
         }
     }
 }

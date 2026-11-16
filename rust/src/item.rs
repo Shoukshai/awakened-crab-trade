@@ -42,6 +42,73 @@ pub struct Item {
     pub unknown_modifiers: Vec<crate::modifiers::UnknownModifier>,
     pub map_area: Option<String>,
     pub unique_dust_value: Option<f64>,
+    pub area: AreaProperties,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AreaProperties {
+    pub quantity: Option<f64>,
+    pub rarity: Option<f64>,
+    pub pack_size: Option<f64>,
+    pub more_maps: Option<f64>,
+    pub more_scarabs: Option<f64>,
+    pub more_currency: Option<f64>,
+    pub more_div_cards: Option<f64>,
+    pub sulphur: Option<f64>,
+    pub level: Option<u32>,
+    pub completion_reward: Option<String>,
+    pub job: Option<String>,
+    pub job_level: Option<u32>,
+    pub priceless: bool,
+    pub wings_revealed: Option<u32>,
+    pub wings_total: Option<u32>,
+    pub explicit_mods: usize,
+    pub special: bool,
+    pub trade_disc: Option<String>,
+}
+impl AreaProperties {
+    fn parse(lines: &[&str]) -> Self {
+        let value = |key: &str| lines.iter().find_map(|s| s.strip_prefix(key));
+        let number = |key: &str| {
+            value(key).and_then(|s| {
+                s.trim_start_matches('+')
+                    .split(|c: char| !c.is_ascii_digit() && c != '-' && c != '.')
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+        };
+        let job = lines
+            .iter()
+            .find_map(|s| s.strip_prefix("Requires ")?.split_once(" (Level "));
+        let wings = value("Wings Revealed: ").and_then(|s| s.split_once('/'));
+        Self {
+            quantity: number("Item Quantity: "),
+            rarity: number("Item Rarity: "),
+            pack_size: number("Monster Pack Size: "),
+            more_maps: number("More Maps: "),
+            more_scarabs: number("More Scarabs: "),
+            more_currency: number("More Currency: "),
+            more_div_cards: number("More Divination Cards: "),
+            sulphur: number("Dead Man's Sulphur: "),
+            level: value("Area Level: ").and_then(super::item::number),
+            completion_reward: value("Reward: Foil ").map(str::to_string),
+            job: job.map(|(name, _)| name.to_string()),
+            job_level: job.and_then(|(_, level)| super::item::number(level)),
+            priceless: value("Heist Target: ").is_some_and(|s| s.ends_with("(Priceless)")),
+            wings_revealed: wings.and_then(|(v, _)| super::item::number(v)),
+            wings_total: wings.and_then(|(_, v)| super::item::number(v)),
+            explicit_mods: lines
+                .iter()
+                .filter(|s| {
+                    s.starts_with('{')
+                        && (s.contains("Prefix Modifier") || s.contains("Suffix Modifier"))
+                })
+                .count(),
+            special: false,
+            trade_disc: None,
+        }
+    }
 }
 // Keep the complete upstream asset, but decode only fields used by the business
 // layer. In particular icon URLs and unrelated area/build records need no JSON
@@ -51,6 +118,7 @@ struct CatalogueEntry {
     name: String,
     #[serde(rename = "refName")]
     reference: String,
+    area: Option<AreaInfo>,
     namespace: String,
     #[serde(rename = "tradeTag")]
     trade_tag: Option<String>,
@@ -60,6 +128,10 @@ struct CatalogueEntry {
     unique: Option<Unique>,
     #[serde(default)]
     armour: crate::properties::ArmourBase,
+}
+#[derive(Deserialize)]
+struct AreaInfo {
+    special: Option<bool>,
 }
 #[derive(Deserialize)]
 struct Craftable {
@@ -205,7 +277,40 @@ impl Item {
         let map_area = lines
             .iter()
             .find_map(|l| l.strip_prefix("Map Area: "))
-            .map(str::to_string);
+            .map(str::to_string)
+            .or_else(|| {
+                (category == Some("Chart"))
+                    .then(|| {
+                        lines
+                            .iter()
+                            .find(|line| {
+                                catalogue()
+                                    .iter()
+                                    .any(|v| v.namespace == "AREA" && v.name == **line)
+                            })
+                            .map(|line| line.to_string())
+                    })
+                    .flatten()
+            });
+        let mut area = AreaProperties::parse(&lines);
+        area.special = map_area
+            .as_ref()
+            .and_then(|name| {
+                catalogue()
+                    .iter()
+                    .find(|v| v.namespace == "AREA" && v.name == *name)
+            })
+            .and_then(|v| v.area.as_ref())
+            .and_then(|a| a.special)
+            .unwrap_or(false);
+        area.trade_disc = map_area
+            .as_ref()
+            .and_then(|name| {
+                catalogue()
+                    .iter()
+                    .find(|v| v.namespace == "AREA" && v.name == *name)
+            })
+            .and_then(|v| v.trade_discriminator.clone());
         Ok(Self {
             class,
             rarity,
@@ -232,6 +337,7 @@ impl Item {
             reference,
             map_area,
             unique_dust_value: info.and_then(|v| v.unique.as_ref().and_then(|u| u.dust)),
+            area,
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
             trade_discriminator: info

@@ -17,7 +17,12 @@ impl StatRow {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 4);
         let selected = gtk::CheckButton::new();
         selected.set_active(!candidate.disabled);
-        let label = gtk::Label::new(Some(&modifier.text));
+        let text = if candidate.exclude {
+            format!("Exclure : {}", modifier.text)
+        } else {
+            modifier.text.clone()
+        };
+        let label = gtk::Label::new(Some(&text));
         label.set_line_wrap(true);
         label.set_max_width_chars(58);
         label.set_xalign(0.);
@@ -71,8 +76,12 @@ impl StatRow {
             );
         } else if modifier.value.is_some() {
             let note = gtk::Label::new(Some(&format!(
-                "Stat Trade : {}\n{}",
-                candidate.display_reference,
+                "{}{}",
+                if modifier.kind == "property" {
+                    String::new()
+                } else {
+                    format!("Stat Trade : {}\n", candidate.display_reference)
+                },
                 if [
                     "item.armour",
                     "item.evasion_rating",

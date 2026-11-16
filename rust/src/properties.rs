@@ -211,6 +211,7 @@ fn property(
         better: 1,
         source_count: 0,
         fractured_t1: false,
+        tier: None,
     };
     Some(Candidate::new(modifier, item, range, disabled))
 }

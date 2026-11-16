@@ -397,3 +397,84 @@ toujours passif et jeu actif. Le vrai texte avancé de la wand est conservé dan
 presse-papiers après les fixtures. Après masquage : RSS 70 676 Kio (69,02 Mio),
 0 tick CPU sur 3 s à CLK_TCK=100. Mesure ponctuelle ; aucune optimisation mémoire
 revendiquée pour ce jalon. Le panneau reste masqué, PoE et River restent ouverts.
+
+## Jalon 0.6 : presets cartes, charts, flacons et Heist
+
+68 tests Rust passent, ainsi que Clippy sans avertissement. Le nouveau corpus
+`compare-presets.cjs` exécute le parseur TypeScript complet et les fonctions de
+presets/stat-filters upstream inchangées : 221 objets, dont le vrai Small Life
+Flask copié du personnage ; 52 objets avec enchantements et 43 filtres négatifs.
+Aucun écart sur les presets disponibles et le preset actif, IDs, valeurs, bornes,
+sélections, masquages et exclusions. Le corpus comprend propriétés de zone et
+butin, cartes à huit mods, cartes blighted, récompense Valdo/Void, tiers de flacons,
+implicites/crafts, enchantements, neuf métiers Heist, cibles Priceless, ailes de
+blueprints, charts ordinaires/spéciaux et objets non identifiés.
+Rapport : [presets-0.6.json](presets-0.6.json).
+
+Le comparateur exécute aussi les corps AST inchangés de création des filtres
+d'objet et de requêtes Trade, avec les constantes et fonctions auxiliaires
+upstream. Il omet les clients HTTP, IPC et stores réactifs. Il compare l'identité
+recherchée, les champs map_filters/heist_filters et les groupes de stats. Il ne prouve pas la parité des politiques misc/type/trade, des
+presets d'équipement/base d'artisanat, ni des règles spécialisées restantes.
+Les corpus de 1 651 filtres calculés, 3 144 inspections/1 875 décisions et 55 961
+traductions/effets ont également été rejoués sans écart.
+
+Le parseur conserve désormais le tier minimum des sources agrégées et lit les
+propriétés de zone, bonus de butin, récompense, niveau et métadonnées Heist.
+Les zones/discriminants sont résolus depuis le catalogue conservé. Une copie
+incomplète de blueprint (niveau ou ailes) ou une zone de chart/blight inconnue
+refuse la recherche plutôt que de retirer ces critères. Les exclusions envoient
+un groupe NOT, y compris tous les IDs alternatifs ; aucun ID interne `item.*`
+spécialisé n'est envoyé dans les stats.
+
+Le texte hardcodé upstream « Gains no Charges during Flask Effect » n'existe plus
+dans ce catalogue, qui contient « Gains no Charges during Effect ». Le comportement
+upstream de masquage des enchants est conservé à ce stade, et le corpus emploie
+le vrai suffixe `(enchant)` ; il ne prétend pas résoudre cette divergence de données.
+Les enchants masqués restent accessibles dans le volet secondaire.
+
+Observations du build release, toujours au-dessus du PoE ouvert :
+
+- **Vrai Small Life Flask**, survol de la barre puis Ctrl+D sans clic en jeu :
+  preset exact, aucun faux mod, 176 résultats/10 offres en 732 ms réseau.
+  Copie/parsing 72 ms, préparation 0 ms, premier rendu froid 78 ms, état Passive,
+  jeu actif. Sa copie anglaise est conservée dans `fixtures/small-life-flask.txt`.
+- **Carte synthétique** : preset Propriétés, tier 16, quantité min 72, rareté min
+  36, pack size min 22, blighted/uberblighted faux ; zéro résultat, 296 ms réseau.
+  Maj+Espace et clic sur le ComboBox : choix Cartes en lot, génération invalidée,
+  aucun HTTP automatique, message demandant Rechercher. Clic explicite : critères
+  de propriétés retirés, tier conservé, 2 159 résultats/10 offres en 740 ms.
+- **Flacon magique synthétique** : charge recovery min 29 et groupe NOT sur
+  `explicit.stat_2448920197`. La copie immédiatement après la carte rencontre le
+  cooldown local de 5 s, sans retry. Après expiration, clic Rechercher : 13
+  résultats/10 offres, 628 ms. Les deux cases, dont « Exclure », sont inspectées.
+- **Contrat synthétique** : catégorie `heistmission.contract`, aucun type Bunker
+  imposé, niveau de zone min 83, Lockpicking min 3 et cible Priceless ; 5 résultats/
+  5 offres, 698 ms. La portée « Contrats de tout type » est visible dans le panneau.
+- **Blueprint synthétique** : ailes révélées min 1, ailes totales min 4, niveau 83
+  et NOT sur le nombre d'enchants ; 17 résultats/10 offres, 620 ms. État Passive,
+  focus jeu ; la liste des contrôles possède son propre défilement.
+
+Aucun de ces objets synthétiques n'a été créé ou manipulé dans le jeu. Le compteur
+de filtres a été corrigé après observation de sa valeur périmée lors d'un changement
+de preset. Les propriétés n'affichent plus leur identifiant interne comme libellé,
+et la hauteur de la liste est adaptée au nombre de lignes. L'échelle de sortie
+reste 1 ; autres facteurs, plateformes et langues non validés pour ce jalon.
+Les cartes/charts et Heist réels restent à valider avec des copies du personnage.
+
+Paquet 0.6.0-1 : makepkg et ses 68 tests hors ligne passent ; 459 fichiers de
+l'archive source comparés aux fichiers locaux ; 347 fichiers du paquet root/root ;
+les notices de 188 crates et de la bibliothèque standard sont vérifiées par hash.
+Le binaire extrait, sans installation système, passe cinq cycles passifs puis
+une vraie copie de la wand : 485 résultats/10 offres, 665 ms réseau, 71 ms copie,
+4 ms préparation, 6 ms premier rendu. Le changement de preset de la carte affiche
+bien zéro filtre actif en mode lot, aucune requête ni ancien résultat courant.
+La nouvelle hauteur de liste montre les trois contrôles du blueprint en entier,
+sans identifiant interne comme libellé de propriété ; 17 résultats/10 offres,
+666 ms réseau. Une dernière vraie copie par Ctrl+Alt+D donne le DPS local 11,
+sans HTTP ni prise de focus. Le presse-papiers est vérifié comme copie de la wand.
+
+Après masquage, RSS 75 744 Kio (73,97 Mio), 0 tick CPU sur 3 s à CLK_TCK=100.
+Mesure ponctuelle après parcours de plusieurs nouveaux panneaux ; elle n'est pas
+une comparaison mémoire à parcours identique avec le jalon 0.5. Aucune optimisation
+revendiquée à ce jalon. PoE et River sont restés ouverts et le panneau est masqué.

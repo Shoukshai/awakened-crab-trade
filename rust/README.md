@@ -42,8 +42,22 @@ Les défenses et dégâts physiques utilisent la qualité normalisée du site Tr
 consommées par un calcul restent dans **Autres filtres et sources exactes**.
 La plage suggérée, initialement ±10 %, s'applique à la prochaine copie et reste
 bornée aux valeurs possibles ; les uniques suivent leur plage de rolls.
-Les presets complets et les règles propres aux cartes, flacons, bijoux de cluster,
-objets spéciaux et stats pseudo spécialisées restent à porter.
+Les presets des cartes et charts proposent **Propriétés de zone** et **Cartes en
+lot** selon l’objet. Ce dernier sélectionne les critères de comparaison des cartes
+sur Trade ; il ne change pas le moteur en échange de devises. Les cartes à huit
+mods conservent leur compteur exact ; quantités, rareté, pack size et bonus de
+butin ont leurs règles de sélection upstream. Les cartes blighted filtrent leur
+zone, et les cartes à récompense excluent le Void si le mod est absent de la copie.
+
+Les flacons non uniques et les objets Heist ont un preset exact, avec une plage
+plafonnée à 2 %. Il reprend les tiers de mods, l’exclusion du préfixe hybride des
+flacons, les métiers, cibles Priceless et ailes révélées. Les contrats se comparent
+par catégorie ; le panneau indique la portée de la recherche. Changer de preset
+recrée les filtres et invalide la réponse en cours ; cliquer ensuite **Rechercher**.
+La plage suggérée s’applique à la prochaine copie ou sélection de preset.
+Les liens entre corruption, rareté, split/fracture et les autres options d’objet
+ne sont pas encore tous portés. Les presets d’équipement/base d’artisanat, bijoux
+de cluster et les règles spécialisées restantes restent à porter.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
 en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
@@ -121,7 +135,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.5.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.6.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -142,6 +156,8 @@ node scripts/compare-calculated-filters.cjs
 cargo build --locked --example inspection
 node scripts/export-map-defaults.cjs --check
 node scripts/compare-inspection.cjs
+cargo build --locked --example presets
+node scripts/compare-presets.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```

@@ -14,11 +14,10 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     renderer/public/data/en/stats-matcher.index.bin renderer/public/data/en/stats-ref.index.bin \
     renderer/public/data/en/items-name.index.bin renderer/public/data/en/items-ref.index.bin \
     renderer/public/data/en/client_strings.js renderer/src/parser renderer/src/assets/data \
-    renderer/src/web/price-check/filters/pseudo/index.ts \
-    renderer/src/web/price-check/filters/pseudo/item-property.ts \
-    renderer/src/web/price-check/filters/pseudo/anointments.ts \
-    renderer/src/web/price-check/filters/create-stat-filters.ts \
-    renderer/src/web/price-check/filters/util.ts renderer/src/web/price-check/filters/interfaces.ts \
+    renderer/src/web/price-check/filters \
+    renderer/src/web/price-check/trade/common.ts \
+    renderer/src/web/price-check/trade/pathofexile-trade.ts \
+    renderer/src/web/background/Leagues.ts \
     renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
     renderer/src/web/item-check/ItemInfo.vue \
     renderer/package.json renderer/package-lock.json \

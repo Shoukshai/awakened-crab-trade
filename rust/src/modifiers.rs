@@ -25,6 +25,8 @@ pub struct Modifier {
     pub better: i8,
     pub source_count: usize,
     pub fractured_t1: bool,
+    #[serde(default)]
+    pub tier: Option<u32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnknownModifier {
@@ -76,6 +78,7 @@ struct Block<'a> {
     category: Option<&'a str>,
     effect: f64,
     fractured_t1: bool,
+    tier: Option<u32>,
     report_unknown: bool,
 }
 fn parse_block(
@@ -89,6 +92,7 @@ fn parse_block(
         category,
         effect,
         fractured_t1,
+        tier,
         report_unknown,
     } = context;
     let mut start = 0;
@@ -118,6 +122,7 @@ fn parse_block(
             if let Some(mut modifier) = translation::translate(text, kind, category, unscalable) {
                 apply_effect(&mut modifier, effect);
                 modifier.fractured_t1 = fractured_t1;
+                modifier.tier = tier;
                 result.push(modifier);
                 start = end + 1;
                 matched = true;
@@ -151,6 +156,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
     let mut base_kind = "explicit";
     let mut effect = 0.;
     let mut fractured_t1 = false;
+    let mut tier = None;
     let mut report_unknown = false;
     for line in raw.lines().map(str::trim) {
         if line == "--------" || (line.starts_with('{') && line.ends_with('}')) {
@@ -161,6 +167,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
                     category,
                     effect,
                     fractured_t1,
+                    tier,
                     report_unknown,
                 },
                 &mut result,
@@ -174,6 +181,9 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
             };
             base_kind = kind;
             report_unknown = line != "--------";
+            tier = line
+                .split_once("(Tier: ")
+                .and_then(|(_, t)| t.split(')').next()?.parse::<u32>().ok());
             fractured_t1 = kind == "fractured" && line.contains("(Tier: 1)");
             effect = effect_regex
                 .captures(line)
@@ -191,6 +201,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
                     category,
                     effect,
                     fractured_t1,
+                    tier,
                     report_unknown,
                 },
                 &mut result,
@@ -213,6 +224,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
             category,
             effect,
             fractured_t1,
+            tier,
             report_unknown,
         },
         &mut result,
@@ -240,6 +252,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
             total.decimal |= modifier.decimal;
             total.source_count += modifier.source_count;
             total.fractured_t1 |= modifier.fractured_t1;
+            total.tier = total.tier.into_iter().chain(modifier.tier).min();
             total.legacy |= modifier.legacy;
             total.text.push('\n');
             total.text.push_str(&modifier.text);

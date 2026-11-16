@@ -22,6 +22,8 @@ pub struct Filters {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StatFilter {
+    #[serde(rename = "not")]
+    pub exclude: bool,
     pub id: String,
     pub min: Option<f64>,
     pub max: Option<f64>,
@@ -35,6 +37,7 @@ impl StatFilter {
         let m = &candidate.modifier;
         let numeric = !m.option && !m.ids.iter().any(|id| id.contains('|')) && m.value.is_some();
         Self {
+            exclude: candidate.exclude,
             id: m.id.clone(),
             alternatives: m.ids.iter().skip(1).cloned().collect(),
             min: numeric.then_some(candidate.initial_min).flatten(),
@@ -61,7 +64,16 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     let mut and = Vec::new();
     let mut groups = Vec::new();
     let mut properties = Vec::new();
+    let mut exclusions = Vec::new();
     for stat in &filters.stats {
+        if stat.exclude {
+            exclusions.extend(
+                std::iter::once(&stat.id)
+                    .chain(stat.alternatives.iter())
+                    .map(|id| stat_to_query(id, stat)),
+            );
+            continue;
+        }
         if let Some((group, property)) = property_path(&stat.id) {
             properties.push((group, property, stat));
             continue;
@@ -76,7 +88,19 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
             groups.push(json!({"type":"count","value":{"min":1},"filters":values}));
         }
     }
+    if !crate::presets::available(item).is_empty() && item.influences.len() <= 2 {
+        for influence in &item.influences {
+            if let Some(modifier) =
+                crate::modifiers::translation::pseudo(&format!("Has {influence} Influence"))
+            {
+                and.push(json!({"id":modifier.id,"value":{}}));
+            }
+        }
+    }
     groups.insert(0, json!({"type":"and","filters":and}));
+    if !exclusions.is_empty() {
+        groups.push(json!({"type":"not","filters":exclusions}));
+    }
     let mut q = json!({"status":{"option":if filters.online {"online"} else {"any"}},"type":item.base,"stats":groups,"filters":{}});
     if item.rarity == Rarity::Unique && !item.unidentified {
         q["name"] = json!(item.name);
@@ -86,6 +110,24 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     }
     if matches!(item.rarity, Rarity::Normal | Rarity::Magic | Rarity::Rare) {
         q["filters"]["type_filters"] = json!({"filters":{"rarity":{"option":"nonunique"}}});
+    }
+    if item.category.as_deref() == Some("Heist Contract") && item.rarity != Rarity::Unique {
+        q.as_object_mut().unwrap().remove("type");
+        q["filters"]["type_filters"]["filters"]["category"] =
+            json!({"option":"heistmission.contract"});
+    }
+    if item.category.as_deref() == Some("Map") && item.base == "Map" {
+        q["type"] = json!({"option":"Map","discriminator":"map"});
+    }
+    if item.category.as_deref() == Some("Chart")
+        || matches!(
+            item.reference.as_str(),
+            "Blighted Map" | "Blight-ravaged Map"
+        )
+    {
+        if let Some(area) = &item.area.trade_disc {
+            q["type"] = json!({"option":area,"discriminator":item.trade_discriminator.as_deref().unwrap_or("chart")});
+        }
     }
     let mut misc = json!({"corrupted":{"option":item.corrupted.to_string()}});
     if let Some(n) = filters.min_item_level {
@@ -101,6 +143,31 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
     if let Some(n) = item.map_tier {
         q["filters"]["map_filters"] = json!({"filters":{"map_tier":{"min":n,"max":n}}});
     }
+    if let Some(reward) = &item.area.completion_reward {
+        q["filters"]["map_filters"]["filters"]["map_completion_reward"] = json!({"option": reward});
+    }
+    if item.category.as_deref() == Some("Map") {
+        for (key, value) in match item.reference.as_str() {
+            "Map" => vec![("map_blighted", false), ("map_uberblighted", false)],
+            "Blighted Map" => vec![("map_blighted", true)],
+            "Blight-ravaged Map" => vec![("map_uberblighted", true)],
+            _ => vec![],
+        } {
+            q["filters"]["map_filters"]["filters"][key] = json!({"option":value.to_string()});
+        }
+    }
+    if item.rarity != Rarity::Unique
+        && [
+            Some("Heist Contract"),
+            Some("Heist Blueprint"),
+            Some("Chart"),
+        ]
+        .contains(&item.category.as_deref())
+    {
+        if let Some(level) = item.area.level {
+            q["filters"]["map_filters"]["filters"]["area_level"] = json!({"min":level});
+        }
+    }
     if let Some(n) = filters
         .min_links
         .or_else(|| (item.links >= 5).then_some(item.links))
@@ -108,7 +175,13 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
         q["filters"]["socket_filters"] = json!({"filters":{"links":{"min":n}}});
     }
     for (group, property, stat) in properties {
-        q["filters"][group]["filters"][property] = stat_to_query(&stat.id, stat)["value"].clone();
+        let mut value = stat_to_query(&stat.id, stat)["value"].clone();
+        if stat.id == "item.heist_target_priceless" {
+            value = json!({"option":"priceless"});
+        } else if stat.id.starts_with("item.heist_job_") && stat.min.is_none() {
+            value["min"] = json!(1);
+        }
+        q["filters"][group]["filters"][property] = value;
     }
     json!({"query":q,"sort":{"price":"asc"}})
 }
@@ -126,6 +199,22 @@ fn property_path(id: &str) -> Option<(&'static str, &'static str)> {
         "item.aps" => ("weapon_filters", "aps"),
         "item.crit" => ("weapon_filters", "crit"),
         "item.memory_strands" => ("misc_filters", "memory_level"),
+        "item.map_item_quantity" => ("map_filters", "map_iiq"),
+        "item.map_item_rarity" => ("map_filters", "map_iir"),
+        "item.map_pack_size" => ("map_filters", "map_packsize"),
+        "item.chart_sulphur" => ("map_filters", "chart_sulphur"),
+        "item.heist_job_lockpicking" => ("heist_filters", "heist_lockpicking"),
+        "item.heist_job_bruteforce" => ("heist_filters", "heist_brute_force"),
+        "item.heist_job_perception" => ("heist_filters", "heist_perception"),
+        "item.heist_job_demolition" => ("heist_filters", "heist_demolition"),
+        "item.heist_job_counterthaumaturgy" => ("heist_filters", "heist_counter_thaumaturgy"),
+        "item.heist_job_trapdisarmament" => ("heist_filters", "heist_trap_disarmament"),
+        "item.heist_job_agility" => ("heist_filters", "heist_agility"),
+        "item.heist_job_deception" => ("heist_filters", "heist_deception"),
+        "item.heist_job_engineering" => ("heist_filters", "heist_engineering"),
+        "item.heist_target_priceless" => ("heist_filters", "heist_objective_value"),
+        "item.heist_wings_revealed" => ("heist_filters", "heist_wings"),
+        "item.heist_wings_total" => ("heist_filters", "heist_max_wings"),
         _ => return None,
     })
 }
@@ -167,6 +256,32 @@ fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
 }
 /// Mirrors upstream's choice: stat filters require ordinary Trade even for currency.
 pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
+    if item.rarity != Rarity::Unique
+        && [
+            Some("Heist Contract"),
+            Some("Heist Blueprint"),
+            Some("Chart"),
+        ]
+        .contains(&item.category.as_deref())
+        && item.area.level.is_none()
+    {
+        return Err("Le niveau de zone manque dans la copie ; recherche refusée.".into());
+    }
+    if item.rarity != Rarity::Unique
+        && item.category.as_deref() == Some("Heist Blueprint")
+        && (item.area.wings_revealed.is_none() || item.area.wings_total.is_none())
+    {
+        return Err("Le nombre d’ailes manque dans la copie ; recherche refusée.".into());
+    }
+    if (item.category.as_deref() == Some("Chart")
+        || matches!(
+            item.reference.as_str(),
+            "Blighted Map" | "Blight-ravaged Map"
+        ))
+        && item.area.trade_disc.is_none()
+    {
+        return Err("La zone de cet objet n’est pas reconnue ; recherche refusée.".into());
+    }
     for stat in &filters.stats {
         if stat.id.starts_with("item.") && property_path(&stat.id).is_none() {
             return Err("Cette propriété n’est pas encore prise en charge.".into());
@@ -399,5 +514,55 @@ mod tests {
             q["query"]["filters"]["socket_filters"]["filters"]["links"]["min"],
             6
         );
+    }
+}
+
+#[cfg(test)]
+mod exclusion_tests {
+    use super::*;
+    #[test]
+    fn all_alternative_exclusion_ids_are_in_one_not_group() {
+        let item = Item::parse(include_str!("fixtures/driftwood-wand.txt")).unwrap();
+        let f = StatFilter {
+            id: "explicit.one".into(),
+            alternatives: vec!["explicit.two".into()],
+            exclude: true,
+            ..Default::default()
+        };
+        let q = query(
+            &item,
+            &Filters {
+                stats: vec![f],
+                ..Default::default()
+            },
+        );
+        assert_eq!(q["query"]["stats"][0]["filters"], json!([]));
+        assert_eq!(q["query"]["stats"][1]["type"], "not");
+        assert_eq!(
+            q["query"]["stats"][1]["filters"].as_array().unwrap().len(),
+            2
+        );
+    }
+}
+
+#[cfg(test)]
+mod incomplete_area_tests {
+    use super::*;
+    #[test]
+    fn incomplete_blueprint_or_unknown_chart_area_never_broadens_a_search() {
+        let incomplete="Item Class: Blueprints\nRarity: Rare\nFixture\nBlueprint: Bunker\n--------\nItem Level: 83";
+        let item = Item::parse(incomplete).unwrap();
+        assert!(search_query(&item, &Filters::default())
+            .unwrap_err()
+            .contains("niveau de zone"));
+        let item = Item::parse(&format!("{incomplete}\nArea Level: 83")).unwrap();
+        assert!(search_query(&item, &Filters::default())
+            .unwrap_err()
+            .contains("ailes"));
+        let mut item = item;
+        item.category = Some("Chart".into());
+        assert!(search_query(&item, &Filters::default())
+            .unwrap_err()
+            .contains("zone"));
     }
 }

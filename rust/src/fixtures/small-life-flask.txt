@@ -1,0 +1,11 @@
+Item Class: Life Flasks
+Rarity: Normal
+Small Life Flask
+--------
+Recovers 70 Life over 3 Seconds
+Consumes 7 of 21 Charges on use
+Currently has 21 Charges
+--------
+Item Level: 1
+--------
+Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.

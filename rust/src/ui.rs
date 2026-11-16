@@ -79,6 +79,9 @@ struct Ui {
     inspection_result: RefCell<Option<crate::inspection::Report>>,
     view: Cell<View>,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
+    preset: gtk::ComboBoxText,
+    preset_scope: gtk::Label,
+    updating_preset: Cell<bool>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
     item: RefCell<Option<Item>>,
@@ -169,6 +172,8 @@ impl Ui {
                 self.stack.set_visible_child_name("price");
                 self.inspection_result.replace(None);
                 self.item.replace(None);
+                self.preset.hide();
+                self.preset_scope.hide();
                 self.url.replace(None);
                 self.economy_panel.reset();
                 self.economy_panel.show(&Ok(None), None);
@@ -242,6 +247,101 @@ impl Ui {
             self.search();
         }
     }
+    fn build_stat_rows(&self, item: &Item) {
+        for child in self.mod_box.children() {
+            self.mod_box.remove(&child);
+        }
+        self.stat_rows.borrow_mut().clear();
+        let mode = crate::presets::available(item)
+            .into_iter()
+            .find(|m| Some(m.id()) == self.preset.active_id().as_deref());
+        let candidates = if let Some(mode) = mode {
+            crate::presets::create(item, self.search_range.value(), mode).filters
+        } else {
+            crate::calculated::candidates(item, self.search_range.value())
+        };
+        let scope = match item.category.as_deref() {
+            Some("Heist Contract") if item.rarity != crate::item::Rarity::Unique => format!(
+                "Contrats de tout type · niveau de zone ≥ {}",
+                item.area
+                    .level
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "—".into())
+            ),
+            Some("Chart") => format!("Zone : {}", item.map_area.as_deref().unwrap_or("inconnue")),
+            Some("Map") if item.reference == "Map" => format!(
+                "Toutes les zones · tier {}",
+                item.map_tier
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "—".into())
+            ),
+            Some("Map")
+                if item.reference == "Blighted Map" || item.reference == "Blight-ravaged Map" =>
+            {
+                format!("Zone : {}", item.map_area.as_deref().unwrap_or("inconnue"))
+            }
+            _ => String::new(),
+        };
+        let scope = if mode.is_some() && !item.influences.is_empty() {
+            format!("{scope} · Influences : {}", item.influences.join(", "))
+        } else {
+            scope
+        };
+        self.preset_scope.set_text(&scope);
+        self.preset_scope.set_visible(!scope.is_empty());
+        self.preset.show();
+        let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        let expander = gtk::Expander::new(Some("Autres filtres et sources exactes"));
+        expander.add(&advanced);
+        for candidate in &candidates {
+            let row = stat_row::StatRow::new(candidate);
+            if candidate.hidden.is_some() {
+                advanced.pack_start(&row.container, false, false, 0);
+            } else {
+                self.mod_box.pack_start(&row.container, false, false, 0);
+            }
+            self.stat_rows.borrow_mut().push(row);
+        }
+        if !advanced.children().is_empty() {
+            self.mod_box.pack_start(&expander, false, false, 0);
+        }
+        if candidates.is_empty() {
+            self.mod_box.pack_start(
+                &gtk::Label::new(Some("Aucun filtre de mod pour ce preset.")),
+                false,
+                false,
+                0,
+            );
+        }
+        self.mod_scroll.vadjustment().set_value(0.);
+        self.mod_scroll
+            .set_min_content_height(if candidates.len() > 2 { 300 } else { 180 });
+        self.mod_expander.set_label(Some(&format!(
+            "Filtres · {} actifs",
+            candidates.iter().filter(|c| !c.disabled).count()
+        )));
+        self.mod_box.show_all();
+    }
+    fn preset_changed(&self) {
+        if self.updating_preset.get() {
+            return;
+        }
+        let Some(item) = self.item.borrow().clone() else {
+            return;
+        };
+        self.state.borrow_mut().generation += 1;
+        self.sync_generation();
+        self.request.replace(None);
+        self.url.replace(None);
+        self.build_stat_rows(&item);
+        self.text
+            .set_text("Preset modifié. Vérifiez les filtres puis cliquez Rechercher.");
+        eprintln!(
+            "preset changed id={:?} generation={}",
+            self.preset.active_id(),
+            self.state.borrow().generation
+        );
+    }
     fn search(&self) {
         if self.view.get() != View::Price {
             return;
@@ -308,7 +408,7 @@ impl Ui {
                 item.stack_size,
             );
         }
-        self.text.set_text(&format!("Recherche dans {}…\n\nComparaison par base et filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
+        self.text.set_text(&format!("Recherche dans {}…\n\nComparaison selon la portée et les filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
         match self.worker.try_send(Job {
             generation,
             league: settings.league.clone(),
@@ -376,39 +476,20 @@ impl Ui {
                                 },
                             ));
                         }
-                        for child in self.mod_box.children() {
-                            self.mod_box.remove(&child);
-                        }
-                        self.stat_rows.borrow_mut().clear();
-                        let candidates =
-                            crate::calculated::candidates(&item, self.search_range.value());
-                        let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
-                        let advanced_expander =
-                            gtk::Expander::new(Some("Autres filtres et sources exactes"));
-                        advanced_expander.add(&advanced);
-                        for candidate in &candidates {
-                            let row = stat_row::StatRow::new(candidate);
-                            if candidate.hidden.is_some() {
-                                advanced.pack_start(&row.container, false, false, 0);
-                            } else {
-                                self.mod_box.pack_start(&row.container, false, false, 0);
+                        self.updating_preset.set(true);
+                        self.preset.remove_all();
+                        let modes = crate::presets::available(&item);
+                        if modes.is_empty() {
+                            self.preset.append(Some("calculated"), "Filtres calculés");
+                        } else {
+                            for mode in &modes {
+                                self.preset.append(Some(mode.id()), mode.label());
                             }
-                            self.stat_rows.borrow_mut().push(row);
                         }
-                        if !advanced.children().is_empty() {
-                            self.mod_box.pack_start(&advanced_expander, false, false, 0);
-                        }
-                        if candidates.is_empty() {
-                            self.mod_box.pack_start(
-                                &gtk::Label::new(Some(
-                                    "Aucun mod reconnu dans le catalogue de traductions.",
-                                )),
-                                false,
-                                false,
-                                0,
-                            );
-                        }
-                        self.mod_scroll.vadjustment().set_value(0.);
+                        self.preset.set_sensitive(modes.len() > 1);
+                        self.preset.set_active(Some(0));
+                        self.updating_preset.set(false);
+                        self.build_stat_rows(&item);
                         self.item.replace(Some(item));
                         self.view.set(view);
                         if view == View::Inspection {
@@ -444,6 +525,8 @@ impl Ui {
                         self.stack.set_visible_child_name("price");
                         self.inspection_result.replace(None);
                         self.item.replace(None);
+                        self.preset.hide();
+                        self.preset_scope.hide();
                         self.economy_panel.reset();
                         self.economy_panel.show(&Ok(None), None);
                         self.title.set_text("Impossible de lire l'objet");
@@ -500,7 +583,7 @@ impl Ui {
                             })
                             .collect::<Vec<_>>()
                             .join("\n");
-                        self.text.set_text(&format!("{} · {} résultats · {} offres\n{}\n\n{}\n\n{}",if p.kind==SearchKind::Bulk {"Échange en gros"} else {"Recherche d'objet"},p.total,p.listings.len(),if p.cached {"Cache (< 60 s)".into()} else {format!("Réseau : {} ms",p.network_ms)},if rows.is_empty() {"Aucune offre avec prix."} else {&rows},if p.kind==SearchKind::Bulk {"Prix par objet, lot et stock conservés. Vérifiez la devise choisie."} else {"Comparaison par base et filtres sélectionnés. Vérifiez les mods avant d'estimer un rare."}));
+                        self.text.set_text(&format!("{} · {} résultats · {} offres\n{}\n\n{}\n\n{}",if p.kind==SearchKind::Bulk {"Échange en gros"} else {"Recherche d'objet"},p.total,p.listings.len(),if p.cached {"Cache (< 60 s)".into()} else {format!("Réseau : {} ms",p.network_ms)},if rows.is_empty() {"Aucune offre avec prix."} else {&rows},if p.kind==SearchKind::Bulk {"Prix par objet, lot et stock conservés. Vérifiez la devise choisie."} else {"Comparaison selon la portée et les filtres sélectionnés. Vérifiez les mods avant d'estimer un rare."}));
                         self.url.replace(Some(p.url));
                         eprintln!(
                             "trade result generation={generation} total={} network_ms={} cached={}",
@@ -574,8 +657,13 @@ pub fn run() -> Result<(), String> {
         }
         let query = filters::search_query(&item, &filters)?;
         if args[0] == "inspect" {
-            let candidate_filters =
-                crate::calculated::candidates(&item, Settings::load()?.search_range);
+            let range = Settings::load()?.search_range;
+            let modes = crate::presets::available(&item);
+            let candidate_filters = if let Some(mode) = modes.first() {
+                crate::presets::create(&item, range, *mode).filters
+            } else {
+                crate::calculated::candidates(&item, range)
+            };
             let suggested = filters::Filters {
                 stats: candidate_filters
                     .iter()
@@ -590,7 +678,7 @@ pub fn run() -> Result<(), String> {
             );
             println!(
                 "{}",
-                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"suggested_query":filters::search_query(&item,&suggested)})
+                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"presets":modes.iter().map(|m|crate::presets::create(&item,range,*m)).collect::<Vec<_>>(),"suggested_query":filters::search_query(&item,&suggested)})
             );
             return Ok(());
         }
@@ -758,7 +846,7 @@ pub fn run() -> Result<(), String> {
     range_row.pack_start(&gtk::Label::new(Some("Plage suggérée ±")), false, false, 0);
     range_row.pack_start(&search_range, false, false, 0);
     range_row.pack_start(
-        &gtk::Label::new(Some("% · appliquée à la prochaine copie")),
+        &gtk::Label::new(Some("% · prochaine copie / preset")),
         false,
         false,
         0,
@@ -793,6 +881,15 @@ pub fn run() -> Result<(), String> {
     let mod_expander =
         gtk::Expander::new(Some("Mods reconnus — cochez un filtre, puis Rechercher"));
     mod_expander.add(&mod_scroll);
+    let preset = gtk::ComboBoxText::new();
+    preset.set_no_show_all(true);
+    let preset_scope = gtk::Label::new(None);
+    preset_scope.set_xalign(0.);
+    preset_scope.set_line_wrap(true);
+    preset_scope.set_no_show_all(true);
+    preset.set_tooltip_text(Some(
+        "Sélection des filtres selon le type d’objet ; un changement exige Rechercher.",
+    ));
     let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let search = gtk::Button::with_label("Rechercher");
     let browser = gtk::Button::with_label("Ouvrir Trade");
@@ -813,6 +910,8 @@ pub fn run() -> Result<(), String> {
     price_content.pack_start(&range_row, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     price_content.pack_start(&economy_panel.container, false, false, 0);
+    price_content.pack_start(&preset, false, false, 0);
+    price_content.pack_start(&preset_scope, false, false, 0);
     price_content.pack_start(&mod_expander, false, false, 0);
     price_content.pack_start(&actions, false, false, 0);
     let inspection_sender = sender.clone();
@@ -915,6 +1014,9 @@ pub fn run() -> Result<(), String> {
         inspection_result: RefCell::new(None),
         view: Cell::new(View::Price),
         stat_rows: RefCell::new(Vec::new()),
+        preset,
+        preset_scope,
+        updating_preset: Cell::new(false),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),
         item: RefCell::new(None),
@@ -927,6 +1029,11 @@ pub fn run() -> Result<(), String> {
         result: RefCell::new(None),
         request: RefCell::new(None),
     });
+    {
+        let ui = ui.clone();
+        let preset = ui.preset.clone();
+        preset.connect_changed(move |_| ui.preset_changed());
+    }
     {
         let ui = ui.clone();
         close.connect_clicked(move |_| ui.hide());
@@ -1088,7 +1195,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

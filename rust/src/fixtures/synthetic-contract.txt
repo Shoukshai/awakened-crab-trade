@@ -1,0 +1,13 @@
+Item Class: Contracts
+Rarity: Rare
+Synthetic Fixture
+Contract: Bunker
+--------
+Area Level: 83
+Requires Lockpicking (Level 3)
+Heist Target: Fixture (Priceless)
+--------
+Item Level: 83
+--------
+{ Prefix Modifier "Fixture" (Tier: 1) }
+20(10-30)% increased Monster Damage

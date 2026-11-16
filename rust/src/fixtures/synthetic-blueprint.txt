@@ -1,0 +1,10 @@
+Item Class: Blueprints
+Rarity: Rare
+Synthetic Fixture
+Blueprint: Bunker
+--------
+Area Level: 83
+Heist Target: Replicas or Experimented Items
+Wings Revealed: 1/4
+--------
+Item Level: 83
