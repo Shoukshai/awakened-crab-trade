@@ -2,6 +2,8 @@
 //! Unsupported modifiers remain in the raw text and never become guessed filters.
 #[path = "item/mercenary.rs"]
 pub mod mercenary;
+#[path = "item/search.rs"]
+pub mod search;
 #[path = "item/special.rs"]
 mod special;
 #[path = "item/unidentified.rs"]
@@ -179,6 +181,8 @@ struct CatalogueEntry {
     #[serde(default)]
     exchangeable: bool,
     gem: Option<GemMetadata>,
+    #[serde(default, rename = "disc")]
+    discriminator: Option<serde::de::IgnoredAny>,
     #[serde(rename = "mercenaryBuild")]
     mercenary_build: Option<mercenary::BuildRecord>,
     unique: Option<Unique>,
@@ -617,6 +621,9 @@ impl Item {
         })
     }
     pub fn description(&self) -> String {
+        if self.raw == "VIRTUAL_ITEM" {
+            return format!("{} · objet virtuel du catalogue", self.name);
+        }
         let markers = [
             (self.corrupted, "Corrupted"),
             (self.unidentified, "Unidentified"),

@@ -106,6 +106,7 @@ impl Panel {
             "Autoriser les clics",
             "Masquer le panneau",
             "Ouvrir les réglages",
+            "Rechercher une cible Heist",
         ];
         let mut keys = Vec::new();
         for (i, name) in labels.into_iter().enumerate() {
@@ -226,6 +227,7 @@ impl Panel {
             &s.hotkeys.interact,
             &s.hotkeys.hide,
             &s.hotkeys.settings,
+            &s.hotkeys.catalogue,
         ]) {
             entry.set_text(key.as_deref().unwrap_or(""));
         }
@@ -269,6 +271,7 @@ impl Panel {
             interact: values[2].clone(),
             hide: values[3].clone(),
             settings: values[4].clone(),
+            catalogue: values[5].clone(),
         }
         .normalized()?;
         s.validate()?;

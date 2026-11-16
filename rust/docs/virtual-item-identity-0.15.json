@@ -1,0 +1,33 @@
+{
+  "observed_at": "2026-11-16T21:53:11.094134+00:00",
+  "query": {
+    "query": {
+      "status": {
+        "option": "securable"
+      },
+      "type": "Replica Headhunter",
+      "stats": [
+        {
+          "type": "and",
+          "filters": []
+        }
+      ]
+    },
+    "sort": {
+      "price": "asc"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": {
+      "code": 2,
+      "message": "Unknown item base type"
+    }
+  },
+  "rate_limit_headers": {
+    "X-Rate-Limit-Policy": "trade-search-request-limit",
+    "X-Rate-Limit-Rules": "Ip",
+    "X-Rate-Limit-Ip": "5:10:60,15:60:300,30:300:1800,600:21600:3600",
+    "X-Rate-Limit-Ip-State": "1:10:0,3:60:0,3:300:0,125:21600:0"
+  }
+}

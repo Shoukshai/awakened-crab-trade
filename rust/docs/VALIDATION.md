@@ -988,3 +988,73 @@ Quatre GET sans donnée d’objet ont renvoyé du HTML de parking, sans JSON. Ce
 observation ne permet pas de conclure à une fermeture permanente du service.
 Aucun gain de performance n’est revendiqué pour ce jalon. Les mesures et l’audit
 du binaire empaqueté sont dans `dist/validation-0.14.json` après construction.
+
+
+## Jalon 0.15 : recherche Heist et consultations virtuelles
+
+108 tests Rust et Clippy toutes cibles réussis. Trois nouveaux tests couvrent
+les seuils de recherche, le préfixe du mot le plus long, les espaces/casse, les
+objets virtuels sans propriétés inventées, le refus d’une identité altérée, les
+doublons, le tri et le remplacement du panier à la sixième sélection.
+
+[item-search-0.15.json](item-search-0.15.json) compare 1 552 recherches, 1 025
+consultations virtuelles et 228 opérations dans 19 séquences de sélection : zéro
+écart. L’oracle exécute `findItems`, `useSelectedItems`, `selectItem` et
+`createVirtualItem` inchangés, ainsi que les modèles de presets/filtres et corps
+Trade complets. Les identités poe.ninja explicitement demandées par le widget
+sont comparées. La sélection du catalogue, ses 94 répliques et l’absence actuelle
+d’anciennes gemmes alternatives sont couvertes. Les 5 773 cas des uniques non
+identifiés et 816 combinaisons de noms de raccourcis ont aussi été rejoués sans
+écart après l’ajout du widget.
+
+La comparaison a révélé une divergence de la première construction native :
+elle ajoutait la base unique alors que l’objet virtuel upstream ne la contient
+pas. [virtual-item-identity-0.15.json](virtual-item-identity-0.15.json) conserve le
+test serveur de ce corps d’origine : HTTP 400, « Unknown item base type » pour
+`type=Replica Headhunter`. Le modèle virtuel d’origine est maintenant conservé
+séparément. La consultation ajoute seulement `uniqueBase` connu du catalogue ;
+les fonctions de l’oracle reçoivent cette entrée enrichie pour un second ensemble
+de comparaisons. Aucun code de l’oracle ou source upstream n’est corrigé et
+l’amélioration est distinguée de la parité du corps d’origine.
+
+[item-search-lifecycle-0.15.json](item-search-lifecycle-0.15.json) : serveur River
+privé, faux jeu, feed dense déterministe en cache et proxy local refusant les
+services externes. Le raccourci Ctrl+H configuré et la commande préremplie ouvrent
+le widget passivement, clavier au faux jeu. La saisie, le changement de type,
+les recherches trop courtes/trop larges/inconnues ne lancent aucun réseau. Le
+panier trie les cotes, ignore les doublons et remplace les cinq sélections par
+la sixième. Annuler les réglages revient au widget. Une consultation explicite
+prépare le nom et la base exacts, préserve les filtres globaux et ne modifie pas
+le presse-papiers. Un changement de ligue révoque les cotes. Le proxy retarde
+une vraie tentative CONNECT : un changement vers l’autre application masque
+le widget ; la réponse débloquée ensuite est rejetée et ne le rouvre pas. Une
+erreur laisse les prix inconnus et attend une actualisation explicite.
+
+Le pilote a été corrigé pour attendre l’allocation des boutons après l’ouverture
+des réglages et déplacer le pointeur sur l’autre fenêtre du bureau privé lors
+du changement de tags. Les tags seuls laissaient le focus à la couche interactive,
+ce qui ne constituait pas un changement d’application effectif. Les scénarios
+complets ont ensuite réussi. [settings-0.15.json](settings-0.15.json) et
+[overlay-lifecycle-0.15.json](overlay-lifecycle-0.15.json) rejouent aussi les
+réglages et le cycle de vie existants sur la version finale ; le test XWayland
+de conflits/replay/raccourcis pendant IO bloqué reste réussi.
+
+Sur le vrai PoE maintenu ouvert : Ctrl+Alt+D copie la wand normale et vérifie
+11 DPS physiques. La commande `catalogue replica "Replica Headhunter"` ouvre
+un panneau passif et prérempli, sans HTTP. Après interaction explicite et clic,
+le widget charge l’identité poe.ninja `Replica Headhunter / Leather Belt` depuis
+le cache (1 846 s d’âge lors de l’observation) et sa cote indicative. Un clic sur
+cette sélection lance Trade avec nom et base exacts : 16 résultats, dix offres,
+682 ms réseau. Ce Replica Headhunter est une identité virtuelle, pas un objet
+possédé ou copié dans le jeu. Le titre le précise ; le presse-papiers reste celui
+de la wand. Retour au widget, effacement du panier, nouvelle copie réelle de la
+wand et masquage final réussis. Les captures du widget et de la consultation ont
+été inspectées. Les préférences finales sont égales au profil initial.
+
+Aucune frappe arbitraire ou commande de jeu/chat n’a été envoyée au vrai PoE ;
+la saisie et le nouveau raccourci sont vérifiés sur le bureau privé. Les images,
+l’OCR, les gemmes alternatives absentes du catalogue, la recherche générale des
+objets, la navigation navigateur, la réduction réelle, les autres compositeurs,
+écrans/échelles de sortie et plateformes restent hors de cette validation.
+Aucun gain de performance n’est revendiqué. L’audit du paquet et les mesures
+sur son processus réel sont dans `dist/validation-0.15.json` après construction.

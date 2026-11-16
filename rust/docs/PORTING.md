@@ -22,7 +22,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Prédiction des rares (`price-prediction/poeprices.ts`) | oui | non | endpoints vérifiés sans donnée d’objet : HTML de parking le 16/11/2026, voir rapport 0.14 | revérifier le service, partage et rendu natif |
 | Résolution des non-identifiés (`unidentified-resolver`) | oui | choix natif avec défilement, première variante par référence, résolution automatique si choix unique ; propriétés/texte/statut préservés ; aucune recherche avant choix | 5 773 comparaisons sur 547 bases et 1 259 identités ; sélection/automatisme/sans candidat/inspection testés sur River privé ; fixtures consultées au-dessus de PoE | icônes, variantes distinguées ; copies réelles de ces uniques non identifiés |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
-| Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
+| Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
 | Widgets minuteur, images, grille Delve, menu | oui | non | non | états et rendu natif |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
@@ -246,3 +246,39 @@ La prédiction des rares reste à porter. Les quatre GET sans paramètres des
 endpoints poeprices ont renvoyé du HTML avec redirection de parking, sans JSON.
 Le rapport horodaté `poeprices-availability-0.14.json` est une observation de
 disponibilité, sans donnée d’objet transmise ni affirmation de fermeture durable.
+
+
+## Jalon 0.15 : recherche des cibles Heist
+
+`item/search.rs` porte `findItems` et la sélection de `WidgetItemSearch.vue` :
+trim/espaces JavaScript, longueur UTF-16 minimale de trois, recherche insensible
+à la casse, présence de tous les mots et préfixe du mot le plus long. L’ordre du
+catalogue, les variantes et le seuil de cinq résultats sont conservés. Le panier
+ignore les doublons par nom, trie par cote et remplace les cinq objets par le
+sixième. Le catalogue courant contient 94 répliques, sans ancienne gemme à
+qualité alternative ; le panneau explique cette absence. Il ne remplace pas ces
+gemmes par des gemmes modernes et ne prétend pas offrir une recherche générale.
+
+`Choice::virtual_item` reproduit l’objet virtuel upstream : aucun texte copié,
+mod, socket, niveau d’objet ou catégorie d’équipement n’est inventé. Le parcours
+upstream omet `uniqueBase`, donc ses filtres envoient le nom de l’unique comme
+type de base ; Trade a refusé ce corps avec HTTP 400 « Unknown item base type ».
+`trade_item` ajoute seulement la base connue du catalogue, vérifiée avant
+consultation. L’oracle compare séparément le modèle d’origine et cette entrée
+enrichie aux fonctions de filtres upstream inchangées. Aucune fonction de
+l’oracle ni source TypeScript n’est corrigée.
+
+`ui/item_search_panel.rs` fournit recherche, choix, panier, cotes et actualisation
+explicite. Les événements portent session et révision pour rejeter les anciens
+boutons ; les réponses ont la génération globale et ne peuvent ouvrir une
+fenêtre. Le worker poe.ninja existant traite les paniers bornés à cinq avec le
+même cache et les mêmes limites que le panneau de prix. Saisir/effacer ne lance
+aucun réseau ; sélectionner ne lance pas Trade. Une consultation explicite
+prépare les filtres de l’objet virtuel sans toucher au presse-papiers. Les cotes
+sont invalidées à la réouverture, au changement de ligue et en erreur ; leur
+actualisation reste explicite. Le widget est accessible par le bouton Cibles
+Heist, la commande `catalogue` et un raccourci facultatif désactivé par défaut.
+
+Les images, l’OCR des anciennes gemmes (upstream Windows), les autres widgets et
+recherches non proposées par ce widget restent dans l’inventaire. Les liens
+externes du panneau d’évaluation gardent leur portée et leurs limites documentées.
