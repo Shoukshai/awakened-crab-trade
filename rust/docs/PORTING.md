@@ -18,9 +18,9 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d'objet entier, mods voilés et enrichissements spécifiques, autres langues |
 | Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets complets et ajustements finaux, pseudo spécialisés (cartes/flacons/cluster/etc.), parité de tous les types |
-| Prix poe.ninja, tendances, prix liés, poussière, valeur espérée | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, poussière, valeur espérée |
-| Évaluation objets, cartes et mods dangereux | oui | non | non | règles, configuration, UI |
-| Recherche objets, wiki et liens externes | oui | non | non | recherche et raccourcis |
+| Prix poe.ninja, tendances, prix liés, valeur espérée (poussière locale portée dans l’évaluation) | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, valeur espérée (poussière locale portée dans l’évaluation) |
+| Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
+| Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
 | Widgets minuteur, images, grille Delve, menu | oui | non | non | états et rendu natif |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, ligue/ilvl/en ligne/devise/stock/plage suggérée dans le panneau, échelle au démarrage | ligue Covens saisie/persistée, devise/stock manipulés, plage dans les requêtes ; échelle app 1,25 observée en 0.1 ; migration JSON | éditeur complet, langues, sélection d’échelle dans l’UI |
@@ -54,3 +54,9 @@ X11 autonome. Le prototype laisse les entrées passives traverser le panneau.
 `calculated.rs`, `pseudo.rs`, `properties.rs` préparent les filtres sans dépendre
 du bureau. La table pseudo exportée depuis le TypeScript conserve sa provenance
 et son hash dans `src/data/pseudo-rules.json` ; son vérificateur reste hors ligne.
+
+`inspection.rs` porte l’évaluation locale et les décisions des cartes ;
+`ui/inspection_panel.rs` rend les profils et un TreeView natif pour le catalogue.
+Les valeurs par défaut sont exportées avec hash depuis WidgetItemCheck upstream.
+La copie dispose de son propre worker borné : une recherche HTTP en cours ne
+retarde plus la capture. Changer de mode invalide les anciennes réponses réseau.

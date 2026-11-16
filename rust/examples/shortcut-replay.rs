@@ -271,7 +271,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err("User changed focus; test stopped".into());
         }
         if !Command::new("xdotool")
-            .args(["key", "ctrl+d", "shift+space", "ctrl+shift+d"])
+            .args(["key", "ctrl+d", "shift+space", "ctrl+shift+d", "ctrl+alt+d"])
             .status()?
             .success()
         {
@@ -282,7 +282,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let mut pressed = Vec::new();
         let deadline = Instant::now() + Duration::from_secs(2);
-        while Instant::now() < deadline && pressed.len() < 3 {
+        while Instant::now() < deadline && pressed.len() < 4 {
             while let Some(event) = probe.connection.poll_for_event()? {
                 if let Event::KeyPress(e) = event {
                     if e.detail == d || e.detail == space {
@@ -290,20 +290,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            if pressed.len() < 3 {
+            if pressed.len() < 4 {
                 std::thread::sleep(Duration::from_millis(10));
             }
         }
         assert_eq!(
             pressed,
-            vec![d, space, d],
+            vec![d, space, d, d],
             "keys swallowed by shortcut backend"
         );
         assert!(
             action_rx.try_recv().is_err(),
             "game action incorrectly triggered in test app"
         );
-        println!("PASS: other X11 app received all 3 shortcuts; cached_game_active={stale_game_active}; no overlay action");
+        println!("PASS: other X11 app received all 4 shortcuts; cached_game_active={stale_game_active}; no overlay action");
     }
     println!("PASS: closing probe on isolated desktop");
     Ok(())

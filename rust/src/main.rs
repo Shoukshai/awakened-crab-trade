@@ -3,6 +3,7 @@ mod calculated;
 mod desktop;
 mod economy;
 mod filters;
+mod inspection;
 mod item;
 mod modifiers;
 mod overlay;

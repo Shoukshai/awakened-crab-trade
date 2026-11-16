@@ -44,6 +44,7 @@ pub fn run(
         (d, ModMask::CONTROL, "copy"),
         (space, ModMask::SHIFT, "interact"),
         (d, ModMask::CONTROL | ModMask::SHIFT, "hide"),
+        (d, ModMask::CONTROL | ModMask::M1, "inspect-copy"),
     ];
     let mut ignored = ModMask::LOCK;
     if let Ok(numlock) = code(0xff7f) {
@@ -80,7 +81,7 @@ pub fn run(
         }
     }
     connection.flush().map_err(|e| e.to_string())?;
-    eprintln!("shortcuts backend=XWayland keys=Ctrl+D,Shift+Space,Ctrl+Shift+D scope=X11-only replay_other_apps=true");
+    eprintln!("shortcuts backend=XWayland keys=Ctrl+D,Shift+Space,Ctrl+Shift+D,Ctrl+Alt+D scope=X11-only replay_other_apps=true");
     ready();
     let mut armed = None;
     let mut last = Instant::now() - Duration::from_secs(1);
@@ -121,10 +122,11 @@ pub fn run(
                         armed = None;
                         if active.load(Ordering::Acquire)
                             && focused_game(&connection)
-                            && (command != "copy" || last.elapsed() >= Duration::from_millis(300))
+                            && (!command.ends_with("copy")
+                                || last.elapsed() >= Duration::from_millis(300))
                         {
                             send(command);
-                            if command == "copy" {
+                            if command.ends_with("copy") {
                                 last = Instant::now();
                             }
                         }

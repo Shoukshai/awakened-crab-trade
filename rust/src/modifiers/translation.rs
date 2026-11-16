@@ -35,6 +35,8 @@ struct Stat {
     dp: bool,
     matchers: Vec<Matcher>,
     trade: Trade,
+    #[serde(rename = "fromAreaMods")]
+    area_kind: Option<String>,
 }
 #[derive(Deserialize)]
 struct Resolver {
@@ -109,6 +111,22 @@ fn database() -> &'static Database {
 }
 pub fn max_lines() -> usize {
     database().max_lines
+}
+pub fn has_matcher(text: &str) -> bool {
+    lookup(text).is_some()
+}
+pub fn area_matchers() -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for record in &database().records {
+        for stat in record.stats() {
+            if let Some(tag) = &stat.area_kind {
+                for matcher in &stat.matchers {
+                    out.push((matcher.string.clone(), tag.clone()));
+                }
+            }
+        }
+    }
+    out
 }
 /// Translation selected for the combined roll, as translateStatWithRoll does.
 pub fn display(modifier: &Modifier) -> (String, bool) {

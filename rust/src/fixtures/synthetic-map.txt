@@ -1,0 +1,20 @@
+Item Class: Maps
+Rarity: Rare
+Synthetic Reflection
+Map (Tier 16)
+--------
+Map Area: Beach
+Item Quantity: +80% (augmented)
+Item Rarity: +40% (augmented)
+Monster Pack Size: +25% (augmented)
+--------
+Item Level: 83
+--------
+{ Prefix Modifier "Mirrored" (Tier: 1) }
+Rare Monsters have Physical Thorns reflecting 180(150-180) Physical Damage
+{ Suffix Modifier "of Exposure" (Tier: 1) }
+Players have -12(-12--9)% to all maximum Resistances
+{ Prefix Modifier "Twinned" (Tier: 1) }
+Area contains two Unique Bosses
+{ Suffix Modifier "Future" }
+Unknown future dangerous modifier 999

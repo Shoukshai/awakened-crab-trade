@@ -326,3 +326,74 @@ masquage, wl-paste confirme toujours le vrai texte avancé de la wand (8% spell
 damage), puis RSS du processus à 70 896 Kio (69,23 Mio), 0 tick CPU sur 3 s à
 CLK_TCK=100. Ce sont des observations ponctuelles, sans optimisation spécifique
 revendiquée à ce jalon. PoE et le compositeur sont restés ouverts.
+
+## Jalon 0.5 : évaluation locale et profils de cartes
+
+61 tests Rust passent, Clippy sans avertissement. Les valeurs par défaut du
+panneau sont exportées depuis `WidgetItemCheck.vue` upstream inchangé et vérifiées
+avec leur SHA256. `compare-inspection.cjs` compare au parseur TypeScript complet
+3 144 entrées : les 340 traductions de mods de zone, valeurs simples/plages et
+négatives dans trois profils, inconnus, carte synthétique et vraie wand ; DPS
+physique/élémentaire à la qualité copiée ; poussière des uniques aux seuils
+ilvl 46/68/84, qualité catalyst, influences et implicites de corruption.
+Les 1 875 combinaisons des fonctions de décisions sont identiques à upstream.
+Le texte rendu (signes et placeholders compris) et les tags du catalogue sont
+également comparés. Zéro écart : [inspection-0.5.json](inspection-0.5.json).
+Les corpus de 1 651 filtres calculés et 55 961 traductions/effets ont été rejoués,
+sans écart. Cette couverture ne prouve pas la parité complète du parseur ou des
+presets.
+
+Les deux règles par défaut « Monsters reflect #% of Physical/Elemental Damage »
+n'existent plus dans les traductions de ce commit upstream. Le port conserve ces
+réglages et les signale comme obsolètes ; aucune ancienne ligne n'est présentée
+comme reconnue. Le catalogue comporte 340 règles actuelles, plus ces deux règles
+obsolètes dans le profil I. Une ligne inconnue reste visible même si aucun mod
+n'est reconnu ; son avertissement est hors de la liste défilante.
+
+Observations graphiques, build release natif, au-dessus du même PoE ouvert :
+
+- Ctrl+Alt+D sur la vraie Driftwood Wand : copie avant panneau, DPS physique 11
+  à qualité copiée, aucun appel Trade/poe.ninja, état Passive et focus jeu. Une
+  copie prend 72 ms, préparation 4 ms, premier rendu à froid 61 ms. Les liens
+  Wiki/PoEDB/CoE sont visibles ; leur ouverture navigateur n'a pas été déclenchée.
+- Maj+Espace, clic **Consulter les prix** : page Trade interactive, 464 résultats,
+  10 offres et 741 ms réseau dans Covens. Échap masque et rend le focus au jeu.
+- Une carte **synthétique**, chargée par presse-papiers et `inspect-check`, affiche
+  Beach, les thorns physiques, −12 % de résistances maximales, deux boss et une
+  ligne future inconnue. Aucune carte réelle n'a été copiée depuis le personnage.
+  Couleurs prudence/favorable par défaut inspectées ; clic thorns → danger.
+- Profil II initialement neutre ; activation des nouveaux mods et marquage vu.
+  Retour profil I : danger conservé. Recherche « physical thorns » : trois lignes
+  (résultat et deux règles obsolètes), modification par radio puis effacement :
+  règle `-s-`, l'autre profil est préservé. Après redémarrage, profil I nouveau et
+  profil II vu sont conservés. Réglages de test ensuite remis à leur état initial,
+  sans changer la ligue, les filtres ou l'échelle de l'utilisateur.
+- Les trois colonnes Danger/Prudence/Bon du TreeView sont visibles à largeur 620.
+  La première sélection de page GTK ignorait les enfants encore invisibles ;
+  correction vérifiée sur capture. La hauteur des mods et l'avertissement inconnu
+  ont également été ajustés après inspection réelle.
+- Une requête Trade de la wand étant en vol, nouvelle commande `inspect-copy` :
+  nouvelle vraie copie et panneau local passif en 85 ms, sans attendre HTTP.
+  Aucun résultat ni requête de prix dans cette nouvelle génération, focus jeu.
+  Le journal enregistre le rejet de l'ancienne réponse. La capture possède son
+  worker borné distinct de Trade ; le timeout réseau reste 15 s.
+
+Le test isolé River/XWayland vérifie désormais les quatre raccourcis, leur replay
+vers une autre application X11 même avec un ancien état game_active=true, et la
+libération des grabs après conflit. Aucune touche de ce test n'atteint le jeu.
+L'utilisateur a confirmé que le panneau disparaît lors d'un changement volontaire
+d'application. La réduction/fermeture du jeu, les cartes réelles, les images de
+cartes, l'ouverture navigateur, les autres langues et plateformes restent non
+validées. PoE et River sont restés ouverts pendant ces contrôles.
+
+Paquet 0.5.0-1 : makepkg hors ligne et ses 61 tests passent. Archive source
+comparée aux 426 fichiers locaux ; 346 fichiers du paquet root/root ; notices des
+188 crates et de la bibliothèque standard vérifiées par leurs hashes. Le binaire
+extrait, après les opérations de strip du paquet, est lancé sans installation
+système : cinq cycles passifs passent ; copie réelle de la wand → 456 résultats,
+10 offres, 611 ms réseau, 71 ms copie/parsing, 3 ms filtres, 6 ms premier rendu.
+Ctrl+Alt+D produit ensuite le panneau local avec DPS 11 et aucune requête de prix,
+toujours passif et jeu actif. Le vrai texte avancé de la wand est conservé dans le
+presse-papiers après les fixtures. Après masquage : RSS 70 676 Kio (69,02 Mio),
+0 tick CPU sur 3 s à CLK_TCK=100. Mesure ponctuelle ; aucune optimisation mémoire
+revendiquée pour ce jalon. Le panneau reste masqué, PoE et River restent ouverts.

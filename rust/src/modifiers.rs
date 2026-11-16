@@ -26,6 +26,11 @@ pub struct Modifier {
     pub source_count: usize,
     pub fractured_t1: bool,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnknownModifier {
+    pub text: String,
+    pub kind: String,
+}
 fn kind_from_header(text: &str) -> &'static str {
     if text.contains("Implicit Modifier") {
         "implicit"
@@ -65,14 +70,27 @@ pub(crate) fn apply_effect(modifier: &mut Modifier, effect: f64) {
     modifier.min = modifier.min.map(scaled);
     modifier.max = modifier.max.map(scaled);
 }
-fn parse_block(
-    lines: &[String],
-    kind: &str,
-    category: Option<&str>,
+#[derive(Clone, Copy)]
+struct Block<'a> {
+    kind: &'a str,
+    category: Option<&'a str>,
     effect: f64,
     fractured_t1: bool,
+    report_unknown: bool,
+}
+fn parse_block(
+    lines: &[String],
+    context: Block<'_>,
     result: &mut Vec<Modifier>,
+    unknown: &mut Vec<UnknownModifier>,
 ) {
+    let Block {
+        kind,
+        category,
+        effect,
+        fractured_t1,
+        report_unknown,
+    } = context;
     let mut start = 0;
     let mut reminder = false;
     while start < lines.len() {
@@ -107,24 +125,47 @@ fn parse_block(
             }
         }
         if !matched {
+            if report_unknown {
+                unknown.push(UnknownModifier {
+                    text: lines[start].clone(),
+                    kind: kind.into(),
+                });
+            }
             start += 1;
         }
     }
 }
 /// English item text; category comes from the item's upstream catalogue entry.
+#[cfg(test)]
 pub fn parse(raw: &str, category: Option<&str>) -> Vec<Modifier> {
+    parse_detailed(raw, category).0
+}
+pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<UnknownModifier>) {
     static EFFECT: OnceLock<Regex> = OnceLock::new();
     let effect_regex =
         EFFECT.get_or_init(|| Regex::new(r"([+-]?\d+(?:\.\d+)?)% Increased").unwrap());
     let mut result = Vec::new();
+    let mut unknown = Vec::new();
     let mut block = Vec::new();
     let mut kind = "explicit";
     let mut base_kind = "explicit";
     let mut effect = 0.;
     let mut fractured_t1 = false;
+    let mut report_unknown = false;
     for line in raw.lines().map(str::trim) {
         if line == "--------" || (line.starts_with('{') && line.ends_with('}')) {
-            parse_block(&block, kind, category, effect, fractured_t1, &mut result);
+            parse_block(
+                &block,
+                Block {
+                    kind,
+                    category,
+                    effect,
+                    fractured_t1,
+                    report_unknown,
+                },
+                &mut result,
+                &mut unknown,
+            );
             block.clear();
             kind = if line == "--------" {
                 "explicit"
@@ -132,6 +173,7 @@ pub fn parse(raw: &str, category: Option<&str>) -> Vec<Modifier> {
                 kind_from_header(line)
             };
             base_kind = kind;
+            report_unknown = line != "--------";
             fractured_t1 = kind == "fractured" && line.contains("(Tier: 1)");
             effect = effect_regex
                 .captures(line)
@@ -142,15 +184,40 @@ pub fn parse(raw: &str, category: Option<&str>) -> Vec<Modifier> {
         let (line, explicit_kind) = suffix(line);
         let new_kind = explicit_kind.unwrap_or(base_kind);
         if new_kind != kind {
-            parse_block(&block, kind, category, effect, fractured_t1, &mut result);
+            parse_block(
+                &block,
+                Block {
+                    kind,
+                    category,
+                    effect,
+                    fractured_t1,
+                    report_unknown,
+                },
+                &mut result,
+                &mut unknown,
+            );
             block.clear();
             kind = new_kind;
+        }
+        if explicit_kind.is_some() {
+            report_unknown = true;
         }
         if !line.is_empty() {
             block.push(line.to_string());
         }
     }
-    parse_block(&block, kind, category, effect, fractured_t1, &mut result);
+    parse_block(
+        &block,
+        Block {
+            kind,
+            category,
+            effect,
+            fractured_t1,
+            report_unknown,
+        },
+        &mut result,
+        &mut unknown,
+    );
     // Same stat contributed by hybrid and flat modifiers is one Trade filter.
     let mut totals: Vec<Modifier> = Vec::new();
     for modifier in result {
@@ -180,7 +247,7 @@ pub fn parse(raw: &str, category: Option<&str>) -> Vec<Modifier> {
             totals.push(modifier);
         }
     }
-    totals
+    (totals, unknown)
 }
 #[cfg(test)]
 mod tests {

@@ -19,6 +19,8 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     renderer/src/web/price-check/filters/pseudo/anointments.ts \
     renderer/src/web/price-check/filters/create-stat-filters.ts \
     renderer/src/web/price-check/filters/util.ts renderer/src/web/price-check/filters/interfaces.ts \
+    renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
+    renderer/src/web/item-check/ItemInfo.vue \
     renderer/package.json renderer/package-lock.json \
     main/build/icons/128x128.png -C "$rust_dir/dist" license-bundle
 apt_source_sha=$(sha256sum "rust/dist/native-source-${apt_pkg_version}.tar.gz" | cut -d ' ' -f 1)

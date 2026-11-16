@@ -38,6 +38,10 @@ pub struct Item {
     pub influences: Vec<String>,
     pub properties: crate::properties::Properties,
     pub armour_base: crate::properties::ArmourBase,
+    pub reference: String,
+    pub unknown_modifiers: Vec<crate::modifiers::UnknownModifier>,
+    pub map_area: Option<String>,
+    pub unique_dust_value: Option<f64>,
 }
 // Keep the complete upstream asset, but decode only fields used by the business
 // layer. In particular icon URLs and unrelated area/build records need no JSON
@@ -45,6 +49,8 @@ pub struct Item {
 #[derive(Deserialize)]
 struct CatalogueEntry {
     name: String,
+    #[serde(rename = "refName")]
+    reference: String,
     namespace: String,
     #[serde(rename = "tradeTag")]
     trade_tag: Option<String>,
@@ -62,6 +68,8 @@ struct Craftable {
 #[derive(Deserialize)]
 struct Unique {
     base: Option<String>,
+    #[serde(rename = "disenchantValue")]
+    dust: Option<f64>,
 }
 fn catalogue() -> &'static Vec<CatalogueEntry> {
     static ITEMS: OnceLock<Vec<CatalogueEntry>> = OnceLock::new();
@@ -131,6 +139,20 @@ impl Item {
                 .to_string();
         }
         base = base.strip_prefix("Superior ").unwrap_or(&base).to_string();
+        let mut named_map_tier = None;
+        if class == "Maps" {
+            named_map_tier = names
+                .last()
+                .and_then(|s| s.rsplit_once(" (Tier "))
+                .and_then(|(_, tier)| tier.strip_suffix(')'))
+                .and_then(|tier| tier.parse::<u32>().ok());
+            if let Some((before, tier)) = base.rsplit_once(" (Tier ") {
+                if let Some(tier) = tier.strip_suffix(')').and_then(|v| v.parse::<u32>().ok()) {
+                    named_map_tier = Some(tier);
+                    base = before.into();
+                }
+            }
+        }
         let namespace = match rarity {
             Rarity::Unique => "UNIQUE",
             Rarity::Gem => "GEM",
@@ -176,6 +198,14 @@ impl Item {
             .find(|v| v.namespace == "ITEM" && v.name == base)
             .map(|v| v.armour.clone())
             .unwrap_or_default();
+        let (modifiers, unknown_modifiers) = crate::modifiers::parse_detailed(text, category);
+        let reference = info
+            .map(|v| v.reference.clone())
+            .unwrap_or_else(|| identity.clone());
+        let map_area = lines
+            .iter()
+            .find_map(|l| l.strip_prefix("Map Area: "))
+            .map(str::to_string);
         Ok(Self {
             class,
             rarity,
@@ -183,8 +213,12 @@ impl Item {
             base,
             item_level: prop("Item Level: "),
             gem_level: prop("Level: "),
-            quality: prop("Quality: "),
-            map_tier: prop("Map Tier: "),
+            quality: lines.iter().find_map(|line| {
+                (line.starts_with("Quality: ") || line.starts_with("Quality ("))
+                    .then(|| line.split_once(": ").and_then(|(_, value)| number(value)))
+                    .flatten()
+            }),
+            map_tier: named_map_tier.or_else(|| prop("Map Tier: ")),
             links,
             corrupted: lines.contains(&"Corrupted") || lines.contains(&"Unmodifiable"),
             mirrored: lines.contains(&"Mirrored"),
@@ -193,7 +227,11 @@ impl Item {
             raw: text.to_string(),
             properties: crate::properties::Properties::parse(text),
             armour_base,
-            modifiers: crate::modifiers::parse(text, category),
+            modifiers,
+            unknown_modifiers,
+            reference,
+            map_area,
+            unique_dust_value: info.and_then(|v| v.unique.as_ref().and_then(|u| u.dust)),
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
             trade_discriminator: info

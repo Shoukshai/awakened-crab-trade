@@ -1,0 +1,26 @@
+{
+  "source": "renderer/src/web/item-check/WidgetItemCheck.vue",
+  "source_sha256": "e1f9f9cb839874b8110723b552430d818eaf2f73a9ca4b1ebca8666bc00feb4b",
+  "config": {
+    "profile": 1,
+    "showNewStats": false,
+    "selectedStats": [
+      {
+        "matcher": "Players have #% to all maximum Resistances",
+        "decision": "w--"
+      },
+      {
+        "matcher": "Monsters reflect #% of Physical Damage",
+        "decision": "d--"
+      },
+      {
+        "matcher": "Monsters reflect #% of Elemental Damage",
+        "decision": "d--"
+      },
+      {
+        "matcher": "Area contains two Unique Bosses",
+        "decision": "g--"
+      }
+    ]
+  }
+}

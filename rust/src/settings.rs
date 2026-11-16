@@ -7,6 +7,7 @@ pub struct Settings {
     pub filters: Filters,
     pub scale: f64,
     pub search_range: f64,
+    pub map_check: crate::inspection::MapConfig,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -15,6 +16,7 @@ impl Default for Settings {
             filters: Filters::default(),
             scale: 1.0,
             search_range: 10.,
+            map_check: crate::inspection::MapConfig::default(),
         }
     }
 }
@@ -39,6 +41,7 @@ impl Settings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.map_check.validate()?;
         if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
             return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());
         }
@@ -85,6 +88,7 @@ mod tests {
         assert_eq!(settings.filters.bulk_currency, "chaos");
         assert_eq!(settings.filters.minimum_stock, None);
         assert_eq!(settings.search_range, 10.);
+        assert_eq!(settings.map_check, crate::inspection::MapConfig::default());
     }
     #[test]
     fn invalid_settings_are_rejected_before_the_ui_can_silently_clamp_them() {

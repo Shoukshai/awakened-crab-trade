@@ -11,11 +11,12 @@ use crate::{
     trade::{Prices, SearchKind, Trade},
 };
 mod economy_panel;
+mod inspection_panel;
 mod stat_row;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     os::unix::{io::AsRawFd, net::UnixDatagram},
     rc::Rc,
     sync::{
@@ -27,29 +28,34 @@ use std::{
 };
 
 type EconomyResult = Result<Option<Quote>, String>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum View {
+    Price,
+    Inspection,
+}
 enum Event {
     Shortcut(&'static str),
     Windows(Snapshot),
     TrackerError(String),
-    Captured(u64, Box<Result<(Item, u128), String>>),
+    Captured(u64, View, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Result<Option<Quote>, String>),
+    MapSettings(crate::inspection::Edit),
 }
 struct EconomyJob {
     generation: u64,
     league: String,
     item: Item,
 }
-enum Job {
-    Capture {
-        generation: u64,
-        copy: bool,
-    },
-    Search {
-        generation: u64,
-        league: String,
-        query: serde_json::Value,
-    },
+struct CaptureJob {
+    generation: u64,
+    copy: bool,
+    view: View,
+}
+struct Job {
+    generation: u64,
+    league: String,
+    query: serde_json::Value,
 }
 struct Ui {
     window: gtk::Window,
@@ -68,6 +74,10 @@ struct Ui {
     mod_box: gtk::Box,
     mod_scroll: gtk::ScrolledWindow,
     mod_expander: gtk::Expander,
+    stack: gtk::Stack,
+    inspection: Rc<inspection_panel::Panel>,
+    inspection_result: RefCell<Option<crate::inspection::Report>>,
+    view: Cell<View>,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
@@ -75,6 +85,7 @@ struct Ui {
     current: Arc<AtomicU64>,
     game_active: Arc<AtomicBool>,
     worker: SyncSender<Job>,
+    capture_worker: SyncSender<CaptureJob>,
     url: RefCell<Option<String>>,
     shown: RefCell<Option<Instant>>,
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
@@ -154,6 +165,9 @@ impl Ui {
         }
         match command {
             "demo" => {
+                self.view.set(View::Price);
+                self.stack.set_visible_child_name("price");
+                self.inspection_result.replace(None);
                 self.item.replace(None);
                 self.url.replace(None);
                 self.economy_panel.reset();
@@ -162,16 +176,21 @@ impl Ui {
                 self.text.set_text("Panneau natif de validation\n\nClavier et clics restent au jeu.\nAucun prix simulé n'est affiché.");
                 self.show();
             }
-            "check" | "copy" => {
+            "check" | "copy" | "inspect-check" | "inspect-copy" => {
                 if !self.state.borrow().game_active {
                     eprintln!("capture refused: PoE is not active");
                     return;
                 }
                 self.hide();
                 let generation = self.state.borrow().generation;
-                if let Err(e) = self.worker.try_send(Job::Capture {
+                if let Err(e) = self.capture_worker.try_send(CaptureJob {
                     generation,
-                    copy: command == "copy",
+                    copy: command.ends_with("copy"),
+                    view: if command.starts_with("inspect-") {
+                        View::Inspection
+                    } else {
+                        View::Price
+                    },
                 }) {
                     eprintln!("capture worker busy: {e}");
                 }
@@ -188,6 +207,8 @@ impl Ui {
                 }
             }
             "hide" => self.hide(),
+            "evaluate" => self.change_view(View::Inspection),
+            "prices" => self.change_view(View::Price),
             "quit" => {
                 self.hide();
                 gtk::main_quit();
@@ -195,7 +216,36 @@ impl Ui {
             _ => eprintln!("unknown command: {command}"),
         }
     }
+    fn change_view(&self, view: View) {
+        let Some(item) = self.item.borrow().clone() else {
+            return;
+        };
+        self.state.borrow_mut().generation += 1;
+        self.sync_generation();
+        self.request.replace(None);
+        self.url.replace(None);
+        self.view.set(view);
+        if view == View::Inspection {
+            let report = crate::inspection::report(&item, &self.settings.borrow().map_check);
+            self.inspection
+                .show(report.clone(), &self.settings.borrow().map_check);
+            self.inspection_result.replace(Some(report));
+            self.stack.set_visible_child_name("inspection");
+        } else {
+            self.inspection_result.replace(None);
+            self.stack.set_visible_child_name("price");
+        }
+        if !self.window.is_visible() && !self.show() {
+            return;
+        }
+        if view == View::Price {
+            self.search();
+        }
+    }
     fn search(&self) {
+        if self.view.get() != View::Price {
+            return;
+        }
         let Some(item) = self.item.borrow().clone() else {
             return;
         };
@@ -259,7 +309,7 @@ impl Ui {
             );
         }
         self.text.set_text(&format!("Recherche dans {}…\n\nComparaison par base et filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
-        match self.worker.try_send(Job::Search {
+        match self.worker.try_send(Job {
             generation,
             league: settings.league.clone(),
             query,
@@ -302,7 +352,7 @@ impl Ui {
                 self.state.borrow_mut().fail();
                 eprintln!("tracker error={e}");
             }
-            Event::Captured(generation, result) => {
+            Event::Captured(generation, view, result) => {
                 if generation != self.state.borrow().generation || !self.state.borrow().game_active
                 {
                     eprintln!("discarded capture generation={generation}");
@@ -360,16 +410,39 @@ impl Ui {
                         }
                         self.mod_scroll.vadjustment().set_value(0.);
                         self.item.replace(Some(item));
+                        self.view.set(view);
+                        if view == View::Inspection {
+                            let report = crate::inspection::report(
+                                self.item.borrow().as_ref().unwrap(),
+                                &self.settings.borrow().map_check,
+                            );
+                            eprintln!(
+                                "inspection prepared map_like={} stats={} unknown={} offline=true",
+                                report.map_like,
+                                report.stats.len(),
+                                report.unknown.len()
+                            );
+                            self.inspection
+                                .show(report.clone(), &self.settings.borrow().map_check);
+                            self.inspection_result.replace(Some(report));
+                            self.stack.set_visible_child_name("inspection");
+                        } else {
+                            self.inspection_result.replace(None);
+                            self.stack.set_visible_child_name("price");
+                        }
                         eprintln!(
                             "filters prepared count={} ui_ms={}",
                             self.stat_rows.borrow().len(),
                             filters_started.elapsed().as_millis()
                         );
-                        if self.show() {
+                        if self.show() && view == View::Price {
                             self.search();
                         }
                     }
                     Err(e) => {
+                        self.view.set(View::Price);
+                        self.stack.set_visible_child_name("price");
+                        self.inspection_result.replace(None);
                         self.item.replace(None);
                         self.economy_panel.reset();
                         self.economy_panel.show(&Ok(None), None);
@@ -378,6 +451,28 @@ impl Ui {
                         eprintln!("capture error={e}");
                         self.show();
                     }
+                }
+            }
+            Event::MapSettings(edit) => {
+                let mut settings = self.settings.borrow().clone();
+                let old = settings.map_check.clone();
+                if let Err(e) = settings.map_check.edit(edit) {
+                    self.inspection.error(&e);
+                    return;
+                }
+                if old == settings.map_check {
+                    return;
+                }
+                if let Err(e) = settings.save() {
+                    self.inspection.error(&e);
+                    return;
+                }
+                self.settings.replace(settings);
+                if let Some(item) = self.item.borrow().as_ref() {
+                    let report = crate::inspection::report(item, &self.settings.borrow().map_check);
+                    self.inspection
+                        .show(report.clone(), &self.settings.borrow().map_check);
+                    self.inspection_result.replace(Some(report));
                 }
             }
             Event::Prices(generation, result) => {
@@ -446,13 +541,22 @@ pub fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args
         .first()
-        .is_some_and(|a| a == "inspect" || a == "lookup" || a == "economy")
+        .is_some_and(|a| a == "inspect" || a == "lookup" || a == "economy" || a == "analyze")
     {
         let path = args
             .get(1)
             .ok_or("Usage: inspect FILE or lookup FILE [LEAGUE] [PAYMENT_CURRENCY]")?;
         let inspect_started = Instant::now();
         let item = Item::parse(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)?;
+        if args[0] == "analyze" {
+            let config = Settings::load()?.map_check;
+            println!(
+                "{}",
+                serde_json::to_string(&crate::inspection::report(&item, &config))
+                    .map_err(|e| e.to_string())?
+            );
+            return Ok(());
+        }
         if args[0] == "economy" {
             let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
             let quote = Economy::new()?.quote(&league, &item, 1, &Arc::new(AtomicU64::new(1)));
@@ -505,7 +609,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -518,7 +622,7 @@ pub fn run() -> Result<(), String> {
             client
                 .send_to(b"status", socket_path()?)
                 .map_err(|e| e.to_string())?;
-            let mut buf = [0; 4096];
+            let mut buf = [0; 65536];
             let n = client.recv(&mut buf).map_err(|e| e.to_string())?;
             println!("{}", String::from_utf8_lossy(&buf[..n]));
             Ok(())
@@ -529,7 +633,17 @@ pub fn run() -> Result<(), String> {
     if let Some(command) = args.first().filter(|s| {
         matches!(
             s.as_str(),
-            "demo" | "check" | "copy" | "hide" | "interact" | "quit" | "league"
+            "demo"
+                | "check"
+                | "copy"
+                | "inspect-check"
+                | "inspect-copy"
+                | "evaluate"
+                | "prices"
+                | "hide"
+                | "interact"
+                | "quit"
+                | "league"
         )
     }) {
         UnixDatagram::unbound()
@@ -602,12 +716,13 @@ pub fn run() -> Result<(), String> {
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::None);
     let css = gtk::CssProvider::new();
-    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 10px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }}",(16.0*settings.scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 10px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }}",(16.0*settings.scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
     gtk::StyleContext::add_provider_for_screen(
         &GtkWindowExt::screen(&window).unwrap(),
         &css,
         gtk::STYLE_PROVIDER_PRIORITY_USER + 1,
     );
+    let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     content.set_border_width(20);
     let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
@@ -682,66 +797,81 @@ pub fn run() -> Result<(), String> {
     let search = gtk::Button::with_label("Rechercher");
     let browser = gtk::Button::with_label("Ouvrir Trade");
     let close = gtk::Button::with_label("Fermer");
-    for b in [&search, &browser, &close] {
+    let evaluate = gtk::Button::with_label("Évaluer");
+    for b in [&search, &browser, &evaluate, &close] {
         actions.pack_start(b, true, true, 0);
     }
     let hint = gtk::Label::new(None);
     hint.set_line_wrap(true);
     hint.set_xalign(0.);
+    let stack = gtk::Stack::new();
+    stack.set_hhomogeneous(false);
+    stack.set_vhomogeneous(false);
+    let price_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    price_content.pack_start(&scroll, true, true, 0);
+    price_content.pack_start(&row, false, false, 0);
+    price_content.pack_start(&range_row, false, false, 0);
+    price_content.pack_start(&bulk_row, false, false, 0);
+    price_content.pack_start(&economy_panel.container, false, false, 0);
+    price_content.pack_start(&mod_expander, false, false, 0);
+    price_content.pack_start(&actions, false, false, 0);
+    let inspection_sender = sender.clone();
+    let inspection = inspection_panel::Panel::new(move |edit| {
+        let _ = inspection_sender.send(Event::MapSettings(edit));
+    });
+    stack.add_named(&price_content, "price");
+    stack.add_named(&inspection.container, "inspection");
+    // GtkStack ignores requests for an invisible child. Make both pages
+    // available before selecting the first captured item's view.
+    price_content.show_all();
+    inspection.container.show_all();
+    stack.set_visible_child_name("price");
     content.pack_start(&title, false, false, 0);
-    content.pack_start(&scroll, true, true, 0);
-    content.pack_start(&row, false, false, 0);
-    content.pack_start(&range_row, false, false, 0);
-    content.pack_start(&bulk_row, false, false, 0);
-    content.pack_start(&economy_panel.container, false, false, 0);
-    content.pack_start(&mod_expander, false, false, 0);
-    content.pack_start(&actions, false, false, 0);
+    content.pack_start(&stack, true, true, 0);
     content.pack_start(&hint, false, false, 0);
     window.add(&content);
     let current = Arc::new(AtomicU64::new(0));
     let game_active = Arc::new(AtomicBool::new(false));
-    let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
-    let (worker, jobs) = mpsc::sync_channel(1);
+
+    let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
     {
         let sender = sender.clone();
         let current = current.clone();
-        let game_active = game_active.clone();
+        let active = game_active.clone();
+        std::thread::spawn(move || {
+            while let Ok(job) = captures.recv() {
+                if current.load(Ordering::Acquire) != job.generation {
+                    continue;
+                }
+                let started = Instant::now();
+                let result = (if job.copy {
+                    clipboard::copy_from_game(&active)
+                } else {
+                    clipboard::read()
+                })
+                .and_then(|text| Item::parse(&text))
+                .map(|item| (item, started.elapsed().as_millis()));
+                if sender
+                    .send(Event::Captured(job.generation, job.view, Box::new(result)))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+    }
+    let (worker, jobs) = mpsc::sync_channel::<Job>(1);
+    {
+        let sender = sender.clone();
+        let current = current.clone();
         std::thread::spawn(move || {
             let mut trade = Trade::new();
             while let Ok(job) = jobs.recv() {
-                match job {
-                    Job::Capture { generation, copy } => {
-                        if current.load(Ordering::Acquire) != generation {
-                            continue;
-                        }
-                        let start = Instant::now();
-                        let result = (if copy {
-                            clipboard::copy_from_game(&game_active)
-                        } else {
-                            clipboard::read()
-                        })
-                        .and_then(|s| Item::parse(&s))
-                        .map(|item| (item, start.elapsed().as_millis()));
-                        if sender
-                            .send(Event::Captured(generation, Box::new(result)))
-                            .is_err()
-                        {
-                            break;
-                        }
-                    }
-                    Job::Search {
-                        generation,
-                        league,
-                        query,
-                    } => {
-                        let result = trade
-                            .as_mut()
-                            .map_err(|e| e.clone())
-                            .and_then(|trade| trade.search(&league, &query, generation, &current));
-                        if sender.send(Event::Prices(generation, result)).is_err() {
-                            break;
-                        }
-                    }
+                let result = trade.as_mut().map_err(|e| e.clone()).and_then(|trade| {
+                    trade.search(&job.league, &job.query, job.generation, &current)
+                });
+                if sender.send(Event::Prices(job.generation, result)).is_err() {
+                    break;
                 }
             }
         });
@@ -780,6 +910,10 @@ pub fn run() -> Result<(), String> {
         mod_box,
         mod_scroll,
         mod_expander,
+        stack,
+        inspection,
+        inspection_result: RefCell::new(None),
+        view: Cell::new(View::Price),
         stat_rows: RefCell::new(Vec::new()),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),
@@ -787,6 +921,7 @@ pub fn run() -> Result<(), String> {
         current,
         game_active,
         worker,
+        capture_worker,
         url: RefCell::new(None),
         shown: RefCell::new(None),
         result: RefCell::new(None),
@@ -819,6 +954,46 @@ pub fn run() -> Result<(), String> {
                 ui.hide();
                 if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
                     eprintln!("open economy: {e}");
+                }
+            }
+        });
+    }
+    {
+        let ui = ui.clone();
+        evaluate.connect_clicked(move |_| ui.change_view(View::Inspection));
+    }
+    {
+        let panel = ui.inspection.clone();
+        let ui = ui.clone();
+        panel
+            .price
+            .connect_clicked(move |_| ui.change_view(View::Price));
+    }
+    {
+        let panel = ui.inspection.clone();
+        let ui = ui.clone();
+        panel.close.connect_clicked(move |_| ui.hide());
+    }
+    for (button, kind) in [
+        (ui.inspection.wiki.clone(), 0),
+        (ui.inspection.poedb.clone(), 1),
+        (ui.inspection.coe.clone(), 2),
+    ] {
+        let ui = ui.clone();
+        button.connect_clicked(move |_| {
+            let url = ui
+                .inspection_result
+                .borrow()
+                .as_ref()
+                .and_then(|r| match kind {
+                    0 => Some(r.links.wiki.clone()),
+                    1 => Some(r.links.poedb.clone()),
+                    _ => r.links.craft_of_exile.clone(),
+                });
+            if let Some(url) = url {
+                ui.hide();
+                if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
+                    eprintln!("inspection open link: {error}");
                 }
             }
         });
@@ -913,7 +1088,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

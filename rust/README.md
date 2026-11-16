@@ -16,6 +16,7 @@ GDK_BACKEND=wayland ./target/release/awakened-poe-trade-rs daemon
 Le programme démarre masqué. Dans PoE, survoler un objet :
 
 - **Ctrl+D** : copie avancée, parsing puis recherche et affichage passif.
+- **Ctrl+Alt+D** : copie avancée et évaluation locale de l’objet ou de la carte.
 - **Maj+Espace** : autoriser les clics après le premier rendu ; cliquer dans le
   panneau pour utiliser ses contrôles. Le compositeur garde la décision de focus.
 - **Ctrl+Maj+D** : fermer tant que le clavier est encore dans PoE.
@@ -52,6 +53,25 @@ séparément, avec sa tendance et le total de la pile ; il ne valorise pas les m
 d'un rare. Son cache mémoire/disque dure 31 minutes. Les variantes complexes de
 certains uniques ne sont pas encore prises en charge et restent sans estimation.
 
+Le bouton **Évaluer** passe aux informations locales du dernier objet. Pour les
+cartes, contrats, blueprints, invitations, charts et logbooks, trois profils
+mémorisent les décisions danger/prudence/favorable/vu. Cliquer un mod fait avancer
+sa décision ; **Signaler les nouveaux mods** permet de marquer les mods déjà vus.
+Le catalogue **Configurer les mods de zone** propose 340 traductions, une recherche
+par mots et un filtre des règles colorées. Effacer une règle conserve les deux
+autres profils. Les décisions décrivent votre build, pas un verdict universel.
+Les lignes inconnues restent visibles, même si aucune ligne n’est reconnue.
+Deux anciennes règles de réflexion des réglages upstream sont actuellement
+obsolètes : le panneau les signale et permet de les effacer pour chaque profil.
+
+Pour les autres objets, le DPS utilise la qualité réellement copiée, distincte
+de la qualité normalisée des filtres Trade. La poussière de désenchantement des
+uniques utilise les données et facteurs upstream. Wiki, PoEDB et import Craft of
+Exile s’ouvrent sur clic explicite ; le panneau se ferme avant le navigateur.
+L’import CoE est désactivé pour les objets corrompus ou mirrored. Ce mode ne
+consulte ni Trade ni poe.ninja. **Consulter les prix** revient à la recherche.
+Les images de cartes, la recherche coffre et les widgets restent à porter.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -74,12 +94,13 @@ Diagnostics sans interface ni entrée envoyée au jeu :
 
 ```sh
 ./target/release/awakened-poe-trade-rs inspect src/fixtures/driftwood-wand.txt
+./target/release/awakened-poe-trade-rs analyze src/fixtures/synthetic-map.txt
 ./target/release/awakened-poe-trade-rs lookup src/fixtures/scroll-of-wisdom.txt Covens chaos
 ./target/release/awakened-poe-trade-rs economy src/fixtures/scroll-of-wisdom.txt Covens
 ```
 
 `lookup` et `economy` consultent les services publics et leurs caches ; `inspect`
-reste local. Les journaux séparent traitement, réseau et cache.
+et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache.
 
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le champ `scale` (0,75–2,5) s'applique
@@ -100,7 +121,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.4.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.5.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -118,6 +139,9 @@ node scripts/compare-stat-translations.cjs
 cargo build --locked --example calculated-filters
 node scripts/export-pseudo-rules.cjs --check
 node scripts/compare-calculated-filters.cjs
+cargo build --locked --example inspection
+node scripts/export-map-defaults.cjs --check
+node scripts/compare-inspection.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```
