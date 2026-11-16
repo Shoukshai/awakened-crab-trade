@@ -13,7 +13,7 @@ cargo build --locked --release -j 3
 GDK_BACKEND=wayland ./target/release/awakened-poe-trade-rs daemon
 ```
 
-Le programme démarre masqué. Dans PoE, survoler un objet :
+Le programme démarre masqué. Dans PoE, survoler un objet. Raccourcis par défaut :
 
 - **Ctrl+D** : copie avancée, parsing puis recherche et affichage passif.
 - **Ctrl+Alt+D** : copie avancée et évaluation locale de l’objet ou de la carte.
@@ -137,8 +137,8 @@ Les images de cartes, la recherche coffre et les widgets restent à porter.
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
-applications X11 sont rejoués ; un conflit de raccourci désactive ce backend avec
-un message dans le journal. Les applications Wayland natives nécessitent un autre
+applications X11 sont rejoués ; un conflit au démarrage est signalé dans le journal et dans Réglages. Une
+modification refusée conserve les anciens réglages et raccourcis. Les applications Wayland natives nécessitent un autre
 backend de raccourcis. Le portail GlobalShortcuts est absent ici.
 
 Commandes utiles depuis un outil qui garde PoE actif :
@@ -147,6 +147,8 @@ Commandes utiles depuis un outil qui garde PoE actif :
 ./target/release/awakened-poe-trade-rs status
 ./target/release/awakened-poe-trade-rs league Covens
 ./target/release/awakened-poe-trade-rs check  # après Ctrl+Alt+C manuel
+./target/release/awakened-poe-trade-rs settings  # ouverture passive des réglages
+./target/release/awakened-poe-trade-rs interact  # autoriser les clics explicitement
 ./target/release/awakened-poe-trade-rs hide
 ./target/release/awakened-poe-trade-rs quit
 ./target/release/awakened-poe-trade-rs --version
@@ -165,8 +167,21 @@ Diagnostics sans interface ni entrée envoyée au jeu :
 et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache.
 
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
-`~/.config/awakened-poe-trade-rs/config.json`. Le champ `scale` (0,75–2,5) s'applique
-au prochain lancement. Les filtres de mods cochés concernent l'objet courant.
+`~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
+ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
+marchands, regroupement, profil de carte et cinq raccourcis. **Annuler** ne
+persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
+l’application, puis masque le panneau ; cela ne lance aucune recherche.
+Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
+avant **Rechercher**. La devise automatique suit les règles de l’objet upstream.
+
+Un champ de raccourci vide le désactive ; saisir une combinaison ou utiliser
+**Capturer**. Les doublons, combinaisons réservées à la copie et touches
+indisponibles sont refusés. Un échec d’écriture ou de réservation conserve les
+anciens réglages et raccourcis. **Réinitialiser ces champs** remplit le brouillon
+avec les valeurs par défaut et conserve les règles avancées de mods. L’éditeur
+ne couvre pas encore toutes les préférences upstream. Les filtres de mods
+cochés concernent l’objet courant.
 Une copie utilise un marqueur pour rejeter l'ancien objet et contourner le cas
 Proton 10+ ; elle ne restaure pas le presse-papiers après une copie réussie.
 
@@ -183,7 +198,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.13.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.14.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -219,13 +234,15 @@ cargo build --locked --example economy-identity
 node scripts/compare-economy.cjs
 cargo build --locked --example unidentified
 node scripts/compare-unidentified.cjs
+node scripts/compare-hotkeys.cjs target/debug/examples/hotkeys docs/hotkeys-0.14.json
 sh scripts/test-shortcut-replay.sh
+python3 scripts/test-settings.py target/release/awakened-poe-trade-rs docs/settings-0.14.json
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```
 
 La comparaison TypeScript est un test de développement hors ligne : elle exige
-Node et les dépendances upstream (`npm ci` dans `../renderer`, voir DEVELOPING.md).
+Node, les en-têtes X11 xorgproto pour les noms de touches, et les dépendances upstream (`npm ci` dans `../renderer`, voir DEVELOPING.md).
 Elle n'est pas requise pour construire ou utiliser l'application Rust.
 Le test de raccourcis exige River et xdotool, démarre son propre serveur sans écran
 et ne transmet ses touches qu'à sa fenêtre de test. Il vérifie aussi la libération

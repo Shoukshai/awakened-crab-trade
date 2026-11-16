@@ -925,3 +925,66 @@ refus d’une répétition du même Ctrl+D et son acceptation après 350 ms. Les
 de replay vers une autre application et de libération après conflit restent inclus.
 Ce défaut observé explique cette touche ignorée, pas le symptôme de focus signalé
 sur l’autre configuration ni le clic isolé du jalon 0.8.
+
+
+## Jalon 0.14 : réglages et raccourcis
+
+105 tests Rust et Clippy toutes cibles réussis. [hotkeys-0.14.json](hotkeys-0.14.json)
+compare 816 combinaisons, 102 noms et huit ensembles de modificateurs avec
+`hotkeyToString` upstream inchangé et les keysyms de l’en-tête Xorg local : zéro
+écart. Les extensions Super/NumpadEnter et le backend Windows ne sont pas couverts
+par cette comparaison. Les tests Rust vérifient normalisation, doublons,
+réservations, désactivation et valeurs par défaut compatibles avec les anciens
+profils JSON.
+
+Le banc XWayland privé vérifie le remplacement des grabs, un conflit partiel,
+un refus IO et la restauration des valeurs par défaut. Une écriture volontairement
+bloquée ne retient pas le verrou du lecteur : les anciens raccourcis restent
+actifs et les touches proposées sont rejouées. Les événements destinés à une
+autre application sont rejoués même si le suivi des fenêtres est périmé. Les
+quatre actions successives, la garde de répétition et la libération après conflit
+restent vérifiées. Aucun de ces essais ne transmet de touche au vrai PoE.
+
+[settings-0.14.json](settings-0.14.json) : formulaire GTK sur River privé, services
+externes bloqués. Annuler et Réinitialiser puis Annuler conservent les octets du
+profil. Ligue blanche, doublons et Ctrl+Alt+C sont refusés. Une erreur de droits
+sur le répertoire de configuration laisse les anciens réglages et raccourcis
+utilisables. La capture native de Ctrl+G, sa nouvelle réservation, sa suppression
+par restauration des défauts, l’échelle 1,25, la plage 25, les devises, en ligne,
+le profil 2 et les nouveaux mods de carte sont vérifiés. Les règles avancées et
+les décisions par mod invisibles dans ce formulaire sont conservées. Le mode
+manuel ne lance pas HTTP ; la recherche explicite applique le stock de neuf de
+la fixture Wisdom et la règle de vie préexistante. Une sauvegarde suivie d’un
+changement d’application ne rouvre pas le panneau.
+
+Les touches d’édition Backspace/Delete de wtype n’ont pas permis d’effacer le
+champ sur ce banc ; la validation d’une ligue vide utilise une espace, normalisée
+avant validation. La capture et la frappe de Ctrl+G ont réussi ; cela ne valide
+pas toutes les touches possibles, la saisie internationale ou le clavier des
+menus. Les diagnostics temporaires de touches ont été retirés du programme.
+
+[overlay-lifecycle-0.14.json](overlay-lifecycle-0.14.json) rejoue les clics,
+presets, menus, cartes, Mercenary Warrant, objets liés et uniques non identifiés,
+les changements d’application et la disparition/recréation du faux jeu. Les
+préférences par défaut conservent le comportement de recherche automatique.
+
+Sur le bureau réel avec PoE resté ouvert : réglages affichés passivement,
+interaction explicite, échelle 1 → 1,05 et plage 10 → 11 enregistrées au clic,
+recherche automatique désactivée. Ctrl+D copie la vraie Driftwood Wand sans
+requête ni cote ; `prices` charge ensuite dix offres. Première observation réseau
+631 ms, seconde observation servie du cache (0 ms réseau). Le premier automatisme
+de retour aux valeurs initiales cliquait le bouton + au lieu du bouton − des
+SpinButtons horizontaux : corrigé dans le pilote, puis parcours rejoué. Aucun
+changement erroné de ce brouillon n’a été enregistré. Les préférences finales
+sont strictement égales au profil initial ; l’évaluation locale de la vraie wand
+reste à 11 DPS physiques. Les captures du mode manuel et du formulaire ont été
+inspectées. Aucun changement de système, Steam, Proton ou River, aucune commande
+de jeu/chat. Le changement volontaire d’application masque le panneau, confirmé
+par l’utilisateur ; la réduction réelle, les autres compositeurs, sorties et
+plateformes restent non validés.
+
+La prédiction poeprices n’est pas portée : [rapport de disponibilité horodaté](poeprices-availability-0.14.json).
+Quatre GET sans donnée d’objet ont renvoyé du HTML de parking, sans JSON. Cette
+observation ne permet pas de conclure à une fermeture permanente du service.
+Aucun gain de performance n’est revendiqué pour ce jalon. Les mesures et l’audit
+du binaire empaqueté sont dans `dist/validation-0.14.json` après construction.

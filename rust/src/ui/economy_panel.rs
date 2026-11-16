@@ -115,6 +115,11 @@ impl EconomyPanel {
             self.related_rows.remove(&child);
         }
     }
+    pub fn not_requested(&self) {
+        self.reset();
+        self.label
+            .set_text("Prix indicatif non chargé : cliquez Rechercher.");
+    }
     pub fn league_changed(&self) {
         self.reset();
         self.label

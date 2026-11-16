@@ -1,5 +1,8 @@
 //! XWayland regression probe restricted to scripts/test-shortcut-replay.sh's
 //! private headless server. Never run keyboard injection on the user's desktop.
+#[allow(dead_code)]
+#[path = "../src/hotkeys.rs"]
+mod hotkeys;
 #[path = "../src/desktop/xwayland_shortcuts.rs"]
 mod shortcuts;
 use std::{
@@ -169,22 +172,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("PASS: conflicting shortcut rejected; partial grabs released");
     let active = Arc::new(AtomicBool::new(false));
     let worker_active = active.clone();
-    let (ready_tx, ready_rx) = mpsc::channel();
+    let backend = Arc::new(shortcuts::Backend::new(&hotkeys::Hotkeys::default())?);
+    let worker = backend.clone();
     let (action_tx, action_rx) = mpsc::channel();
     std::thread::spawn(move || {
-        if let Err(e) = shortcuts::run(
-            worker_active,
-            move |command| {
-                let _ = action_tx.send(command);
-            },
-            move || {
-                let _ = ready_tx.send(());
-            },
-        ) {
+        if let Err(e) = worker.listen(worker_active, move |command| {
+            let _ = action_tx.send(command);
+        }) {
             eprintln!("probe shortcuts: {e}");
         }
     });
-    ready_rx.recv_timeout(Duration::from_secs(3))?;
     probe.connection.map_window(window)?.check()?;
     probe.connection.flush()?;
     loop {
@@ -355,6 +352,158 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .success());
     assert_eq!(action_rx.recv_timeout(Duration::from_secs(1))?, "copy");
     println!("PASS: rapid inspection/price/interact/hide remain distinct; repeated copy debounced and accepted after guard");
+    let mut candidate = hotkeys::Hotkeys {
+        interact: Some("Ctrl + G".into()),
+        ..Default::default()
+    };
+    let g = code('g' as u32);
+    let ecode = code('e' as u32);
+    let changing = backend.clone();
+    let proposal = candidate.clone();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let pending = std::thread::spawn(move || {
+        changing.replace(&proposal, || {
+            entered_tx.send(()).unwrap();
+            resume_rx.recv().unwrap();
+            Err::<(), String>("simulated settings IO failure".into())
+        })
+    });
+    entered_rx.recv_timeout(Duration::from_secs(1))?;
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "shift+space"])
+        .status()?
+        .success());
+    assert_eq!(
+        action_rx.recv_timeout(Duration::from_secs(1))?,
+        "interact",
+        "disk IO blocked the input reader"
+    );
+    while probe.connection.poll_for_event()?.is_some() {}
+    active.store(false, Ordering::Release);
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "ctrl+d", "ctrl+g"])
+        .status()?
+        .success());
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let mut during_save = Vec::new();
+    while Instant::now() < deadline && during_save.len() < 2 {
+        while let Some(event) = probe.connection.poll_for_event()? {
+            if let Event::KeyPress(e) = event {
+                if e.detail == d || e.detail == g {
+                    during_save.push(e.detail);
+                }
+            }
+        }
+        if during_save.len() < 2 {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+    assert_eq!(
+        during_save,
+        [d, g],
+        "pending save swallowed keys for another context"
+    );
+    assert!(action_rx.try_recv().is_err());
+    resume_tx.send(())?;
+    assert!(pending.join().unwrap().is_err());
+    active.store(true, Ordering::Release);
+    println!("PASS: a blocked settings write leaves old shortcuts active and other-context/new keys replayed");
+    probe
+        .connection
+        .grab_key(
+            false,
+            root,
+            ModMask::CONTROL,
+            g,
+            GrabMode::ASYNC,
+            GrabMode::ASYNC,
+        )?
+        .check()?;
+    candidate.settings = Some("Ctrl + E".into());
+    let mut committed = false;
+    assert!(backend
+        .replace(&candidate, || {
+            committed = true;
+            Ok(())
+        })
+        .is_err());
+    assert!(!committed);
+    probe
+        .connection
+        .grab_key(
+            false,
+            root,
+            ModMask::CONTROL,
+            ecode,
+            GrabMode::ASYNC,
+            GrabMode::ASYNC,
+        )?
+        .check()?;
+    probe
+        .connection
+        .ungrab_key(ecode, root, ModMask::CONTROL)?
+        .check()?;
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "shift+space"])
+        .status()?
+        .success());
+    assert_eq!(action_rx.recv_timeout(Duration::from_secs(1))?, "interact");
+    probe
+        .connection
+        .ungrab_key(g, root, ModMask::CONTROL)?
+        .check()?;
+    candidate.price = Some("Ctrl + J".into());
+    candidate.hide = None;
+    backend.replace(&candidate, || {
+        committed = true;
+        Ok(())
+    })?;
+    assert!(committed && backend.is_alive());
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "ctrl+g", "ctrl+e", "ctrl+j"])
+        .status()?
+        .success());
+    let updated: Vec<_> = (0..3)
+        .map(|_| action_rx.recv_timeout(Duration::from_secs(1)).unwrap())
+        .collect();
+    assert_eq!(updated, ["interact", "settings", "copy"]);
+    while probe.connection.poll_for_event()?.is_some() {}
+    assert!(Command::new("xdotool")
+        .args([
+            "key",
+            "--delay",
+            "1",
+            "ctrl+d",
+            "shift+space",
+            "ctrl+shift+d"
+        ])
+        .status()?
+        .success());
+    assert!(
+        action_rx.recv_timeout(Duration::from_millis(50)).is_err(),
+        "removed binding still dispatched"
+    );
+    let mut replayed = Vec::new();
+    while let Some(event) = probe.connection.poll_for_event()? {
+        if let Event::KeyPress(e) = event {
+            if e.detail == d || e.detail == space {
+                replayed.push(e.detail);
+            }
+        }
+    }
+    assert_eq!(
+        replayed,
+        [d, space, d],
+        "removed bindings were not replayed to game fixture"
+    );
+    backend.replace(&hotkeys::Hotkeys::default(), || Ok(()))?;
+    assert!(Command::new("xdotool")
+        .args(["key", "--delay", "1", "ctrl+d"])
+        .status()?
+        .success());
+    assert_eq!(action_rx.recv_timeout(Duration::from_secs(1))?, "copy");
+    println!("PASS: settings IO/conflict rollback keeps old grabs; new and disabled bindings take effect; defaults restored");
     println!("PASS: closing probe on isolated desktop");
     Ok(())
 }

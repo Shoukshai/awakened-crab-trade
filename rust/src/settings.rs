@@ -7,7 +7,14 @@ pub struct Settings {
     pub filters: Filters,
     pub scale: f64,
     pub search_range: f64,
+    #[serde(skip_serializing_if = "is_true")]
+    pub automatic_search: bool,
     pub map_check: crate::inspection::MapConfig,
+    #[serde(skip_serializing_if = "crate::hotkeys::Hotkeys::is_default")]
+    pub hotkeys: crate::hotkeys::Hotkeys,
+}
+fn is_true(value: &bool) -> bool {
+    *value
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -16,7 +23,9 @@ impl Default for Settings {
             filters: Filters::default(),
             scale: 1.0,
             search_range: 10.,
+            automatic_search: true,
             map_check: crate::inspection::MapConfig::default(),
+            hotkeys: crate::hotkeys::Hotkeys::default(),
         }
     }
 }
@@ -42,6 +51,7 @@ impl Settings {
     }
     pub fn validate(&self) -> Result<(), String> {
         self.map_check.validate()?;
+        self.hotkeys.bindings()?;
         if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
             return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());
         }
@@ -50,6 +60,14 @@ impl Settings {
             .any(|(tag, _)| *tag == self.filters.bulk_currency)
         {
             return Err("Unsupported payment currency in settings".into());
+        }
+        if self.filters.default_currency.as_ref().is_some_and(|s| {
+            s != "chaos_divine"
+                && !crate::filters::PAYMENT_CURRENCIES
+                    .iter()
+                    .any(|(tag, _)| s == tag)
+        }) {
+            return Err("Devise de prix par défaut non prise en charge.".into());
         }
         if self.filters.min_item_level.is_some_and(|n| n > 100)
             || self.filters.min_links.is_some_and(|n| n > 6)
@@ -92,6 +110,16 @@ mod tests {
         assert!(settings.filters.collapse_listings);
         assert!(settings.filters.item.is_none());
         assert_eq!(settings.map_check, crate::inspection::MapConfig::default());
+        assert!(settings.hotkeys.is_default());
+        assert!(settings.automatic_search);
+        assert!(serde_json::to_value(&settings)
+            .unwrap()
+            .get("automatic_search")
+            .is_none());
+        assert!(serde_json::to_value(&settings)
+            .unwrap()
+            .get("hotkeys")
+            .is_none());
     }
     #[test]
     fn invalid_settings_are_rejected_before_the_ui_can_silently_clamp_them() {

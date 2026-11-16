@@ -15,17 +15,17 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 |---|---|---|---|---|
 | Overlay, zones de clic, focus (`main/src/windowing`) | oui | layer-shell natif, suivi Wayland | panneau au-dessus de PoE, clics, 5 cycles, focus passif, changement d’app confirmé par l’utilisateur ; cycle de vie et menus sur River privé | réduction, plusieurs écrans/facteurs de sortie |
 | Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
-| Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
+| Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; configuration/capture natives, remplacement transactionnel | copie réelle ; 816 comparaisons de noms ; capture, conflit, rollback et replay pendant écriture bloquée sur serveur privé | backend River/portail pour Wayland natif, suivi des changements de disposition clavier |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
 | Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; Mercenary Warrant porté au jalon 0.11 ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
 | Prix poe.ninja, tendances, objets liés, valeurs des piles (`expected-value`) | oui | identités/variantes upstream, feed dense/cache 31 min partagé, chaos/divine, pile copiée/complète, graphe et dispersion, 392 relations, lien exact | 6 937 identités, 39 routes, 392 ensembles, 78 conversions, 508 graphes et 4 982 slugs comparés ; feed réel Covens, Wisdom réelle et fixtures au-dessus du jeu ; cycle privé incluant édition de ligue | images ; copies réelles des uniques spéciaux ; Filled Coffin absent du catalogue actuel ; cote générique Vinktar signalée |
-| Prédiction des rares (`price-prediction/poeprices.ts`) | oui | non | non | service, consentement de partage et rendu natif |
+| Prédiction des rares (`price-prediction/poeprices.ts`) | oui | non | endpoints vérifiés sans donnée d’objet : HTML de parking le 16/11/2026, voir rapport 0.14 | revérifier le service, partage et rendu natif |
 | Résolution des non-identifiés (`unidentified-resolver`) | oui | choix natif avec défilement, première variante par référence, résolution automatique si choix unique ; propriétés/texte/statut préservés ; aucune recherche avant choix | 5 773 comparaisons sur 547 bases et 1 259 identités ; sélection/automatisme/sans candidat/inspection testés sur River privé ; fixtures consultées au-dessus de PoE | icônes, variantes distinguées ; copies réelles de ces uniques non identifiés |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
 | Widgets minuteur, images, grille Delve, menu | oui | non | non | états et rendu natif |
-| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, ligue/en ligne/devise/plage et préférences marchands/regroupement ; filtres d’objet transitoires dans le panneau, échelle au démarrage | ligue Covens saisie/persistée, devise/stock manipulés, plage dans les requêtes ; échelle app 1,25 observée en 0.1 ; migration JSON | éditeur complet, langues, sélection d’échelle dans l’UI |
+| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
 | Tray, mises à jour, debug, fichiers hôte | oui | logs stderr, status IPC, PKGBUILD et lanceur | status et journaux en direct, paquet construit/extrait/exécuté | installation propre, tray, mises à jour et fichiers hôte |
@@ -212,3 +212,37 @@ L’anti-répétition XWayland est maintenant propre à chaque raccourci de copi
 passer rapidement de l’inspection aux prix ne supprime plus le second appel.
 Les répétitions du même raccourci gardent leur garde de 300 ms, vérifiée avec
 une fenêtre de jeu émulée sur le serveur privé.
+
+
+## Jalon 0.14 : réglages et raccourcis natifs
+
+`hotkeys.rs` conserve les noms et l’ordre des modificateurs de `ipc/KeyToCode.ts`.
+Les keysyms sont isolés du backend ; l’extension Super et NumpadEnter n’est pas
+une implémentation Windows. Les cinq actions peuvent être configurées ou
+désactivées ; les doublons et réservations du jeu/copie sont refusés. La capture
+GTK utilise la touche non modifiée et ses modificateurs. Une disposition clavier
+changée pendant l’exécution exige encore un redémarrage ou un nouvel enregistrement.
+
+`desktop/preferences.rs` sérialise les modifications hors du thread GTK. Le lecteur
+X11 tourne avant toute acquisition de touches. Le backend réserve les nouvelles
+combinaisons, persiste le profil puis publie les nouvelles liaisons avant de
+libérer les anciennes. Un refus de réservation ou d’écriture libère seulement
+les nouvelles acquisitions. Aucun verrou du lecteur n’est tenu pendant l’IO.
+Une touche réservée mais pas encore publiée est rejouée vers l’application ;
+les relâchements armés par une ancienne révision ne déclenchent pas d’action.
+Un arrêt de connexion est signalé ; un nouvel enregistrement tente une connexion
+neuve, sans boucle de retry. La perte d’une connexion ne peut conserver ses grabs.
+
+`ui/settings_panel.rs` édite une copie du profil. Général expose ligue, échelle,
+plage, devises, en ligne, automatique, marchands, regroupement et stock copié ;
+Cartes expose le profil et le signalement des nouveaux mods. Annuler ne persiste
+rien. Réinitialiser remplit seulement les champs exposés et conserve règles de
+mods et décisions des cartes. Enregistrer n’émet aucun HTTP et ne rouvre jamais
+un panneau masqué entre-temps. Les résultats réseau sont invalidés ; la prochaine
+copie applique les nouveaux défauts. Les valeurs par défaut des nouveaux champs
+sont omises du JSON pour conserver les anciens profils.
+
+La prédiction des rares reste à porter. Les quatre GET sans paramètres des
+endpoints poeprices ont renvoyé du HTML avec redirection de parking, sans JSON.
+Le rapport horodaté `poeprices-availability-0.14.json` est une observation de
+disponibilité, sans donnée d’objet transmise ni affirmation de fermeture durable.

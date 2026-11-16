@@ -1,0 +1,73 @@
+{
+  "interactive_clicks": 30,
+  "native_preset_popup": true,
+  "popup_input": "pointer; virtual keyboard commit remains unvalidated",
+  "hide_dismisses_popup": true,
+  "application_switch_reason": "OtherApplication",
+  "unmap_remap_modes": [
+    "Passive",
+    "Interactive"
+  ],
+  "logbook_zone_change": {
+    "from": "I",
+    "to": "II",
+    "clears_prices": true,
+    "faction_and_boss_isolated": true
+  },
+  "mercenary_scroll_events": 3,
+  "mercenary_editor": {
+    "six_links": true,
+    "minimum_edited": true,
+    "optional_supports": 2,
+    "group_disable_suspends_children": true,
+    "edits_clear_prices": true,
+    "pointer_scroll": true,
+    "browser_fallback_keeps_query": true
+  },
+  "economy_report": {
+    "shared_disk_cache": true,
+    "stack_and_full_stack": true,
+    "divine_conversion": true,
+    "zero_distinct_from_missing": true,
+    "related_rows": 14,
+    "detail_url": true,
+    "trend_and_graph": true,
+    "league_edit_clears_previous_quote_without_http": true,
+    "new_item_clears_previous_rows": true
+  },
+  "identity_scroll_events": 2,
+  "unidentified_resolver": {
+    "catalogue_choices": 12,
+    "unresolved_sends_no_query": true,
+    "native_click_and_scroll": true,
+    "chosen_query_keeps_unidentified": true,
+    "one_candidate_automatic": true,
+    "inspection_offline_with_dust": true,
+    "no_candidate_blocks_query": true
+  },
+  "new_window_rediscovered": true,
+  "network": "external services blocked by private proxy environment",
+  "scope": "private headless River/XWayland at 2560x1600; fake game only; no real PoE input",
+  "binary_version": "awakened-poe-trade-rs 0.14.0",
+  "source_sha256": {
+    "scripts/test-overlay-lifecycle.py": "91668abaa212b1911315be877fe15c83fdac4f9abde8e228edf78c652961e2c2",
+    "examples/overlay-fixture.rs": "293a3745d7a4524095a88b17b8a839170f95f74c41d05756e3709096a99a5543",
+    "src/desktop/wayland.rs": "09c2021c237e29bb0502e09f9e73be61655d39e74c07363e66eb7ad8921d86c2",
+    "src/overlay.rs": "e6c5db7b176c43766feacb4388bf6793dd9a16e43288cdb3aa76f2e4f821b737",
+    "src/ui.rs": "d3122302bec30bd6ae2cec510485545b038880ba84e19199abfe22c9a7c58e79",
+    "src/ui/stat_row.rs": "1636556ae0e48823d0d20d829fc0450cc76cf782fac8ec36a89e036ce76ca80a",
+    "src/ui/mercenary_panel.rs": "9b825457714d44e6360b6007d5c06693d7a2532413ba0b41cd1521d904f2316e",
+    "src/item/mercenary.rs": "bd62490106c49bc944f89b419a7f129b8f919c2ed6007c592bb08920b9c8502b",
+    "src/item/mercenary/query.rs": "67240fba2612a56e3f9ef87c4d4dcffe825e06ab2b0a416de2b07e56c4a117d8",
+    "src/economy.rs": "2c71e1b997826d54410bdeabf4342d34eea0773c416f06fd6f016b3603b70184",
+    "src/economy/identity.rs": "e8000347e2071204ffca38b969dd18d51169b1eec8a0643d238af5c9466faf38",
+    "src/economy/model.rs": "996e5994ecea23493a4472ef12db6237198ceec02749be8bc7aa9f4b2fc3f966",
+    "src/ui/economy_panel.rs": "e9a3d1007daaa3116930574ced02fc58556b744d83a88965a3d5e3fb15ffb46a",
+    "src/item.rs": "ab43b744b15ed2df97595b095e8716af1fb5aa2cf37908b4bf2d2d13f7c2b6da",
+    "src/modifiers.rs": "6fa836b79532075ad87fbc43de4a1484d4cc68b207e7014d39545950611384b9",
+    "src/item/unidentified.rs": "aef2dbf450d3d275818f50bbb4854f3726e0c050cbf13db7b92db255b0db6f51",
+    "src/ui/unidentified_panel.rs": "9c737771bee2e388486d23a97769bbd9d30267c2a264f4c66ae2a67e7a0df083",
+    "src/desktop/xwayland_shortcuts.rs": "c17e3cb798e82b1c995be3156322472cb5ca7f15b184c1ef8ec0a99c441dda8b",
+    "examples/shortcut-replay.rs": "2aabcb21a747dfa84d802f28af7e30cc183cdf3677da973694d846dcd88ab481"
+  }
+}

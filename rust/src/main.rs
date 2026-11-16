@@ -3,6 +3,7 @@ mod calculated;
 mod desktop;
 mod economy;
 mod filters;
+mod hotkeys;
 mod inspection;
 mod item;
 mod item_filters;

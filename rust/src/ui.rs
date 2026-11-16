@@ -14,6 +14,7 @@ mod economy_panel;
 mod inspection_panel;
 mod item_filters_panel;
 mod mercenary_panel;
+mod settings_panel;
 mod stat_row;
 mod unidentified_panel;
 use gtk::{gdk, prelude::*};
@@ -35,6 +36,7 @@ type EconomyResult = Result<Report, String>;
 enum View {
     Price,
     Inspection,
+    Settings,
 }
 enum Event {
     Shortcut(&'static str),
@@ -43,7 +45,8 @@ enum Event {
     Captured(u64, View, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
-    MapSettings(crate::inspection::Edit),
+    MapSettings(u64, crate::inspection::Edit),
+    Preferences(Box<crate::desktop::preferences::Update>),
     FiltersChanged(u64, String),
     IdentifyUnique(u64, String),
 }
@@ -93,6 +96,15 @@ struct Ui {
     updating_preset: Cell<bool>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
+    preferences: settings_panel::Panel,
+    preferences_worker: SyncSender<crate::desktop::preferences::Request>,
+    preferences_pending: Cell<bool>,
+    preferences_epoch: Cell<u64>,
+    preferences_return: Cell<View>,
+    backend_connection: Cell<u64>,
+    backend_status: RefCell<Result<(), String>>,
+    updating_settings: Cell<bool>,
+    css: gtk::CssProvider,
     item: RefCell<Option<Item>>,
     current: Arc<AtomicU64>,
     game_active: Arc<AtomicBool>,
@@ -102,6 +114,11 @@ struct Ui {
     shown: RefCell<Option<Instant>>,
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
     request: RefCell<Option<(u64, serde_json::Value)>>,
+}
+fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
+    window.set_size_request((620. * scale) as i32, (420. * scale) as i32);
+    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 10px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    Ok(())
 }
 fn socket_path() -> Result<std::path::PathBuf, String> {
     std::env::var_os("XDG_RUNTIME_DIR")
@@ -232,8 +249,16 @@ impl Ui {
         apply_input(&self.window, false);
         self.window.show_all();
         self.window.queue_draw();
-        self.hint
-            .set_text("Passif · Maj+Espace pour interagir · Ctrl+Maj+D pour fermer");
+        let settings = self.settings.borrow();
+        self.hint.set_text(&format!(
+            "Passif · {} pour interagir · {} pour fermer",
+            settings
+                .hotkeys
+                .interact
+                .as_deref()
+                .unwrap_or("commande interact"),
+            settings.hotkeys.hide.as_deref().unwrap_or("commande hide")
+        ));
         eprintln!(
             "overlay state=Preparing generation={} scale={}",
             self.state.borrow().generation,
@@ -241,8 +266,178 @@ impl Ui {
         );
         true
     }
+    fn open_settings(&self) {
+        if self.preferences_pending.get()
+            || (self.view.get() == View::Settings && self.window.is_visible())
+        {
+            return;
+        }
+        if self.view.get() != View::Settings {
+            self.preferences_return.set(self.view.get());
+        }
+        self.preferences_epoch.set(self.preferences_epoch.get() + 1);
+        self.state.borrow_mut().generation += 1;
+        self.sync_generation();
+        self.result.replace(None);
+        self.request.replace(None);
+        self.url.replace(None);
+        self.economy_result.replace(None);
+        self.economy_panel.not_requested();
+        self.preferences.show(&self.settings.borrow());
+        self.view.set(View::Settings);
+        self.title.set_text("Réglages");
+        self.stack.set_visible_child_name("settings");
+        if !self.window.is_visible() {
+            self.show();
+        }
+    }
+    fn cancel_settings(&self) {
+        if self.preferences_pending.get() {
+            return;
+        }
+        let view = self.preferences_return.get();
+        self.view.set(view);
+        let item = self.item.borrow();
+        self.title.set_text(
+            &item
+                .as_ref()
+                .map(Item::description)
+                .unwrap_or_else(|| "AWAKENED POE TRADE · RUST".into()),
+        );
+        self.stack.set_visible_child_name(
+            if item.as_ref().is_some_and(Item::needs_unique_identity) {
+                "identify"
+            } else if view == View::Inspection {
+                "inspection"
+            } else {
+                "price"
+            },
+        );
+        if view == View::Price && item.is_some() {
+            self.text
+                .set_text("Réglages annulés. Cliquez Rechercher pour consulter les prix.");
+        }
+    }
+    fn save_settings(&self) {
+        if self.view.get() != View::Settings
+            || self.preferences_pending.get()
+            || self.state.borrow().state != State::Interactive
+        {
+            return;
+        }
+        let candidate = match self.preferences.read() {
+            Ok(s) => s,
+            Err(e) => {
+                self.preferences.error(&e);
+                return;
+            }
+        };
+        self.preferences_pending.set(true);
+        self.preferences.busy(true);
+        self.stack.set_sensitive(false);
+        let request = crate::desktop::preferences::Request {
+            epoch: self.preferences_epoch.get(),
+            settings: candidate,
+        };
+        if let Err(e) = self.preferences_worker.try_send(request) {
+            self.preferences_pending.set(false);
+            self.stack.set_sensitive(true);
+            self.preferences
+                .error(&format!("Service de réglages indisponible : {e}"));
+        }
+    }
+    fn preferences_update(&self, update: crate::desktop::preferences::Update) {
+        use crate::desktop::preferences::Update;
+        match update {
+            Update::Backend { connection, result } => {
+                if connection < self.backend_connection.get() {
+                    return;
+                }
+                self.backend_connection.set(connection);
+                if let Err(e) = &result {
+                    eprintln!("shortcuts unavailable: {e}");
+                    if self.view.get() == View::Settings && !self.preferences_pending.get() {
+                        self.preferences.error(e);
+                    }
+                }
+                let _ = self.backend_status.replace(result);
+            }
+            Update::Failed { epoch, error } => {
+                self.preferences_pending.set(false);
+                self.stack.set_sensitive(true);
+                eprintln!("settings transaction rejected epoch={epoch} error={error}");
+                if epoch == self.preferences_epoch.get() {
+                    self.preferences
+                        .error(&format!("Modifications non enregistrées : {error}"));
+                }
+            }
+            Update::Applied {
+                epoch,
+                settings,
+                connection,
+                available,
+            } => {
+                let settings = *settings;
+                self.preferences_pending.set(false);
+                self.stack.set_sensitive(true);
+                self.backend_connection.set(connection);
+                let _ = self.backend_status.replace(if available {
+                    Ok(())
+                } else {
+                    Err("Réglages enregistrés, mais la connexion aux raccourcis est perdue.".into())
+                });
+                self.settings.replace(settings.clone());
+                self.state.borrow_mut().generation += 1;
+                self.sync_generation();
+                self.result.replace(None);
+                self.request.replace(None);
+                self.url.replace(None);
+                self.economy_result.replace(None);
+                self.economy_panel.not_requested();
+                self.updating_settings.set(true);
+                self.league.set_text(&settings.league);
+                self.online.set_active(settings.filters.online);
+                self.search_range.set_value(settings.search_range);
+                self.currency
+                    .set_active_id(Some(&settings.filters.bulk_currency));
+                self.updating_settings.set(false);
+                if let Err(e) = set_style(&self.window, &self.css, settings.scale) {
+                    eprintln!("settings style error: {e}");
+                }
+                eprintln!("settings committed epoch={epoch} scale={} shortcuts_available={available} automatic_http=false",settings.scale);
+                let current_item = self.item.borrow().clone();
+                let generation = self.state.borrow().generation;
+                if self.view.get() == View::Settings && epoch == self.preferences_epoch.get() {
+                    if self.window.is_visible() {
+                        self.hide(HideReason::Button);
+                    }
+                } else if let Some(item) = current_item {
+                    self.prepare_item(item, self.view.get(), generation);
+                    if self.view.get() == View::Price {
+                        self.text.set_text(
+                            "Réglages appliqués. Vérifiez les filtres puis cliquez Rechercher.",
+                        );
+                    }
+                }
+            }
+        }
+    }
+    fn price_after_copy(&self) {
+        if self.settings.borrow().automatic_search {
+            self.search();
+        } else {
+            self.text
+                .set_text("Objet copié. Vérifiez les filtres puis cliquez Rechercher.");
+            self.economy_panel.not_requested();
+            eprintln!("price automatic_search=false automatic_http=false");
+        }
+    }
     fn command(&self, command: &str) {
         if let Some(league) = command.strip_prefix("league ") {
+            if self.preferences_pending.get() {
+                eprintln!("league update refused: settings transaction pending");
+                return;
+            }
             let mut settings = self.settings.borrow().clone();
             settings.league = league.trim().to_string();
             match settings.save() {
@@ -301,6 +496,7 @@ impl Ui {
                 }
             }
             "hide" => self.hide(HideReason::Explicit),
+            "settings" => self.open_settings(),
             "evaluate" => self.change_view(View::Inspection),
             "prices" => self.change_view(View::Price),
             "quit" => {
@@ -444,7 +640,7 @@ impl Ui {
                 eprintln!("unique identity automatic=false reference={reference:?} generation={generation} unidentified=true");
                 self.prepare_item(chosen, self.view.get(), generation);
                 if self.view.get() == View::Price {
-                    self.search();
+                    self.price_after_copy();
                 }
             }
             Err(error) => eprintln!("unique identity rejected: {error}"),
@@ -576,6 +772,9 @@ impl Ui {
         self.item_filters.container.show();
     }
     fn filters_changed(&self, observed_generation: u64, origin: &str) {
+        if self.updating_settings.get() {
+            return;
+        }
         eprintln!("filters change origin={origin:?} observed_generation={observed_generation} current_generation={} state={:?} elapsed_ms={}",self.state.borrow().generation,self.state.borrow().state,self.started.elapsed().as_millis());
         if self.view.get() != View::Price || !self.window.is_visible() {
             return;
@@ -634,7 +833,7 @@ impl Ui {
         );
     }
     fn search(&self) {
-        if self.view.get() != View::Price {
+        if self.view.get() != View::Price || self.preferences_pending.get() {
             return;
         }
         let Some(item) = self.item.borrow().clone() else {
@@ -744,6 +943,7 @@ impl Ui {
     fn event(&self, event: Event) {
         match event {
             Event::Shortcut(command) => self.command(command),
+            Event::Preferences(update) => self.preferences_update(*update),
             Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
             Event::Windows(s) => {
                 let active = s.game_active();
@@ -792,7 +992,7 @@ impl Ui {
                             filters_started.elapsed().as_millis()
                         );
                         if self.show() && view == View::Price {
-                            self.search();
+                            self.price_after_copy();
                         }
                     }
                     Err(e) => {
@@ -812,7 +1012,14 @@ impl Ui {
                 }
             }
             Event::FiltersChanged(generation, origin) => self.filters_changed(generation, &origin),
-            Event::MapSettings(edit) => {
+            Event::MapSettings(observed, edit) => {
+                if self.view.get() != View::Inspection
+                    || self.preferences_pending.get()
+                    || observed != self.state.borrow().generation
+                {
+                    eprintln!("discarded map settings callback");
+                    return;
+                }
                 let mut settings = self.settings.borrow().clone();
                 let old = settings.map_check.clone();
                 if let Err(e) = settings.map_check.edit(edit) {
@@ -984,7 +1191,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1019,6 +1226,7 @@ pub fn run() -> Result<(), String> {
                 | "interact"
                 | "quit"
                 | "league"
+                | "settings"
         )
     }) {
         UnixDatagram::unbound()
@@ -1091,7 +1299,7 @@ pub fn run() -> Result<(), String> {
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::None);
     let css = gtk::CssProvider::new();
-    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 10px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }}",(16.0*settings.scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    set_style(&window, &css, settings.scale)?;
     gtk::StyleContext::add_provider_for_screen(
         &GtkWindowExt::screen(&window).unwrap(),
         &css,
@@ -1188,6 +1396,7 @@ pub fn run() -> Result<(), String> {
     unidentified.close.connect_clicked(move |_| {
         let _ = close_sender.send(Event::Shortcut("hide"));
     });
+    let preferences = settings_panel::Panel::new();
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
@@ -1202,9 +1411,15 @@ pub fn run() -> Result<(), String> {
     price_content.pack_start(&mod_expander, false, false, 0);
     price_content.pack_start(&actions, false, false, 0);
     let inspection_sender = sender.clone();
+    let inspection_generation = current.clone();
     let inspection = inspection_panel::Panel::new(move |edit| {
-        let _ = inspection_sender.send(Event::MapSettings(edit));
+        let _ = inspection_sender.send(Event::MapSettings(
+            inspection_generation.load(Ordering::Acquire),
+            edit,
+        ));
     });
+    stack.add_named(&preferences.container, "settings");
+    preferences.container.show_all();
     stack.add_named(&unidentified.container, "identify");
     unidentified.container.show_all();
     stack.add_named(&price_content, "price");
@@ -1214,7 +1429,11 @@ pub fn run() -> Result<(), String> {
     price_content.show_all();
     inspection.container.show_all();
     stack.set_visible_child_name("price");
-    content.pack_start(&title, false, false, 0);
+    let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let preferences_open = gtk::Button::with_label("Réglages");
+    heading.pack_start(&title, true, true, 0);
+    heading.pack_start(&preferences_open, false, false, 0);
+    content.pack_start(&heading, false, false, 0);
     content.pack_start(&stack, true, true, 0);
     content.pack_start(&hint, false, false, 0);
     window.add(&content);
@@ -1284,6 +1503,7 @@ pub fn run() -> Result<(), String> {
             }
         });
     }
+    let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
         window: window.clone(),
         started: Instant::now(),
@@ -1315,6 +1535,15 @@ pub fn run() -> Result<(), String> {
         updating_preset: Cell::new(false),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),
+        preferences,
+        preferences_worker,
+        preferences_pending: Cell::new(false),
+        preferences_epoch: Cell::new(0),
+        preferences_return: Cell::new(View::Price),
+        backend_connection: Cell::new(0),
+        backend_status: RefCell::new(Err("Initialisation des raccourcis…".into())),
+        updating_settings: Cell::new(false),
+        css,
         item: RefCell::new(None),
         current,
         game_active,
@@ -1325,6 +1554,31 @@ pub fn run() -> Result<(), String> {
         result: RefCell::new(None),
         request: RefCell::new(None),
     });
+    {
+        let owner = ui.clone();
+        preferences_open.connect_clicked(move |_| owner.open_settings());
+        let owner = ui.clone();
+        ui.preferences
+            .apply
+            .connect_clicked(move |_| owner.save_settings());
+        let owner = ui.clone();
+        ui.preferences
+            .cancel
+            .connect_clicked(move |_| owner.cancel_settings());
+        let owner = ui.clone();
+        ui.preferences
+            .reset
+            .connect_clicked(move |_| owner.preferences.defaults());
+        for (index, button) in ui.preferences.capture_buttons().into_iter().enumerate() {
+            let owner = ui.clone();
+            button.connect_clicked(move |_| owner.preferences.arm_capture(index));
+            let owner = ui.clone();
+            button.connect_focus_out_event(move |_, _| {
+                owner.preferences.cancel_capture();
+                glib::Propagation::Proceed
+            });
+        }
+    }
     {
         let ui = ui.clone();
         let league = ui.league.clone();
@@ -1447,6 +1701,9 @@ pub fn run() -> Result<(), String> {
     {
         let ui = ui.clone();
         window.connect_key_press_event(move |_, e| {
+            if ui.view.get() == View::Settings && ui.preferences.capture_key(e) {
+                return glib::Propagation::Stop;
+            }
             if e.keyval() == gdk::keys::constants::Escape {
                 ui.hide(HideReason::Escape);
                 glib::Propagation::Stop
@@ -1524,18 +1781,22 @@ pub fn run() -> Result<(), String> {
         });
     }
     {
-        let sender = sender.clone();
+        let actions = sender.clone();
+        let reports = sender.clone();
         let active = ui.game_active.clone();
+        let initial = ui.settings.borrow().clone();
         std::thread::spawn(move || {
-            if let Err(e) = crate::desktop::xwayland_shortcuts::run(
+            crate::desktop::preferences::run(
+                initial,
                 active,
+                preferences_jobs,
                 move |command| {
-                    let _ = sender.send(Event::Shortcut(command));
+                    let _ = actions.send(Event::Shortcut(command));
                 },
-                || (),
-            ) {
-                eprintln!("shortcuts unavailable: {e}");
-            }
+                move |update| {
+                    let _ = reports.send(Event::Preferences(Box::new(update)));
+                },
+            )
         });
     }
     let fd = socket.as_raw_fd();
@@ -1548,6 +1809,15 @@ pub fn run() -> Result<(), String> {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
                         let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        value["preferences"] = ui.preferences.diagnostics(&ui.window);
+                        value["preferences_pending"] =
+                            serde_json::json!(ui.preferences_pending.get());
+                        {
+                            let settings = ui.settings.borrow();
+                            value["settings"] = serde_json::json!({"league":settings.league,"scale":settings.scale,"search_range":settings.search_range,"automatic_search":settings.automatic_search,"hotkeys":settings.hotkeys,"filters":{"online":settings.filters.online,"merchant_only":settings.filters.merchant_only,"collapse_listings":settings.filters.collapse_listings,"bulk_currency":settings.filters.bulk_currency,"default_currency":settings.filters.default_currency,"activate_stock_filter":settings.filters.activate_stock_filter,"stats_count":settings.filters.stats.len()},"map_check":{"profile":settings.map_check.profile,"showNewStats":settings.map_check.show_new_stats,"selected_stats_count":settings.map_check.selected_stats.len()}});
+                        }
+                        value["shortcut_backend"] = serde_json::json!({"connection":ui.backend_connection.get(),"status":*ui.backend_status.borrow()});
+                        value["settings_button"]=serde_json::json!(preferences_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":preferences_open.allocated_width(),"height":preferences_open.allocated_height()})));
                         value["unidentified_resolver"] = ui.unidentified.diagnostics(&ui.window);
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
                         let _ = socket.send_to(value.to_string().as_bytes(), path);

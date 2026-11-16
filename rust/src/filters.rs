@@ -18,6 +18,10 @@ pub struct Filters {
     pub stats: Vec<StatFilter>,
     pub bulk_currency: String,
     pub minimum_stock: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_currency: Option<String>,
+    #[serde(skip_serializing_if = "is_false")]
+    pub activate_stock_filter: bool,
     pub merchant_only: bool,
     pub collapse_listings: bool,
     #[serde(skip)]
@@ -56,6 +60,9 @@ impl StatFilter {
         }
     }
 }
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 impl Default for Filters {
     fn default() -> Self {
         Self {
@@ -65,6 +72,8 @@ impl Default for Filters {
             stats: vec![],
             bulk_currency: "chaos".into(),
             minimum_stock: None,
+            default_currency: None,
+            activate_stock_filter: false,
             merchant_only: true,
             collapse_listings: true,
             item: None,
@@ -102,12 +111,13 @@ pub fn plan_for_preset(
             league: league.into(),
             exact,
             merchant_only: filters.merchant_only,
+            currency: filters.default_currency.clone(),
+            activate_stock_filter: filters.activate_stock_filter,
             collapse_listings: if filters.collapse_listings {
                 "api".into()
             } else {
                 "app".into()
             },
-            ..Default::default()
         },
     )?;
     p.trade.offline = !filters.online;

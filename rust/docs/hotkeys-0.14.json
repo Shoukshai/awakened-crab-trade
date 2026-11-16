@@ -1,0 +1,16 @@
+{
+  "cases": 816,
+  "key_names": 102,
+  "modifier_combinations": 8,
+  "mismatch_count": 0,
+  "failures": [],
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "scope": "Unchanged upstream hotkeyToString names and modifier order; native X11 keysyms checked against installed xorgproto primary header. Registration, game reservations and Super extension tested separately; no Windows backend claim.",
+  "source_sha256": {
+    "ipc/KeyToCode.ts": "5ea9e1b4a09d51e095ef66d42788027ae2b41814bf052e39f0d07580f7ceedec"
+  },
+  "x11_header": {
+    "path": "/usr/include/X11/keysymdef.h",
+    "sha256": "292e94a8493c78d32d32f9c56c2db803a214189313093e57aebd7506ebf0cc47"
+  }
+}

@@ -3,3 +3,5 @@
 pub mod clipboard;
 pub mod wayland;
 pub mod xwayland_shortcuts;
+
+pub mod preferences;
