@@ -1,0 +1,16 @@
+{
+  "cases": 1145,
+  "timeless_choices": 18,
+  "mismatch_count": 0,
+  "failures": [],
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "scope": "Full English parser, equipment/crafting/unique/cluster/anointment/Timeless preset and item-filter models, effective complete Trade requests; disabled query nodes removed on both sides. Synthetic corpus and actual copied wand/flask. Other special item presets excluded.",
+  "source_sha256": {
+    "renderer/src/parser/advanced-mod-desc.ts": "8712326c723d63bf4715eaf0b617aa46c90604b894bea27ed8d54497d1a13bc6",
+    "renderer/src/web/price-check/filters/create-presets.ts": "f498a7f65ffe410ff35f3f8ef8a6c4f05205f3db4d044c0791a4ec58868ef5b4",
+    "renderer/src/web/price-check/filters/create-stat-filters.ts": "29ff2a7b6a7a567a7754ac6b770cc79ca9cdde62ee43ddcadc0089395ec911a1",
+    "renderer/src/web/price-check/filters/pseudo/anointments.ts": "bdb0f46aed838e07d6546e31603e2c157cfe1e45ef4fc6de709e86f0f18ab412",
+    "renderer/src/web/price-check/filters/pseudo/timeless-jewel.ts": "3278836b06fa3a2ccf18f2a32973430b55c85d09745c5a4361ffd9eb16252f89",
+    "renderer/src/web/price-check/trade/pathofexile-trade.ts": "63af8d01171ba2d75038cd5246c7a275918d1e8e856a88b0fb30e884cf3f0c4b"
+  }
+}

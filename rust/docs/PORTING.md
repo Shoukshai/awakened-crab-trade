@@ -17,7 +17,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
-| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; restent presets équipement/base, ajustements finaux, clusters/Timeless/anointments/Atzoatl/etc. ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
+| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; restent logbooks multi-zones/Atzoatl/Mirrored Tablet/Mercenary Warrant ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
 | Prix poe.ninja, tendances, prix liés, valeur espérée (poussière locale portée dans l’évaluation) | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, valeur espérée (poussière locale portée dans l’évaluation) |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
@@ -76,3 +76,14 @@ GTK déjà en file ne peut pas annuler une recherche plus récente. Les minima p
 copie ne sont jamais sérialisés dans la configuration globale. L’éditeur n’expose
 pas encore toutes les options du modèle (date, online détaillé, ajout libre de
 critères). Les corpus précédents restent sans écart après ces changements.
+
+`presets/equipment.rs` porte la sélection objet fini/base et les ajustements des
+uniques, clusters, anointments et groupes Timeless. Les métadonnées des sources
+préservent génération, mécanique, rolls et effets ; les 61 noms de mods spéciaux
+proviennent d’un export vérifiable de client_strings upstream. Les critères
+« emplacement libre ou crafté » sont deux contraintes count, pas un ID interne
+émis au serveur. Les choix Timeless sont un groupe OR. Chaque contrôle de mod
+invalide la génération sans HTTP ; ses callbacks utilisent des références faibles
+aux widgets. Une liaison circulaire du contrôle Min/Max des filtres d’objet a
+également été supprimée. Les sources exactes avancées restent facultatives et
+séparées des critères par défaut du preset upstream.

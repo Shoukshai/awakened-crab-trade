@@ -66,6 +66,9 @@ pub struct MarketMetadata {
     pub imbued_gem: bool,
     pub sentinel_charge: Option<u32>,
     pub linked_sockets: Option<u32>,
+    pub fixed_stats: Option<Vec<String>>,
+    pub random_mods: Vec<crate::modifiers::SourceInfo>,
+    pub talisman_tier: Option<u32>,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -181,6 +184,8 @@ struct Unique {
     base: Option<String>,
     #[serde(rename = "disenchantValue")]
     dust: Option<f64>,
+    #[serde(rename = "fixedStats")]
+    fixed_stats: Option<Vec<String>>,
 }
 fn catalogue() -> &'static Vec<CatalogueEntry> {
     static ITEMS: OnceLock<Vec<CatalogueEntry>> = OnceLock::new();
@@ -345,7 +350,18 @@ impl Item {
             .find(|v| v.namespace == "ITEM" && v.name == base)
             .map(|v| v.armour.clone())
             .unwrap_or_default();
-        let (modifiers, unknown_modifiers) = crate::modifiers::parse_detailed(text, category);
+        let (mut modifiers, unknown_modifiers) = crate::modifiers::parse_detailed(text, category);
+        if [Some("Amulet"), Some("Belt"), Some("Ring"), Some("Quiver")].contains(&category) {
+            let quality: Vec<_> = lines
+                .iter()
+                .filter_map(|line| line.strip_suffix(" (augmented)"))
+                .filter_map(|line| {
+                    crate::modifiers::translation::translate(line, "pseudo", None, true)
+                })
+                .filter(|m| crate::modifiers::translation::metadata(m).jewellery_quality)
+                .collect();
+            modifiers.splice(0..0, quality);
+        }
         let reference = info
             .map(|v| v.reference.clone())
             .unwrap_or_else(|| identity.clone());
@@ -458,6 +474,18 @@ impl Item {
             imbued_gem,
             sentinel_charge: prop("Charge: "),
             linked_sockets: (links >= 5).then_some(links),
+            fixed_stats: info
+                .and_then(|v| v.unique.as_ref())
+                .and_then(|u| u.fixed_stats.clone()),
+            random_mods: lines
+                .iter()
+                .filter(|line| line.starts_with('{'))
+                .map(|line| crate::modifiers::header_info(line))
+                .filter(|m| {
+                    ["explicit", "fractured", "veiled", "crafted"].contains(&m.kind.as_str())
+                })
+                .collect(),
+            talisman_tier: prop("Talisman Tier: "),
         };
         Ok(Self {
             class,
@@ -467,6 +495,16 @@ impl Item {
             item_level: prop("Item Level: "),
             gem_level: prop("Level: "),
             quality: lines.iter().find_map(|line| {
+                if [Some("Amulet"), Some("Belt"), Some("Ring"), Some("Quiver")].contains(&category)
+                {
+                    return line
+                        .strip_suffix(" (augmented)")
+                        .and_then(|line| {
+                            crate::modifiers::translation::translate(line, "pseudo", None, true)
+                        })
+                        .filter(|m| crate::modifiers::translation::metadata(m).jewellery_quality)
+                        .and_then(|m| m.value.map(|v| v as u32));
+                }
                 (line.starts_with("Quality: ") || line.starts_with("Quality ("))
                     .then(|| line.split_once(": ").and_then(|(_, value)| number(value)))
                     .flatten()
@@ -478,7 +516,17 @@ impl Item {
             unmodifiable: lines.contains(&"Unmodifiable"),
             unidentified: lines.contains(&"Unidentified"),
             raw: text.to_string(),
-            properties: crate::properties::Properties::parse(text),
+            properties: {
+                let mut p = crate::properties::Properties::parse(text);
+                if !crate::properties::is_armour(category)
+                    && !crate::properties::is_weapon(category)
+                    && ![Some("Ring"), Some("Belt"), Some("Amulet"), Some("Quiver")]
+                        .contains(&category)
+                {
+                    p.memory_strands = None;
+                }
+                p
+            },
             armour_base,
             modifiers,
             unknown_modifiers,

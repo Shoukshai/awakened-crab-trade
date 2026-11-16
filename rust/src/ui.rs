@@ -42,7 +42,7 @@ enum Event {
     Prices(u64, Result<Prices, String>),
     Economy(u64, Result<Option<Quote>, String>),
     MapSettings(crate::inspection::Edit),
-    ItemFiltersChanged(u64),
+    FiltersChanged(u64),
 }
 struct EconomyJob {
     generation: u64,
@@ -81,6 +81,7 @@ struct Ui {
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
     preset: gtk::ComboBoxText,
     item_filters: Rc<item_filters_panel::Panel>,
+    events: glib::Sender<Event>,
     updating_preset: Cell<bool>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
@@ -255,17 +256,37 @@ impl Ui {
         let mode = crate::presets::available(item)
             .into_iter()
             .find(|m| Some(m.id()) == self.preset.active_id().as_deref());
-        let candidates = if let Some(mode) = mode {
+        let mut candidates = if let Some(mode) = mode {
             crate::presets::create(item, self.search_range.value(), mode).filters
         } else {
             crate::calculated::candidates(item, self.search_range.value())
         };
+        if mode == Some(crate::presets::Mode::Calculated) {
+            candidates.extend(crate::calculated::exact_sources(
+                item,
+                &candidates,
+                self.search_range.value(),
+            ));
+        }
         self.preset.show();
+        if candidates.iter().any(|c| c.group.is_some()) {
+            let label = gtk::Label::new(Some(
+                "Timeless : au moins une des options cochées ci-dessous doit correspondre.",
+            ));
+            label.set_line_wrap(true);
+            label.set_xalign(0.);
+            self.mod_box.pack_start(&label, false, false, 0);
+        }
         let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
         let expander = gtk::Expander::new(Some("Autres filtres et sources exactes"));
         expander.add(&advanced);
         for candidate in &candidates {
             let row = stat_row::StatRow::new(candidate);
+            let sender = self.events.clone();
+            let current = self.current.clone();
+            row.connect_changed(move || {
+                let _ = sender.send(Event::FiltersChanged(current.load(Ordering::Acquire)));
+            });
             if candidate.hidden.is_some() {
                 advanced.pack_start(&row.container, false, false, 0);
             } else {
@@ -297,7 +318,15 @@ impl Ui {
         let settings = self.settings.borrow();
         let mut current = settings.filters.clone();
         current.online = self.online.is_active();
-        let result = filters::plan_for_league(item, &current, self.league.text().trim());
+        let mode = crate::presets::available(item)
+            .into_iter()
+            .find(|m| Some(m.id()) == self.preset.active_id().as_deref());
+        let result = filters::plan_for_preset(
+            item,
+            &current,
+            self.league.text().trim(),
+            mode.is_none_or(|m| m.exact()),
+        );
         match result {
             Ok(p) => self.item_filters.show(
                 p,
@@ -310,7 +339,7 @@ impl Ui {
         }
         self.item_filters.container.show();
     }
-    fn item_filters_changed(&self, observed_generation: u64) {
+    fn filters_changed(&self, observed_generation: u64) {
         if self.view.get() != View::Price || !self.window.is_visible() {
             return;
         }
@@ -320,10 +349,19 @@ impl Ui {
         self.sync_generation();
         self.request.replace(None);
         self.url.replace(None);
+        self.mod_expander.set_label(Some(&format!(
+            "Filtres · {} actifs",
+            self.stat_rows
+                .borrow()
+                .iter()
+                .filter(|r| r.selected_filter().is_some())
+                .count()
+                + self.settings.borrow().filters.stats.len()
+        )));
         self.text
-            .set_text("Filtres d’objet modifiés. Vérifiez la portée puis cliquez Rechercher.");
+            .set_text("Filtres modifiés. Vérifiez la portée puis cliquez Rechercher.");
         eprintln!(
-            "item filters edited generation={} automatic_http=false",
+            "filters edited generation={} automatic_http=false",
             self.state.borrow().generation
         );
     }
@@ -553,7 +591,7 @@ impl Ui {
                     }
                 }
             }
-            Event::ItemFiltersChanged(generation) => self.item_filters_changed(generation),
+            Event::FiltersChanged(generation) => self.filters_changed(generation),
             Event::MapSettings(edit) => {
                 let mut settings = self.settings.borrow().clone();
                 let old = settings.map_check.clone();
@@ -903,7 +941,7 @@ pub fn run() -> Result<(), String> {
     let edit_generation = current.clone();
     let item_sender = sender.clone();
     let item_filters = item_filters_panel::Panel::new(move || {
-        let _ = item_sender.send(Event::ItemFiltersChanged(
+        let _ = item_sender.send(Event::FiltersChanged(
             edit_generation.load(Ordering::Acquire),
         ));
     });
@@ -1035,6 +1073,7 @@ pub fn run() -> Result<(), String> {
         stat_rows: RefCell::new(Vec::new()),
         preset,
         item_filters,
+        events: sender.clone(),
         updating_preset: Cell::new(false),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),
@@ -1055,7 +1094,7 @@ pub fn run() -> Result<(), String> {
             if let Some(item) = ui.item.borrow().as_ref() {
                 ui.reset_item_filters(item);
                 let generation = ui.state.borrow().generation;
-                ui.item_filters_changed(generation);
+                ui.filters_changed(generation);
             }
         });
     }
@@ -1065,7 +1104,7 @@ pub fn run() -> Result<(), String> {
         online.connect_toggled(move |c| {
             ui.item_filters.set_offline(!c.is_active());
             let generation = ui.state.borrow().generation;
-            ui.item_filters_changed(generation);
+            ui.filters_changed(generation);
         });
     }
     {

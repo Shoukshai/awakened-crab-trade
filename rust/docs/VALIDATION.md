@@ -551,3 +551,82 @@ Cette mesure ponctuelle ne démontre aucune optimisation mémoire. PoE et River
 restent ouverts, les préférences de départ sont conservées et le panneau est
 masqué. Windows, autres compositeurs, langues et facteurs d’écran restent non
 validés ; la parité globale des fonctionnalités n’est pas encore atteinte.
+
+
+## Jalon 0.8 : presets d’équipement et ajustements des mods
+
+78 tests Rust et Clippy sur toutes les cibles sans avertissement. Le corpus
+compte 1 145 objets et 18 choix Timeless reconnus, sans écart. Le nouveau
+comparateur utilise le parseur anglais et les fonctions complètes upstream de
+presets, filtres d’objet, mods et requêtes Trade. Il compare les presets disponibles
+et actifs, tags, IDs, valeurs, bornes, sélections, masquages, huiles et groupes,
+le modèle d’objet entier puis le corps Trade effectif entier. Les nœuds désactivés
+sont retirés des deux corps avant comparaison, car le natif n’envoie que les
+critères sélectionnés. Les ajouts facultatifs de sources exactes dans l’UI sont
+séparés des critères upstream comparés.
+
+Couverture : équipement normal/magique/rare, objets finis et bases d’artisanat,
+uniques constants/variables/catalysés/corrompus et variantes, mods spéciaux par nom,
+fractures, influences, qualité, Memory Strands, voilés, clusters, anointments,
+emplacements libres/craftés et cinq familles de Timeless. Le test exige un vrai
+groupe Timeless ; un simple parsing sans mod reconnu ne suffit pas à le faire
+passer. Rapport : [equipment-presets-0.8.json](equipment-presets-0.8.json).
+Les corps de presets des objets spéciaux restants et le parseur entier ne sont
+pas déclarés équivalents. Les précédents corpus sont rejoués sans écart.
+
+Une différence du moteur de requêtes précédent a été corrigée : les IDs encodés
+`enchant.stat_…|…` restent entiers, comme upstream, au lieu d’être convertis en
+option numérique. Une requête réelle du format upstream a renvoyé un résultat
+pour Allocates Always Angry. Les copies synthétiques emploient les vraies lignes
+avancées des données, y compris les bornes de noms des Timeless. La qualité
+accessoire est décodée en pseudo dédié ; Memory Strands n’est plus pris à tort
+comme propriété d’une carte. Les callbacks des nouvelles lignes et de Min/Max
+emploient des références faibles pour éviter de retenir les anciens widgets.
+Aucun gain mémoire chiffré n’est déduit de cette correction.
+
+Observations release, au-dessus du PoE resté ouvert :
+
+- Vraie Driftwood Wand : preset exact, implicite Spell Damage min 8 sélectionné,
+  564 résultats/10 offres, 681 ms réseau ; copie 74 ms, préparation 3 ms et premier
+  rendu froid 87 ms, état Passive et focus jeu. Modifier Min 8 → 9 efface requête
+  et offres sans HTTP. La recherche suivante est masquée avant sa réponse.
+- Bague synthétique sans craft : preset objet fini, catégorie Ring et pseudos
+  résistances/vie ; copie trop proche de la recherche précédente, cooldown local
+  sans retry. Le choix natif Base d’artisanat invalide la génération sans HTTP,
+  active ilvl 83 et Gold Ring, retire les pseudos ; clic Rechercher : 3 163
+  résultats/10 offres en 591 ms. Le panneau reste interactif.
+- Lethal Pride synthétique : groupe Timeless et seed Kaom 10 000 exactement,
+  requête acceptée, zéro résultat, 277 ms réseau. Cases Min/Max décochées sur
+  Kaom puis Rakiata coché : une seule condition count min 1 avec deux choix,
+  1 828 résultats/10 offres, 586 ms. Le message du panneau explique le OR.
+
+Ces fixtures n’ont pas été créées dans le jeu. Les uniques/clusters/anointments
+réels restent à valider avec des copies du personnage. L’éditeur, les autres
+langues/plateformes et les presets spécialisés restants sont toujours partiels.
+
+Paquet 0.8.0-1 : construction et 78 tests hors ligne réussis ; 472 fichiers de
+l’archive source comparés aux fichiers locaux ; 349 fichiers du paquet root/root ;
+les notices de 188 crates et de la bibliothèque standard sont vérifiées par hash.
+Le binaire extrait sans installation système passe cinq cycles passifs, puis la
+vraie wand : 567 résultats/10 offres, 658 ms réseau ; copie 75 ms, préparation
+4 ms et premier rendu 25 ms, jeu actif. Décocher/cocher le mod met immédiatement
+le compteur à 0/1, invalide la génération et ne lance aucune requête. Une bague
+synthétique donne ensuite 5 474 résultats/10 offres en 815 ms ; les sources exactes
+avancées sont construites sans sélection automatique.
+
+Un premier clic du pointeur virtuel sur le mod a coïncidé avec une perte de focus
+et le masquage du panneau, avant traitement de l’édition. Les répétitions au centre
+de la ligne puis au même emplacement sur la case restent interactives et éditent
+correctement. La cause de cet événement isolé n’est pas établie ; aucune correction
+de focus n’est revendiquée à partir de ce seul événement. Le masquage révoque bien
+les entrées et le focus revient au jeu.
+
+Dernière copie réelle de la wand par Ctrl+Alt+D : le presse-papiers est comparé
+à la fixture normalisée, DPS physique local 11 et aucun HTTP. Avec cette copie,
+5 relectures locales d’échauffement puis 20 autres ouvertures/fermetures par
+`inspect-check` passent en 2,199 s : Passive, premier rendu, jeu actif, aucun focus
+overlay et aucune requête à chaque cycle. RSS avant/après ces 20 cycles : 78 584
+Kio (76,74 Mio), stable sur ce parcours. Après masquage : 1 tick CPU sur 3 s à
+CLK_TCK=100. Cette fenêtre courte ne mesure pas une charge durable et ne prouve
+pas l’absence de toute fuite. Aucun rendu périodique n’est demandé. Les préférences
+initiales sont conservées ; PoE et River restent ouverts, panneau masqué.

@@ -26,6 +26,7 @@ pub struct Filters {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StatFilter {
+    pub group: Option<String>,
     #[serde(rename = "not")]
     pub exclude: bool,
     pub id: String,
@@ -41,6 +42,7 @@ impl StatFilter {
         let m = &candidate.modifier;
         let numeric = !m.option && !m.ids.iter().any(|id| id.contains('|')) && m.value.is_some();
         Self {
+            group: candidate.group.clone(),
             exclude: candidate.exclude,
             id: m.id.clone(),
             alternatives: m.ids.iter().skip(1).cloned().collect(),
@@ -75,6 +77,19 @@ pub fn plan_for_league(
     filters: &Filters,
     league: &str,
 ) -> Result<crate::item_filters::Plan, String> {
+    plan_for_preset(
+        item,
+        filters,
+        league,
+        crate::item_filters::exact_default(item),
+    )
+}
+pub fn plan_for_preset(
+    item: &Item,
+    filters: &Filters,
+    league: &str,
+    exact: bool,
+) -> Result<crate::item_filters::Plan, String> {
     if let Some(plan) = &filters.item {
         return Ok(plan.clone());
     }
@@ -82,7 +97,7 @@ pub fn plan_for_league(
         item,
         &crate::item_filters::Options {
             league: league.into(),
-            exact: crate::item_filters::exact_default(item),
+            exact,
             merchant_only: filters.merchant_only,
             collapse_listings: if filters.collapse_listings {
                 "api".into()
@@ -110,7 +125,50 @@ pub fn query(item: &Item, filters: &Filters) -> Result<Value, String> {
     let mut groups = Vec::new();
     let mut properties = Vec::new();
     let mut exclusions = Vec::new();
+    let mut one_groups: Vec<(String, Vec<Value>)> = Vec::new();
     for stat in &filters.stats {
+        if let Some(name) = &stat.group {
+            let values = std::iter::once(&stat.id)
+                .chain(stat.alternatives.iter())
+                .map(|id| stat_to_query(id, stat));
+            if let Some((_, group)) = one_groups.iter_mut().find(|(key, _)| key == name) {
+                group.extend(values);
+            } else {
+                one_groups.push((name.clone(), values.collect()));
+            }
+            continue;
+        }
+        if stat.id == "item.has_empty_modifier" {
+            let option = stat.option.unwrap_or(0.) as usize;
+            if option > 2 {
+                return Err("Type d’emplacement libre inconnu.".into());
+            }
+            let empty = crate::modifiers::translation::pseudo(
+                [
+                    "# Empty Modifiers",
+                    "# Empty Prefix Modifiers",
+                    "# Empty Suffix Modifiers",
+                ][option],
+            )
+            .ok_or("Filtre d’emplacement libre absent.")?
+            .id;
+            let crafted = crate::modifiers::translation::pseudo(
+                [
+                    "# Crafted Modifiers",
+                    "# Crafted Prefix Modifiers",
+                    "# Crafted Suffix Modifiers",
+                ][option],
+            )
+            .ok_or("Filtre craft absent.")?
+            .id;
+            let total = crate::modifiers::translation::pseudo("# Modifiers")
+                .ok_or("Filtre de mods absent.")?
+                .id;
+            for (id, min) in [(crafted, 1), (total, 6)] {
+                groups.push(json!({"type":"count","value":{"min":1,"max":1},"disabled":false,"filters":[{"id":empty,"value":{"min":1,"max":1},"disabled":false},{"id":id,"value":{"min":min},"disabled":false}]}));
+            }
+            continue;
+        }
         if stat.exclude {
             exclusions.extend(
                 std::iter::once(&stat.id)
@@ -134,6 +192,9 @@ pub fn query(item: &Item, filters: &Filters) -> Result<Value, String> {
         }
     }
     groups.insert(0, json!({"type":"and","filters":and}));
+    for (_, filters) in one_groups {
+        groups.push(json!({"type":"count","value":{"min":1},"disabled":false,"filters":filters}));
+    }
     if !exclusions.is_empty() {
         groups.push(json!({"type":"not","filters":exclusions}));
     }
@@ -196,10 +257,6 @@ fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
     } else {
         id
     };
-    let (id, fixed_option) = id
-        .split_once('|')
-        .map(|(id, value)| (id, value.parse::<f64>().ok()))
-        .unwrap_or((id, None));
     let mut value = json!({});
     if !empty {
         let (min, max) = if stat.inverted {
@@ -214,7 +271,7 @@ fn stat_to_query(id: &str, stat: &StatFilter) -> Value {
             value["max"] = json!(max / divisor);
         }
     }
-    if let Some(option) = fixed_option.or(stat.option) {
+    if let Some(option) = stat.option {
         value["option"] = json!(option);
     }
     json!({"id":id,"value":value})
@@ -248,7 +305,10 @@ pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
         return Err("La zone de cet objet n’est pas reconnue ; recherche refusée.".into());
     }
     for stat in &filters.stats {
-        if stat.id.starts_with("item.") && property_path(&stat.id).is_none() {
+        if stat.id.starts_with("item.")
+            && stat.id != "item.has_empty_modifier"
+            && property_path(&stat.id).is_none()
+        {
             return Err("Cette propriété n’est pas encore prise en charge.".into());
         }
         if [stat.min, stat.max, stat.option, stat.roll_value]
@@ -393,7 +453,7 @@ mod tests {
         );
         assert_eq!(
             stat_to_query("enchant.stat_1|49", &StatFilter::default()),
-            json!({"id":"enchant.stat_1","value":{"option":49.}})
+            json!({"id":"enchant.stat_1|49","value":{}})
         );
         let inverted = StatFilter {
             inverted: true,

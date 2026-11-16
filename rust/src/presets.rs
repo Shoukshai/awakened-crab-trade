@@ -1,5 +1,7 @@
 //! Exact presets and specialised rules from create-stat-filters.ts and
-//! pseudo/{maps,heist,flasks}. General equipment still uses calculated::candidates.
+//! pseudo/{maps,heist,flasks} and equipment/final selection rules.
+#[path = "presets/equipment.rs"]
+mod equipment;
 use crate::{
     calculated::Candidate,
     item::{Item, Rarity},
@@ -12,6 +14,8 @@ pub enum Mode {
     Properties,
     Bulk,
     Exact,
+    Calculated,
+    Base,
 }
 impl Mode {
     pub fn id(self) -> &'static str {
@@ -19,6 +23,8 @@ impl Mode {
             Self::Properties => "properties",
             Self::Bulk => "bulk",
             Self::Exact => "exact",
+            Self::Calculated => "calculated",
+            Self::Base => "base",
         }
     }
     pub fn label(self) -> &'static str {
@@ -26,7 +32,12 @@ impl Mode {
             Self::Properties => "Propriétés de zone",
             Self::Bulk => "Cartes en lot (plage ≤ 2 %)",
             Self::Exact => "Objet exact (plage ≤ 2 %)",
+            Self::Calculated => "Objet fini · filtres calculés",
+            Self::Base => "Base d’artisanat (plage ≤ 2 %)",
         }
+    }
+    pub fn exact(self) -> bool {
+        self != Self::Calculated
     }
 }
 #[derive(Debug, Clone, Serialize)]
@@ -60,6 +71,7 @@ fn property(
         source_count: 0,
         fractured_t1: false,
         tier: None,
+        sources: vec![],
     };
     let mut c = Candidate::with_range(modifier, item, range, disabled);
     if id.starts_with("item.heist_job_") {
@@ -116,13 +128,31 @@ pub fn available(item: &Item) -> Vec<Mode> {
         Some("Heist Contract"),
         Some("Heist Blueprint"),
         Some("Chart"),
+        Some("Invitation"),
+        Some("Memory Line"),
+        Some("Sentinel"),
+        Some("Charm"),
     ]
     .contains(&category)
-        || (category == Some("Flask") && item.rarity != Rarity::Unique)
+        || ([
+            Some("Flask"),
+            Some("Tincture"),
+            Some("Sanctum Relic"),
+            Some("Idol"),
+        ]
+        .contains(&category)
+            && item.rarity != Rarity::Unique)
+        || (!item.market.craftable && item.rarity != Rarity::Unique)
+        || item.unidentified
+        || item.rarity == Rarity::Normal
     {
         vec![Mode::Exact]
     } else {
-        vec![]
+        if equipment::likely_finished(item) || !equipment::has_crafting_value(item) {
+            vec![Mode::Calculated]
+        } else {
+            vec![Mode::Calculated, Mode::Base]
+        }
     }
 }
 fn is_blighted(item: &Item) -> bool {
@@ -132,6 +162,12 @@ fn is_blighted(item: &Item) -> bool {
     )
 }
 pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
+    if mode == Mode::Calculated {
+        return Preset {
+            mode,
+            filters: equipment::pseudo(item, range),
+        };
+    }
     let category = item.category.as_deref();
     let mut filters = Vec::new();
     if is_blighted(item) || category == Some("Invitation") {
@@ -142,6 +178,23 @@ pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
     } else {
         range.min(2.)
     };
+    filters.extend(
+        crate::properties::equipment(item, range)
+            .filters
+            .into_iter()
+            .filter_map(|c| {
+                let mut c = Candidate::with_range(c.modifier, item, range, c.disabled);
+                if c.modifier.id == "item.base_percentile" {
+                    Some(c)
+                } else if c.modifier.id == "item.memory_strands" {
+                    c.hidden = None;
+                    c.disabled = c.display_value.is_some_and(|v| v < 60.);
+                    Some(c)
+                } else {
+                    None
+                }
+            }),
+    );
     let mut keep = vec!["pseudo", "fractured", "enchant", "necropolis", "imbued"];
     if item.influences.is_empty()
         && !item.modifiers.iter().any(|m| m.kind == "fractured")
@@ -220,7 +273,12 @@ pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
         .filter(|m| keep.contains(&m.kind.as_str()))
     {
         let variant = m.option || m.better == 0;
-        let disabled = if m.kind == "explicit" && !variant {
+        let disabled = if m.kind == "pseudo" {
+            true
+        } else if m.kind == "explicit"
+            && !variant
+            && !m.sources.iter().any(|s| s.mechanic.is_some())
+        {
             !m.tier.is_some_and(|t| t <= 2)
         } else {
             false
@@ -231,34 +289,34 @@ pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
         }
         filters.push(filter);
     }
-    if category == Some("Flask") {
-        let enkindled = filters
-            .iter()
-            .any(|c| c.modifier.reference == "Gains no Charges during Flask Effect");
-        for c in &mut filters {
-            if c.modifier.kind == "enchant" && !enkindled {
-                c.hidden = Some("hide_harvest_and_instilling".into());
-                c.disabled = true;
+    if category == Some("Cluster Jewel") {
+        equipment::cluster(&mut filters, true);
+    }
+    if [Some("Memory Line"), Some("Sanctum Relic"), Some("Charm")].contains(&category) {
+        equipment::enable_all(&mut filters);
+    }
+    if category == Some("Idol") {
+        for f in &mut filters {
+            if f.hidden.is_some() {
+                continue;
+            }
+            let m = &f.modifier;
+            let goodness = m.value.zip(m.min.zip(m.max)).map(|(v, (min, max))| {
+                if min == max {
+                    1.
+                } else if m.better == -1 {
+                    1. - (v - min) / (max - min)
+                } else {
+                    (v - min) / (max - min)
+                }
+            });
+            if m.better == 0 || goodness.is_none_or(|v| v >= 0.66) {
+                f.disabled = false;
             }
         }
-        if item.rarity == Rarity::Magic
-            && filters
-                .iter()
-                .any(|c| c.modifier.reference == "#% increased Charge Recovery")
-            && !filters
-                .iter()
-                .any(|c| c.modifier.reference == "#% increased effect")
-        {
-            let index = filters
-                .iter()
-                .position(|c| c.modifier.reference == "#% increased Charge Recovery")
-                .unwrap()
-                + 1;
-            filters.insert(
-                index,
-                exclusion(item, "#% increased effect", "explicit", true),
-            );
-        }
+    }
+    if category == Some("Flask") {
+        flask_rules(item, &mut filters);
     }
     if item.rarity != Rarity::Unique && category == Some("Heist Contract") {
         let jobs = [
@@ -340,6 +398,36 @@ fn area_props(item: &Item, range: f64, rarity_disabled: bool, filters: &mut Vec<
         if let Some(value) = value.filter(|v| *v != 0.) {
             filters.push(property(item, reference, id, Some(value), range, disabled));
         }
+    }
+}
+
+pub(super) fn flask_rules(item: &Item, filters: &mut Vec<Candidate>) {
+    let enkindled = filters
+        .iter()
+        .any(|c| c.modifier.reference == "Gains no Charges during Flask Effect");
+    for c in filters.iter_mut() {
+        if c.modifier.kind == "enchant" && !enkindled {
+            c.hidden = Some("hide_harvest_and_instilling".into());
+            c.disabled = true;
+        }
+    }
+    if item.rarity == Rarity::Magic
+        && filters
+            .iter()
+            .any(|c| c.modifier.reference == "#% increased Charge Recovery")
+        && !filters
+            .iter()
+            .any(|c| c.modifier.reference == "#% increased effect")
+    {
+        let index = filters
+            .iter()
+            .position(|c| c.modifier.reference == "#% increased Charge Recovery")
+            .unwrap()
+            + 1;
+        filters.insert(
+            index,
+            exclusion(item, "#% increased effect", "explicit", true),
+        );
     }
 }
 

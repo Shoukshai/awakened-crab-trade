@@ -128,7 +128,7 @@ fn totals(item: &Item, flat: &[&str], incr: &[&str]) -> (Roll, Roll) {
     }
     (f, i)
 }
-fn quality(item: &Item) -> (f64, f64) {
+pub(crate) fn quality(item: &Item) -> (f64, f64) {
     if item
         .modifiers
         .iter()
@@ -212,6 +212,7 @@ fn property(
         source_count: 0,
         fractured_t1: false,
         tier: None,
+        sources: vec![],
     };
     Some(Candidate::new(modifier, item, range, disabled))
 }

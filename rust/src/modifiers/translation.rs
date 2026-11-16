@@ -37,6 +37,80 @@ struct Stat {
     trade: Trade,
     #[serde(rename = "fromAreaMods")]
     area_kind: Option<String>,
+    #[serde(rename = "jewelleryQuality", default)]
+    jewellery_quality: Option<serde_json::Value>,
+    #[serde(rename = "modFamily", default)]
+    mod_family: Vec<String>,
+    #[serde(default)]
+    anointments: Vec<Anointment>,
+}
+#[derive(Clone, Deserialize)]
+pub struct Anointment {
+    pub oils: String,
+    pub roll: Option<f64>,
+}
+pub struct Metadata {
+    pub jewellery_quality: bool,
+    pub family: Vec<String>,
+    pub oils: Option<Vec<String>>,
+}
+pub fn metadata(m: &Modifier) -> Metadata {
+    let stat = database().records.iter().flat_map(Record::stats).find(|s| {
+        s.reference == m.reference
+            && s.trade
+                .ids
+                .get(&m.kind)
+                .is_some_and(|ids| ids.iter().any(|id| m.ids.contains(id)))
+    });
+    let Some(s) = stat else {
+        return Metadata {
+            jewellery_quality: false,
+            family: vec![],
+            oils: None,
+        };
+    };
+    let oil = s
+        .anointments
+        .first()
+        .filter(|_| s.anointments.len() == 1)
+        .or_else(|| s.anointments.iter().find(|a| a.roll == m.value));
+    const OILS: [&str; 14] = [
+        "Prismatic Oil",
+        "Clear Oil",
+        "Sepia Oil",
+        "Amber Oil",
+        "Verdant Oil",
+        "Teal Oil",
+        "Azure Oil",
+        "Indigo Oil",
+        "Violet Oil",
+        "Crimson Oil",
+        "Black Oil",
+        "Opalescent Oil",
+        "Silver Oil",
+        "Golden Oil",
+    ];
+    let oils = oil.map(|a| {
+        let mut indices: Vec<usize> = a.oils.split(',').filter_map(|s| s.parse().ok()).collect();
+        indices.sort_by(|a, b| b.cmp(a));
+        indices
+            .into_iter()
+            .filter_map(|i| OILS.get(i).map(|s| s.to_string()))
+            .collect()
+    });
+    Metadata {
+        jewellery_quality: s.jewellery_quality.is_some(),
+        family: s.mod_family.clone(),
+        oils,
+    }
+}
+pub fn retype(m: &Modifier, kind: &str, category: Option<&str>) -> Option<Modifier> {
+    let ids = exclusion(&m.reference, kind, category, false)?;
+    let mut out = m.clone();
+    out.kind = kind.into();
+    out.id = ids.id;
+    out.ids = ids.ids;
+    Some(out)
 }
 #[derive(Deserialize)]
 struct Resolver {
@@ -205,6 +279,7 @@ pub fn pseudo(reference: &str) -> Option<Modifier> {
                     source_count: 0,
                     fractured_t1: false,
                     tier: None,
+                    sources: vec![],
                 });
             }
         }
@@ -247,6 +322,7 @@ pub fn exclusion(
         source_count: 0,
         fractured_t1: false,
         tier: None,
+        sources: vec![],
     })
 }
 fn lookup(text: &str) -> Option<&'static Record> {
@@ -567,6 +643,7 @@ pub fn translate(
             source_count: 1,
             fractured_t1: false,
             tier: None,
+            sources: vec![],
         });
     }
     None

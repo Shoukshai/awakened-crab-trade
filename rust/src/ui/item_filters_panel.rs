@@ -357,9 +357,11 @@ impl Panel {
             }
             if let (Some(check), Some(spin)) = (&max_enabled, &max) {
                 let spin = spin.clone();
-                let enabled = enabled.clone();
+                let enabled = enabled.downgrade();
                 check.connect_toggled(move |c| {
-                    spin.set_sensitive(c.is_active() && enabled.is_active())
+                    spin.set_sensitive(
+                        c.is_active() && enabled.upgrade().is_some_and(|e| e.is_active()),
+                    )
                 });
                 self.wire_check(check);
             }

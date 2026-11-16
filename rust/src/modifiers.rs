@@ -27,6 +27,64 @@ pub struct Modifier {
     pub fractured_t1: bool,
     #[serde(default)]
     pub tier: Option<u32>,
+    #[serde(default)]
+    pub sources: Vec<SourceInfo>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SourceInfo {
+    pub kind: String,
+    pub generation: Option<String>,
+    pub mechanic: Option<String>,
+    pub has_roll: bool,
+    pub scalable: bool,
+    pub variable: bool,
+    pub roll_incr: bool,
+    pub legacy: bool,
+}
+pub fn header_info(header: &str) -> SourceInfo {
+    #[derive(Deserialize)]
+    struct Rule {
+        name: String,
+        mechanic: String,
+    }
+    #[derive(Deserialize)]
+    struct Data {
+        rules: Vec<Rule>,
+    }
+    static RULES: OnceLock<Vec<Rule>> = OnceLock::new();
+    let rules = RULES.get_or_init(|| {
+        serde_json::from_str::<Data>(include_str!("data/mod-mechanics.json"))
+            .expect("upstream modifier names")
+            .rules
+    });
+    let kind = kind_from_header(header);
+    let mechanic = if header.contains("Corruption Implicit") {
+        Some("corrupted")
+    } else if header.contains("Foulborn") {
+        Some("foulborn")
+    } else if header.contains("Vestigial") {
+        Some("vestigial")
+    } else if header.contains("Eater of Worlds") || header.contains("Searing Exarch") {
+        Some("eldritch")
+    } else {
+        header
+            .split('"')
+            .nth(1)
+            .and_then(|name| rules.iter().find(|r| r.name == name))
+            .map(|r| r.mechanic.as_str())
+    };
+    SourceInfo {
+        kind: kind.into(),
+        generation: if header.contains("Prefix Modifier") {
+            Some("prefix".into())
+        } else if header.contains("Suffix Modifier") {
+            Some("suffix".into())
+        } else {
+            None
+        },
+        mechanic: mechanic.map(str::to_string),
+        ..Default::default()
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnknownModifier {
@@ -34,7 +92,7 @@ pub struct UnknownModifier {
     pub kind: String,
 }
 fn kind_from_header(text: &str) -> &'static str {
-    if text.contains("Implicit Modifier") {
+    if text.contains("Implicit") {
         "implicit"
     } else if text.contains("Crafted") {
         "crafted"
@@ -80,6 +138,7 @@ struct Block<'a> {
     fractured_t1: bool,
     tier: Option<u32>,
     report_unknown: bool,
+    header: &'a str,
 }
 fn parse_block(
     lines: &[String],
@@ -94,6 +153,7 @@ fn parse_block(
         fractured_t1,
         tier,
         report_unknown,
+        header,
     } = context;
     let mut start = 0;
     let mut reminder = false;
@@ -120,6 +180,14 @@ fn parse_block(
                 .map(|s| (s, true))
                 .unwrap_or((&text, false));
             if let Some(mut modifier) = translation::translate(text, kind, category, unscalable) {
+                let mut source = header_info(header);
+                source.kind = kind.into();
+                source.has_roll = modifier.value.is_some();
+                source.scalable = source.has_roll && !modifier.unscalable;
+                source.variable = modifier.min != modifier.max;
+                source.roll_incr = effect != 0.;
+                source.legacy = modifier.legacy;
+                modifier.sources.push(source);
                 apply_effect(&mut modifier, effect);
                 modifier.fractured_t1 = fractured_t1;
                 modifier.tier = tier;
@@ -158,6 +226,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
     let mut fractured_t1 = false;
     let mut tier = None;
     let mut report_unknown = false;
+    let mut header = "";
     for line in raw.lines().map(str::trim) {
         if line == "--------" || (line.starts_with('{') && line.ends_with('}')) {
             parse_block(
@@ -169,11 +238,13 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
                     fractured_t1,
                     tier,
                     report_unknown,
+                    header,
                 },
                 &mut result,
                 &mut unknown,
             );
             block.clear();
+            header = if line == "--------" { "" } else { line };
             kind = if line == "--------" {
                 "explicit"
             } else {
@@ -203,6 +274,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
                     fractured_t1,
                     tier,
                     report_unknown,
+                    header,
                 },
                 &mut result,
                 &mut unknown,
@@ -226,6 +298,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
             fractured_t1,
             tier,
             report_unknown,
+            header,
         },
         &mut result,
         &mut unknown,
@@ -253,6 +326,7 @@ pub fn parse_detailed(raw: &str, category: Option<&str>) -> (Vec<Modifier>, Vec<
             total.source_count += modifier.source_count;
             total.fractured_t1 |= modifier.fractured_t1;
             total.tier = total.tier.into_iter().chain(modifier.tier).min();
+            total.sources.extend(modifier.sources);
             total.legacy |= modifier.legacy;
             total.text.push('\n');
             total.text.push_str(&modifier.text);

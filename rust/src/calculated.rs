@@ -34,6 +34,11 @@ pub struct Candidate {
     pub disabled: bool,
     pub hidden: Option<String>,
     pub exclude: bool,
+    pub tag: String,
+    pub group: Option<String>,
+    pub oils: Option<Vec<String>>,
+    pub default_min: Option<f64>,
+    pub default_max: Option<f64>,
 }
 fn precision(value: f64, decimal: bool) -> f64 {
     if !decimal || value.abs() >= 10. {
@@ -73,6 +78,7 @@ impl Candidate {
         let mut pct = range;
         let mut display_value = modifier.value.map(|v| round_roll(v, decimal));
         let (mut initial_min, mut initial_max) = (None, None);
+        let (mut default_min, mut default_max) = (None, None);
         if let Some(roll) = roll.filter(|_| !modifier.option) {
             let immutable_magic =
                 *rarity == Rarity::Magic && (item.corrupted || item.mirrored || item.unmodifiable);
@@ -101,6 +107,8 @@ impl Candidate {
             };
             let min = min.max(percent(roll.min, 0., 0., false, decimal));
             let max = max.min(percent(roll.max, 0., 0., true, decimal));
+            default_min = Some(min);
+            default_max = Some(max);
             if modifier.better >= 0 {
                 initial_min = Some(min);
             }
@@ -112,6 +120,7 @@ impl Candidate {
         if negate {
             display_value = display_value.map(|v| -v);
             (initial_min, initial_max) = (initial_max.map(|v| -v), initial_min.map(|v| -v));
+            (default_min, default_max) = (default_max.map(|v| -v), default_min.map(|v| -v));
             modifier.inverted = !modifier.inverted;
         }
         if ["pseudo", "property"].contains(&modifier.kind.as_str()) {
@@ -122,6 +131,37 @@ impl Candidate {
                 display_reference.replacen('#', &number, 1)
             };
         }
+        let oils = (modifier.kind == "enchant")
+            .then(|| crate::modifiers::translation::metadata(&modifier).oils)
+            .flatten();
+        let mut tag = modifier.kind.clone();
+        if modifier.option || (modifier.better == 0 && modifier.kind != "enchant") {
+            tag = "variant".into();
+        }
+        if modifier.kind == "explicit"
+            && item.rarity == Rarity::Unique
+            && (item
+                .market
+                .fixed_stats
+                .as_ref()
+                .is_some_and(|stats| !stats.contains(&modifier.reference))
+                || (item.market.fixed_stats.is_none()
+                    && modifier.sources.iter().any(|s| s.generation.is_some())))
+        {
+            tag = "variant".into();
+        }
+        if ["implicit", "explicit"].contains(&modifier.kind.as_str()) {
+            if let Some(mechanic) = modifier.sources.iter().find_map(|s| s.mechanic.as_ref()) {
+                tag = mechanic.clone();
+            } else if modifier.kind == "implicit" && item.market.synthesised {
+                tag = "synthesised".into();
+            }
+        }
+        let disabled = if modifier.option || (modifier.better == 0 && oils.is_none()) {
+            false
+        } else {
+            disabled
+        };
         Self {
             modifier,
             display_value,
@@ -131,6 +171,11 @@ impl Candidate {
             disabled,
             hidden: None,
             exclude: false,
+            tag,
+            group: None,
+            oils,
+            default_min,
+            default_max,
         }
     }
 }
@@ -145,16 +190,22 @@ pub fn candidates(item: &Item, range: f64) -> Vec<Candidate> {
             .into_iter()
             .map(|m| Candidate::new(m, item, range, true)),
     );
-    // Keep consumed exact sources accessible for deliberate advanced searches.
+    candidates.extend(exact_sources(item, &candidates, range));
+    candidates
+}
+/// Optional UI rows, separate from the upstream preset's default filters.
+pub fn exact_sources(item: &Item, candidates: &[Candidate], range: f64) -> Vec<Candidate> {
+    let mut sources = Vec::new();
     for modifier in &item.modifiers {
         if !candidates
             .iter()
             .any(|c| c.modifier.kind == modifier.kind && c.modifier.reference == modifier.reference)
         {
             let mut source = Candidate::new(modifier.clone(), item, range, true);
+            source.disabled = true;
             source.hidden = Some("source_of_calculated_filter".into());
-            candidates.push(source);
+            sources.push(source);
         }
     }
-    candidates
+    sources
 }

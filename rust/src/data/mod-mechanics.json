@@ -1,0 +1,251 @@
+{
+  "source": "renderer/public/data/en/client_strings.js",
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "source_sha256": "1ff5328903621b324bcc34824e31e2e76195a2c2f5669ac04741c97725ea7d84",
+  "rules": [
+    {
+      "name": "of Shaping",
+      "mechanic": "explicit-shaper"
+    },
+    {
+      "name": "The Shaper's",
+      "mechanic": "explicit-shaper"
+    },
+    {
+      "name": "Elevated Shaper's",
+      "mechanic": "explicit-shaper"
+    },
+    {
+      "name": "of Elevated Shaping",
+      "mechanic": "explicit-shaper"
+    },
+    {
+      "name": "of the Elder",
+      "mechanic": "explicit-elder"
+    },
+    {
+      "name": "The Elder's",
+      "mechanic": "explicit-elder"
+    },
+    {
+      "name": "Elevated Elder's",
+      "mechanic": "explicit-elder"
+    },
+    {
+      "name": "of the Elevated Elder",
+      "mechanic": "explicit-elder"
+    },
+    {
+      "name": "Hunter's",
+      "mechanic": "explicit-hunter"
+    },
+    {
+      "name": "of the Hunt",
+      "mechanic": "explicit-hunter"
+    },
+    {
+      "name": "Elevated Hunter's",
+      "mechanic": "explicit-hunter"
+    },
+    {
+      "name": "of the Elevated Hunt",
+      "mechanic": "explicit-hunter"
+    },
+    {
+      "name": "Warlord's",
+      "mechanic": "explicit-warlord"
+    },
+    {
+      "name": "of the Conquest",
+      "mechanic": "explicit-warlord"
+    },
+    {
+      "name": "Elevated Warlord's",
+      "mechanic": "explicit-warlord"
+    },
+    {
+      "name": "of the Elevated Conquest",
+      "mechanic": "explicit-warlord"
+    },
+    {
+      "name": "of Redemption",
+      "mechanic": "explicit-redeemer"
+    },
+    {
+      "name": "Redeemer's",
+      "mechanic": "explicit-redeemer"
+    },
+    {
+      "name": "Elevated Redeemer's",
+      "mechanic": "explicit-redeemer"
+    },
+    {
+      "name": "of Elevated Redemption",
+      "mechanic": "explicit-redeemer"
+    },
+    {
+      "name": "Crusader's",
+      "mechanic": "explicit-crusader"
+    },
+    {
+      "name": "of the Crusade",
+      "mechanic": "explicit-crusader"
+    },
+    {
+      "name": "Elevated Crusader's",
+      "mechanic": "explicit-crusader"
+    },
+    {
+      "name": "of the Elevated Crusade",
+      "mechanic": "explicit-crusader"
+    },
+    {
+      "name": "Subterranean",
+      "mechanic": "explicit-delve"
+    },
+    {
+      "name": "of the Underground",
+      "mechanic": "explicit-delve"
+    },
+    {
+      "name": "Chosen",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of the Order",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Leo's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Catarina's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Elreon's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Vorici's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Haku's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Tora's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Vagan's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Brinerot",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of Janus",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "It's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of Hillock",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Gravicius'",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Jorgin's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Korell's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Rin's",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of Cameria",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of Aisling",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "of Riker",
+      "mechanic": "explicit-veiled"
+    },
+    {
+      "name": "Guatelitzi's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "Xopec's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "Topotante's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "Tacati's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "Matatl's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of Matatl",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "Citaqualotl's",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of Citaqualotl",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of Tacati",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of Guatelitzi",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of Puhuarte",
+      "mechanic": "explicit-incursion"
+    },
+    {
+      "name": "of the Essence",
+      "mechanic": "explicit-essence"
+    },
+    {
+      "name": "Essences",
+      "mechanic": "explicit-essence"
+    },
+    {
+      "name": "of Infamy",
+      "mechanic": "explicit-infamous"
+    },
+    {
+      "name": "Infamous",
+      "mechanic": "explicit-infamous"
+    }
+  ]
+}

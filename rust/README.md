@@ -67,8 +67,20 @@ Les seuils de gemmes, variantes uniques reconnues, objets voilés et contraintes
 zone suivent également cette politique. Cela ne prouve pas la parité du parseur
 entier. L’éditeur reste partiel : pas d’ajout libre de critère, filtre de date ou
 sélection de toutes les options d’online/groupement upstream.
-Les presets d’équipement/base d’artisanat, bijoux
-de cluster et les règles spécialisées restantes restent à porter.
+Les presets **Objet fini** et **Base d’artisanat** suivent maintenant les critères
+upstream : niveau, fracture, synthèse, influences, craft, qualité et corruption.
+La base conserve ses critères d’artisanat ; l’objet fini utilise les propriétés et
+pseudos. Les constantes des uniques, implicites de base, mods voilés et variantes
+ont leurs règles de visibilité/sélection. Les sources consommées restent proposées
+sans sélection dans le volet avancé.
+
+Les clusters appliquent les plages de nombre de passifs. Les options Timeless
+cochées forment un groupe « au moins une » ; on peut ajuster les bornes de seed.
+Le volet avancé propose un préfixe/suffixe libre ou crafté lorsque les mods copiés
+le justifient. Les anointments affichent leurs huiles et suivent les règles de
+coût/talisman/corruption upstream. Modifier un mod invalide les anciennes offres
+sans démarrer de recherche. Les presets de logbooks à plusieurs zones, Atzoatl,
+Mirrored Tablet et Mercenary Warrant restent à porter.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
 en lot lorsqu'aucun filtre de mod n'est sélectionné : devise de paiement,
@@ -146,7 +158,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.7.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.8.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -171,6 +183,9 @@ cargo build --locked --example presets
 node scripts/compare-presets.cjs
 cargo build --locked --example item-filters
 node scripts/compare-item-filters.cjs
+cargo build --locked --example equipment-presets
+node scripts/export-mod-mechanics.cjs --check
+node scripts/compare-equipment-presets.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```

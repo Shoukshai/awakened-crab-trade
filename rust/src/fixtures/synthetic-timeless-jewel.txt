@@ -1,0 +1,10 @@
+Item Class: Jewels
+Rarity: Unique
+Lethal Pride
+Timeless Jewel
+--------
+Item Level: 83
+--------
+{ Modifier }
+Commanded leadership over 10000(10000-18000) warriors under Kaom(Akoya-Rakiata)
+Passives in radius are Conquered by the Karui

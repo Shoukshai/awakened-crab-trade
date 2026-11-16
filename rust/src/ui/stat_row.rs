@@ -68,12 +68,16 @@ impl StatRow {
                 .and_then(|id| id.split_once('|'))
                 .map(|(_, v)| v.to_string())
                 .unwrap_or_else(|| modifier.value.map(|v| v.to_string()).unwrap_or_default());
-            container.pack_start(
-                &gtk::Label::new(Some(&format!("Variante : {option}"))),
-                false,
-                false,
-                0,
-            );
+            let option_label = if modifier.id == "item.has_empty_modifier" {
+                match modifier.value {
+                    Some(1.) => "Un préfixe libre ou crafté".to_string(),
+                    Some(2.) => "Un suffixe libre ou crafté".to_string(),
+                    _ => "Un emplacement libre ou crafté".to_string(),
+                }
+            } else {
+                format!("Variante : {option}")
+            };
+            container.pack_start(&gtk::Label::new(Some(&option_label)), false, false, 0);
         } else if modifier.value.is_some() {
             let note = gtk::Label::new(Some(&format!(
                 "{}{}",
@@ -104,6 +108,12 @@ impl StatRow {
             container.pack_start(&note, false, false, 0);
             container.pack_start(&controls, false, false, 0);
         }
+        if let Some(oils) = &candidate.oils {
+            let label = gtk::Label::new(Some(&format!("Anointment : {}", oils.join(" + "))));
+            label.set_line_wrap(true);
+            label.set_xalign(0.);
+            container.pack_start(&label, false, false, 0);
+        }
         Self {
             container,
             selected,
@@ -125,5 +135,49 @@ impl StatRow {
         filter.min = (self.numeric && self.min_enabled.is_active()).then(|| self.min.value());
         filter.max = (self.numeric && self.max_enabled.is_active()).then(|| self.max.value());
         Some(filter)
+    }
+    pub fn connect_changed(&self, send: impl Fn() + 'static) {
+        use std::{cell::RefCell, rc::Rc};
+        let selected = self.selected.downgrade();
+        let min_enabled = self.min_enabled.downgrade();
+        let max_enabled = self.max_enabled.downgrade();
+        let min = self.min.downgrade();
+        let max = self.max.downgrade();
+        let numeric = self.numeric;
+        let read = Rc::new(move || {
+            let (Some(selected), Some(min_enabled), Some(max_enabled), Some(min), Some(max)) = (
+                selected.upgrade(),
+                min_enabled.upgrade(),
+                max_enabled.upgrade(),
+                min.upgrade(),
+                max.upgrade(),
+            ) else {
+                return "null".into();
+            };
+            if !selected.is_active() {
+                return "null".into();
+            }
+            serde_json::json!([
+                (numeric && min_enabled.is_active()).then(|| min.value()),
+                (numeric && max_enabled.is_active()).then(|| max.value())
+            ])
+            .to_string()
+        });
+        let previous = RefCell::new(read());
+        let changed = Rc::new(move || {
+            let value = read();
+            if *previous.borrow() != value {
+                previous.replace(value);
+                send();
+            }
+        });
+        for check in [&self.selected, &self.min_enabled, &self.max_enabled] {
+            let changed = changed.clone();
+            check.connect_toggled(move |_| changed());
+        }
+        for spin in [&self.min, &self.max] {
+            let changed = changed.clone();
+            spin.connect_value_changed(move |_| changed());
+        }
     }
 }
