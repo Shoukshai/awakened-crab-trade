@@ -1058,3 +1058,84 @@ objets, la navigation navigateur, la réduction réelle, les autres compositeurs
 écrans/échelles de sortie et plateformes restent hors de cette validation.
 Aucun gain de performance n’est revendiqué. L’audit du paquet et les mesures
 sur son processus réel sont dans `dist/validation-0.15.json` après construction.
+
+
+## Jalon 0.16 : grille Delve sur une surface passive
+
+110 tests Rust et Clippy toutes cibles réussis. Les deux nouveaux tests métier
+couvrent les proportions et le découpage aux tailles de référence, les dimensions
+invalides, les transitions, l’attente du jeu lors d’un transfert explicite et le
+refus des anciennes frames après masquage.
+
+[delve-0.16.json](delve-0.16.json) : 12 966 géométries et 128 séquences totalisant
+3 840 actions, zéro écart. Les callbacks `anchor`, bascule du widget et changement
+de focus de l’overlay sont exécutés sans modification ; la couleur des bordures
+est lue dans `tailwind.config.js`. Cela vérifie les formules, l’arrondi, la palette
+et les demandes/visibilités avec `hide-on-focus` et un widget exclusif, pas une équivalence de tous les
+compositeurs ni du raster navigateur. Les dimensions de sortie nulles/négatives
+sont refusées localement, en dehors de cette comparaison sur dimensions positives.
+
+[delve-lifecycle-0.16.json](delve-lifecycle-0.16.json) utilise un River privé,
+un faux jeu X11 et aucun service externe. La grille est affichée par Ctrl+G
+configuré, sans focus ni clavier. Des pixels réels du screenshot vérifient le
+fond du jeu intact hors du rectangle, le blanc à 10 % dans le rectangle, la
+bordure #718096 et le clipping. L’arrondi bleu du fond diffère d’une unité du
+calcul décimal : tolérance d’une unité sur les composantes. Quatre clics sur
+zones peintes et transparentes sont comptés par la fenêtre X11 du faux jeu,
+sans focus de la grille. La fixture collecte les vrais événements ButtonPress ;
+une simple déclaration de région d’entrée vide ne suffit pas à ce test.
+
+Une seconde sans changement ne provoque aucun nouveau dessin ou frame de la
+grille. Un panneau de prix passif exclusif masque la grille sans annuler sa demande ;
+passer à la vue Recherche Heist non exclusive la restaure. L’interaction annule
+ensuite sa demande d’affichage. Vingt ouvertures depuis le bouton natif reviennent au faux jeu sans
+forcer son activation. Bascule, masquage explicite, changement réel vers l’autre
+fenêtre, refus dans une autre application et destruction/recréation du jeu sont
+vérifiés ; le retour au jeu ne rouvre pas la grille. Les changements de sortie
+privée à 1920×1080, puis 2560×1600 au facteur 2 (1280×800 logiques), puis facteur 1
+produisent les géométries attendues en conservant clavier None et focus au jeu.
+Les commandes du widget conservent les octets des préférences. La capture native
+du septième raccourci, son enregistrement et le remplacement effectif de Ctrl+G
+par Ctrl+H sont ensuite vérifiés sur cette configuration privée.
+
+La première implémentation permettait à tort la coexistence avec le panneau de
+prix passif. Une revue de `visibilityState` a révélé les widgets exclusifs.
+L’oracle a été étendu à ce callback inchangé et aux états visibles, avec bascules
+d’un widget exclusif ; les événements de bascule sont émis en contexte jeu.
+La suppression temporaire est maintenant distincte de l’annulation au focus.
+Les scénarios graphiques et la copie réelle ont été rejoués après correction.
+
+Le premier pilote cliquait le septième bouton hors de la zone visible du nouvel
+onglet défilant. Il a été corrigé pour lire le viewport et défiler jusqu’au
+contrôle ; le scénario complet a ensuite réussi. Les raccourcis sont placés dans
+un ScrolledWindow pour que l’ajout d’une ligne n’impose pas la hauteur totale.
+[settings-0.16.json](settings-0.16.json),
+[item-search-lifecycle-0.16.json](item-search-lifecycle-0.16.json) et
+[overlay-lifecycle-0.16.json](overlay-lifecycle-0.16.json) rejouent les contrôles
+existants après le changement du panneau, des commandes et de la fixture.
+Le banc XWayland de conflits, replay et IO bloqué passe toujours, ainsi que les
+816 combinaisons de noms de touches. Aucun de ces tests ne modifie le bureau réel.
+
+Sur le vrai PoE en ville, inventaire ouvert : grille observée et capture inspectée
+à 2560×1600, facteur de sortie 1. Rectangle x=517, y=99, 1526×1197, cases de 144,
+conformément au modèle upstream. Le jeu reste actif et son titre X11 est vérifié.
+La copie avancée réelle de la wand fonctionne pendant l’affichage, avant le panneau
+local à 11 DPS physiques. La vue exclusive masque la grille sans annuler sa
+demande ; la vue Recherche Heist la restaure. L’interaction l’annule ; le bouton natif la
+réaffiche passivement puis cinq cycles de bascule sont vérifiés. Aucune frappe
+arbitraire, commande de jeu/chat ou clic à travers la grille n’est envoyé au jeu
+réel. Nouvelle copie réelle de la wand, masquage des deux surfaces et préférences
+initiales inchangées en fin de test.
+
+Sur ce processus release, RSS 67 788 Kio avant grille, 83 840 Kio grille visible
+(hausse observée 16 052 Kio). Sur trois secondes visibles, aucun redraw, aucune
+nouvelle frame et un tick CPU, avec CLK_TCK=100. Il s’agit d’un échantillon du
+processus, pas d’une mesure du coût GPU/compositeur ou d’un gain revendiqué.
+Les mesures du binaire empaqueté sont enregistrées séparément dans
+`dist/validation-0.16.json` après construction.
+
+L’alignement avec la véritable interface Delve du jeu n’est pas vérifié. Le facteur
+2 et la traversée des clics concernent le serveur privé ; ils ne valident pas les
+réglages d’écran du vrai PoE, plusieurs sorties, d’autres compositeurs, X11 natif
+ou Windows. La réduction réelle du jeu et les autres widgets restent dans
+l’inventaire des vérifications/portages restants.

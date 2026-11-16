@@ -1,6 +1,6 @@
 [package]
 name = "awakened-poe-trade-rs"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2021"
 license = "MIT"
 description = "Native Rust migration of Awakened PoE Trade"

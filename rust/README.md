@@ -150,6 +150,23 @@ sa requête est refusée par Trade. Ouvrir le widget ne lance pas HTTP ; fermer 
 changer de ligue révoque les réponses en attente. Les images et l’OCR ne sont pas
 portés. Un sixième raccourci facultatif se configure dans **Réglages**.
 
+**Grille Delve** affiche une surface transparente indépendante, sans capter les
+clics ni le clavier. Elle reprend les 11 colonnes, neuf lignes, proportions et
+zones coupées du widget upstream. Sa taille suit la sortie logique, sans utiliser
+l’échelle du panneau de prix. Le bouton ferme le panneau interactif pour afficher
+la grille ; `delve` la bascule et `delve-hide` masque seulement la grille. Le
+raccourci facultatif se configure dans Réglages → Raccourcis, avec défilement.
+
+Les panneaux de prix, d’évaluation et de réglages sont exclusifs : ils masquent
+la grille tout en conservant sa demande d’affichage tant qu’ils restent passifs.
+La recherche Heist est non exclusive et peut coexister avec elle. Autoriser
+l’interaction annule son affichage, comme le drapeau upstream `hide-on-focus`. Changer
+vers une autre application ou perdre le jeu annule aussi son affichage ; revenir
+au jeu ne la restaure pas. `hide` et `quit` masquent les deux surfaces. Le widget
+ne lance aucun réseau et ne programme pas de rendu périodique. L’alignement avec
+l’interface Delve du jeu reste à vérifier ; les proportions, la traversée des
+clics et des changements de sortie sont testés séparément.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -167,6 +184,8 @@ Commandes utiles depuis un outil qui garde PoE actif :
 ./target/release/awakened-poe-trade-rs catalogue replica "Replica Headhunter" # préremplir, sans HTTP
 ./target/release/awakened-poe-trade-rs settings  # ouverture passive des réglages
 ./target/release/awakened-poe-trade-rs interact  # autoriser les clics explicitement
+./target/release/awakened-poe-trade-rs delve # basculer la grille passive
+./target/release/awakened-poe-trade-rs delve-hide
 ./target/release/awakened-poe-trade-rs hide
 ./target/release/awakened-poe-trade-rs quit
 ./target/release/awakened-poe-trade-rs --version
@@ -187,7 +206,7 @@ et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
 ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
-marchands, regroupement, profil de carte et six raccourcis. **Annuler** ne
+marchands, regroupement, profil de carte et sept raccourcis. **Annuler** ne
 persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
 l’application, puis masque le panneau ; cela ne lance aucune recherche.
 Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
@@ -216,7 +235,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.15.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.16.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -255,6 +274,8 @@ node scripts/compare-unidentified.cjs
 node scripts/compare-hotkeys.cjs target/debug/examples/hotkeys docs/hotkeys-0.14.json
 node scripts/compare-item-search.cjs target/debug/examples/item-search docs/item-search-0.15.json
 python3 scripts/test-item-search.py target/release/awakened-poe-trade-rs docs/item-search-lifecycle-0.15.json
+node scripts/compare-delve.cjs target/debug/examples/delve-grid docs/delve-0.16.json
+python3 scripts/test-delve.py target/release/awakened-poe-trade-rs docs/delve-lifecycle-0.16.json
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-settings.py target/release/awakened-poe-trade-rs docs/settings-0.14.json
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
@@ -268,7 +289,8 @@ Le test de raccourcis exige River et xdotool, démarre son propre serveur sans �
 et ne transmet ses touches qu'à sa fenêtre de test. Il vérifie aussi la libération
 des grabs partiels après conflit. Le test de cycle de vie exige aussi wl-copy,
 wlr-randr et wtype ; il utilise un bureau River privé, un faux jeu et un proxy
-bloquant les services externes. Il ne touche pas au PoE réel. Le test `smoke-overlay.py` nécessite le service
+bloquant les services externes. Il ne touche pas au PoE réel. Le test Delve exige aussi grim et Pillow pour lire les pixels du bureau privé.
+Le test `smoke-overlay.py` nécessite le service
 lancé et PoE actif ; il ouvre et ferme cinq
 panneaux passifs, sans envoyer de commande de jeu. Les exemples de contrôle du
 pointeur et des fenêtres sont des outils de validation manuelle.

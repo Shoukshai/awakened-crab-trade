@@ -12,6 +12,8 @@ pub struct Hotkeys {
     pub settings: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub catalogue: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delve: Option<String>,
 }
 impl Default for Hotkeys {
     fn default() -> Self {
@@ -22,6 +24,7 @@ impl Default for Hotkeys {
             hide: Some("Ctrl + Shift + D".into()),
             settings: None,
             catalogue: None,
+            delve: None,
         }
     }
 }
@@ -205,6 +208,7 @@ impl Hotkeys {
             hide: None,
             settings: None,
             catalogue: None,
+            delve: None,
         }
     }
     pub fn is_default(&self) -> bool {
@@ -220,6 +224,7 @@ impl Hotkeys {
             (&self.hide, "hide"),
             (&self.settings, "settings"),
             (&self.catalogue, "catalogue"),
+            (&self.delve, "delve"),
         ] {
             if let Some(value) = value {
                 let key = Hotkey::parse(value)?;
@@ -270,6 +275,7 @@ impl Hotkeys {
             hide: normalize(&self.hide)?,
             settings: normalize(&self.settings)?,
             catalogue: normalize(&self.catalogue)?,
+            delve: normalize(&self.delve)?,
         })
     }
 }
@@ -332,6 +338,7 @@ mod tests {
             hide: None,
             settings: None,
             catalogue: None,
+            delve: None,
         };
         assert!(h.bindings().unwrap().is_empty());
         assert!(Hotkeys::default().normalized().unwrap().is_default());

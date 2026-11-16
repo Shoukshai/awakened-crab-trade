@@ -2,8 +2,9 @@
 use std::io::{self, BufRead, Write};
 use x11rb::{
     connection::Connection,
-    protocol::xproto::{
-        AtomEnum, ConnectionExt, CreateWindowAux, EventMask, PropMode, WindowClass,
+    protocol::{
+        xproto::{AtomEnum, ConnectionExt, CreateWindowAux, EventMask, PropMode, WindowClass},
+        Event,
     },
     wrapper::ConnectionExt as _,
     COPY_DEPTH_FROM_PARENT,
@@ -27,7 +28,7 @@ fn create(
         0,
         &CreateWindowAux::new()
             .background_pixel(if game { 0x223344 } else { 0x442233 })
-            .event_mask(EventMask::EXPOSURE),
+            .event_mask(EventMask::EXPOSURE | EventMask::BUTTON_PRESS),
     )?
     .check()?;
     c.change_property8(
@@ -79,6 +80,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     c.flush()?;
     println!("{}", serde_json::json!({"game":game,"other":other}));
     io::stdout().flush()?;
+    let mut clicks = 0u64;
+    let mut other_clicks = 0u64;
+    let mut last_click = None;
     for line in io::stdin().lock().lines() {
         match line?.as_str() {
             "unmap" => {
@@ -98,11 +102,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 game = create(&c, root, true)?;
                 c.map_window(game)?.check()?;
             }
+            "input" => (),
             "quit" => break,
             _ => return Err("unknown fixture command".into()),
         }
         c.flush()?;
-        println!("{}", serde_json::json!({"game":game}));
+        c.get_input_focus()?.reply()?;
+        while let Some(event) = c.poll_for_event()? {
+            if let Event::ButtonPress(event) = event {
+                if event.event == other {
+                    other_clicks += 1;
+                } else {
+                    clicks += 1;
+                }
+                last_click = Some(
+                    serde_json::json!({"window":event.event,"button":event.detail,"x":event.event_x,"y":event.event_y}),
+                );
+            }
+        }
+        println!(
+            "{}",
+            serde_json::json!({"game":game,"clicks":clicks,"other_clicks":other_clicks,"last_click":last_click})
+        );
         io::stdout().flush()?;
     }
     if game != 0 {

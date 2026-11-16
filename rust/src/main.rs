@@ -1,4 +1,5 @@
 mod calculated;
+mod delve;
 #[cfg(target_os = "linux")]
 mod desktop;
 mod economy;

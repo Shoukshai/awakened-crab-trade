@@ -10,6 +10,7 @@ use crate::{
     settings::Settings,
     trade::{Prices, SearchKind, Trade},
 };
+mod delve_grid;
 mod economy_panel;
 mod inspection_panel;
 mod item_filters_panel;
@@ -78,6 +79,7 @@ struct Job {
 }
 struct Ui {
     window: gtk::Window,
+    delve: Result<Rc<delve_grid::Grid>, String>,
     started: Instant,
     desktop: RefCell<Snapshot>,
     title: gtk::Label,
@@ -234,11 +236,62 @@ impl Ui {
             }
         });
     }
+    fn refresh_delve(&self) {
+        if let Ok(grid) = &self.delve {
+            let desktop = self.desktop.borrow();
+            grid.update(
+                desktop.game_present(),
+                desktop.game_active(),
+                desktop.other_active(),
+                self.state.borrow().state == State::Interactive,
+                self.window.is_visible()
+                    && matches!(
+                        self.view.get(),
+                        View::Price | View::Inspection | View::Settings
+                    ),
+            );
+        }
+    }
+    fn toggle_delve(&self) {
+        if self.preferences_pending.get() {
+            return;
+        }
+        let Ok(grid) = &self.delve else {
+            eprintln!("delve unavailable: {:?}", self.delve.as_ref().err());
+            return;
+        };
+        let (present, active, other) = {
+            let d = self.desktop.borrow();
+            (d.game_present(), d.game_active(), d.other_active())
+        };
+        let owned = self.window.is_visible() && self.state.borrow().state == State::Interactive;
+        let allowed = present && !other && (active || owned);
+        if allowed && owned {
+            self.hide(HideReason::Button);
+        }
+        grid.toggle(allowed, owned);
+        self.refresh_delve();
+    }
+    fn hide_delve(&self, reason: crate::delve::Reason) {
+        if let Ok(grid) = &self.delve {
+            grid.hide(reason);
+        }
+    }
     fn sync_generation(&self) {
         self.current
             .store(self.state.borrow().generation, Ordering::Release);
     }
     fn hide(&self, reason: HideReason) {
+        match reason {
+            HideReason::OtherApplication => self.hide_delve(crate::delve::Reason::OtherApplication),
+            HideReason::GameGone | HideReason::GameMinimized => {
+                self.hide_delve(crate::delve::Reason::GameGone)
+            }
+            HideReason::GameInactive => self.hide_delve(crate::delve::Reason::GameInactive),
+            HideReason::TrackerFailure => self.hide_delve(crate::delve::Reason::TrackerFailure),
+            HideReason::Quit => self.hide_delve(crate::delve::Reason::Quit),
+            _ => (),
+        }
         let previous = self.state.borrow().state;
         let focused = self.window.is_active();
         self.state.borrow_mut().hide(reason);
@@ -246,6 +299,7 @@ impl Ui {
         apply_input(&self.window, false);
         dismiss_owned_popup(&self.window);
         self.window.hide();
+        self.refresh_delve();
         let state = self.state.borrow();
         let desktop = self.desktop.borrow();
         eprintln!("overlay state=Hidden reason={reason:?} previous={previous:?} generation={} elapsed_ms={} was_focused={focused} game_active={} game_exists={} game_visible={} other_active={} input=empty keyboard=None", state.generation,self.started.elapsed().as_millis(),state.game_active,desktop.game_exists(),desktop.game_present(),desktop.other_active());
@@ -260,6 +314,7 @@ impl Ui {
         self.shown.replace(Some(Instant::now()));
         apply_input(&self.window, false);
         self.window.show_all();
+        self.refresh_delve();
         self.window.queue_draw();
         let settings = self.settings.borrow();
         self.hint.set_text(&format!(
@@ -300,6 +355,7 @@ impl Ui {
         self.catalogue
             .show(&self.settings.borrow().league, generation);
         self.stack.set_visible_child_name("catalogue");
+        self.refresh_delve();
         if !self.window.is_visible() {
             self.show();
         }
@@ -386,6 +442,7 @@ impl Ui {
         self.view.set(View::Settings);
         self.title.set_text("Réglages");
         self.stack.set_visible_child_name("settings");
+        self.refresh_delve();
         if !self.window.is_visible() {
             self.show();
         }
@@ -399,6 +456,7 @@ impl Ui {
         if view == View::Catalogue {
             self.title.set_text("Recherche des cibles de Heist");
             self.stack.set_visible_child_name("catalogue");
+            self.refresh_delve();
             return;
         }
         let item = self.item.borrow();
@@ -613,6 +671,7 @@ impl Ui {
             }
             "interact" => {
                 if self.state.borrow_mut().interact() {
+                    self.hide_delve(crate::delve::Reason::Interactive);
                     apply_input(&self.window, true);
                     self.hint.set_text(
                         "Interactif · cliquez dans le panneau · Échap ou Fermer pour quitter",
@@ -622,7 +681,12 @@ impl Ui {
                     eprintln!("interact refused: first frame not ready or PoE inactive");
                 }
             }
-            "hide" => self.hide(HideReason::Explicit),
+            "hide" => {
+                self.hide_delve(crate::delve::Reason::Explicit);
+                self.hide(HideReason::Explicit);
+            }
+            "delve" => self.toggle_delve(),
+            "delve-hide" => self.hide_delve(crate::delve::Reason::Explicit),
             "settings" => self.open_settings(),
             "catalogue" => self.open_catalogue(),
             "evaluate" => self.change_view(View::Inspection),
@@ -660,6 +724,7 @@ impl Ui {
             self.inspection_result.replace(None);
             self.stack.set_visible_child_name("price");
         }
+        self.refresh_delve();
         if !self.window.is_visible() && !self.show() {
             return;
         }
@@ -1098,6 +1163,7 @@ impl Ui {
                 });
                 self.game_active.store(active, Ordering::Release);
                 self.desktop.replace(s);
+                self.refresh_delve();
                 if let Some(reason) = reason {
                     self.hide(reason);
                 }
@@ -1327,7 +1393,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1364,6 +1430,8 @@ pub fn run() -> Result<(), String> {
                 | "league"
                 | "settings"
                 | "catalogue"
+                | "delve"
+                | "delve-hide"
         )
     }) {
         UnixDatagram::unbound()
@@ -1435,6 +1503,7 @@ pub fn run() -> Result<(), String> {
     window.set_layer_shell_margin(Edge::Left, 50);
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::None);
+    let delve = delve_grid::Grid::new();
     let css = gtk::CssProvider::new();
     set_style(&window, &css, settings.scale)?;
     gtk::StyleContext::add_provider_for_screen(
@@ -1575,7 +1644,13 @@ pub fn run() -> Result<(), String> {
     let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let preferences_open = gtk::Button::with_label("Réglages");
     let catalogue_open = gtk::Button::with_label("Cibles Heist");
+    let delve_open = gtk::Button::with_label("Grille Delve");
+    delve_open.set_sensitive(delve.is_ok());
+    delve_open.set_tooltip_text(Some(
+        "Ferme ce panneau et affiche une grille passive ; configurez son raccourci dans Réglages.",
+    ));
     heading.pack_start(&title, true, true, 0);
+    heading.pack_start(&delve_open, false, false, 0);
     heading.pack_start(&catalogue_open, false, false, 0);
     heading.pack_start(&preferences_open, false, false, 0);
     content.pack_start(&heading, false, false, 0);
@@ -1675,6 +1750,7 @@ pub fn run() -> Result<(), String> {
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
         window: window.clone(),
+        delve,
         started: Instant::now(),
         desktop: RefCell::new(Snapshot::default()),
         title,
@@ -1729,6 +1805,8 @@ pub fn run() -> Result<(), String> {
         preferences_open.connect_clicked(move |_| owner.open_settings());
         let owner = ui.clone();
         catalogue_open.connect_clicked(move |_| owner.open_catalogue());
+        let owner = ui.clone();
+        delve_open.connect_clicked(move |_| owner.toggle_delve());
         let owner = ui.clone();
         ui.preferences
             .apply
@@ -1896,6 +1974,9 @@ pub fn run() -> Result<(), String> {
                 ui.window.is_active()
             );
             ui.state.borrow_mut().focus_restored();
+            if ui.window.is_visible() && ui.state.borrow().state == State::Interactive {
+                ui.hide_delve(crate::delve::Reason::Interactive);
+            }
             glib::Propagation::Proceed
         });
     }
@@ -1981,6 +2062,11 @@ pub fn run() -> Result<(), String> {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
                         let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        value["delve"] = match &ui.delve {
+                            Ok(grid) => grid.diagnostics(),
+                            Err(error) => serde_json::json!({"available":false,"error":error}),
+                        };
+                        value["delve_button"]=serde_json::json!(delve_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":delve_open.allocated_width(),"height":delve_open.allocated_height()})));
                         value["catalogue"] = ui.catalogue.diagnostics(&ui.window);
                         value["catalogue_button"]=serde_json::json!(catalogue_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":catalogue_open.allocated_width(),"height":catalogue_open.allocated_height()})));
                         value["preferences"] = ui.preferences.diagnostics(&ui.window);

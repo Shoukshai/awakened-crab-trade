@@ -13,6 +13,7 @@ pub struct Panel {
     pub reset: gtk::Button,
     form: gtk::Notebook,
     general_scroll: gtk::ScrolledWindow,
+    shortcuts_scroll: gtk::ScrolledWindow,
     league: gtk::Entry,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
@@ -107,6 +108,7 @@ impl Panel {
             "Masquer le panneau",
             "Ouvrir les réglages",
             "Rechercher une cible Heist",
+            "Afficher ou masquer la grille Delve",
         ];
         let mut keys = Vec::new();
         for (i, name) in labels.into_iter().enumerate() {
@@ -132,9 +134,19 @@ impl Panel {
         let hint=gtk::Label::new(Some("Les raccourcis agissent lorsque PoE a le clavier. Les combinaisons réservées au jeu et les doublons sont refusés. Si tous les raccourcis sont désactivés, les commandes settings et interact restent disponibles."));
         hint.set_line_wrap(true);
         hint.set_xalign(0.);
-        shortcuts.attach(&hint, 0, 6, 2, 1);
+        shortcuts.attach(&hint, 0, 7, 2, 1);
         // Capture buttons are wired by the owner using arm_capture().
-        form.append_page(&shortcuts, Some(&gtk::Label::new(Some("Raccourcis"))));
+        let shortcuts_scroll =
+            gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        shortcuts_scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+        shortcuts_scroll.set_min_content_height(280);
+        shortcuts_scroll.set_max_content_height(480);
+        shortcuts_scroll.set_propagate_natural_height(true);
+        shortcuts_scroll.add(&shortcuts);
+        form.append_page(
+            &shortcuts_scroll,
+            Some(&gtk::Label::new(Some("Raccourcis"))),
+        );
         let maps = gtk::Grid::new();
         maps.set_row_spacing(12);
         maps.set_column_spacing(12);
@@ -168,6 +180,7 @@ impl Panel {
             reset,
             form,
             general_scroll: scroll,
+            shortcuts_scroll,
             league,
             online,
             scale,
@@ -228,6 +241,7 @@ impl Panel {
             &s.hotkeys.hide,
             &s.hotkeys.settings,
             &s.hotkeys.catalogue,
+            &s.hotkeys.delve,
         ]) {
             entry.set_text(key.as_deref().unwrap_or(""));
         }
@@ -272,6 +286,7 @@ impl Panel {
             hide: values[3].clone(),
             settings: values[4].clone(),
             catalogue: values[5].clone(),
+            delve: values[6].clone(),
         }
         .normalized()?;
         s.validate()?;
@@ -346,6 +361,6 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..3).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..3).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }

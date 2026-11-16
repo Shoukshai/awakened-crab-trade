@@ -24,7 +24,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | non | non | états et rendu natif |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve sur une couche séparée, toujours passive ; raccourci et bascule native | 12 966 géométries et 3 840 transitions comparées ; pixels, quatre clics traversants, vingt passages par le bouton et changement de sortie/facteur 2 sur River privé | alignement dans la vraie interface Delve ; minuteurs, images et menu de widgets |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
@@ -282,3 +282,37 @@ Heist, la commande `catalogue` et un raccourci facultatif désactivé par défau
 Les images, l’OCR des anciennes gemmes (upstream Windows), les autres widgets et
 recherches non proposées par ce widget restent dans l’inventaire. Les liens
 externes du panneau d’évaluation gardent leur portée et leurs limites documentées.
+
+
+## Jalon 0.16 : grille Delve passive
+
+`delve.rs` porte les proportions de `WidgetDelveGrid.vue` et une politique
+indépendante du rendu. L’arrondi positif reproduit `Math.round` ; le rectangle
+vient de la hauteur logique de sortie, avec 11 × 9 cases et le découpage upstream.
+La palette est celle de `tailwind.config.js`. L’échelle du panneau de prix ne
+modifie pas cette géométrie liée au jeu.
+
+`ui/delve_grid.rs` crée une surface layer-shell RGBA, ancrée aux quatre bords,
+zone exclusive −1, région d’entrée vide, clavier None et refus de focus GTK.
+Cairo efface en transparent, peint le fond blanc à 10 %, clippe puis dessine
+les bordures. La première frame est comptée après `after-paint` ; les anciens
+jetons ne peuvent restaurer une surface masquée. Il n’y a ni animation ni timer
+de rafraîchissement. Une erreur de dessin masque la fenêtre et garde les entrées
+révoquées. Le réseau et le presse-papiers ne sont pas sollicités.
+
+Les vues Prix, Évaluation et Réglages sont exclusives : elles masquent la surface
+sans annuler sa demande tant que l’affichage reste passif. La vue Recherche Heist
+est non exclusive. L’interaction du panneau annule la demande de grille, selon
+`hide-on-focus` upstream. Les pertes de contexte
+jeu, changements d’application et erreurs de suivi annulent aussi la demande,
+sans réouverture au retour. Le bouton natif ferme le panneau puis attend le jeu
+avant l’affichage passif ; aucune activation n’est forcée. Le raccourci facultatif
+et les commandes `delve`/`delve-hide` permettent aussi la bascule. `hide` et `quit`
+révoquent les deux surfaces. Le septième raccourci est omis du JSON lorsqu’il est
+désactivé ; les anciens profils restent lisibles et leurs défauts conservés.
+
+Les mesures et observations restent limitées aux configurations nommées dans
+VALIDATION. Les changements de résolution et facteur 2 concernent un serveur
+privé, pas l’écran réel du jeu. L’alignement avec la véritable interface Delve,
+plusieurs moniteurs et les autres backends restent à valider. Les autres widgets
+restent à porter.
