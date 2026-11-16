@@ -13,7 +13,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 
 | Fonction / source upstream | À porter | Implémentée Rust | Testée | Restante |
 |---|---|---|---|---|
-| Overlay, zones de clic, focus (`main/src/windowing`) | oui | layer-shell natif, suivi Wayland | panneau au-dessus de PoE, clic Fermer, 5 cycles, focus passif, changement d’app confirmé | réduction, plusieurs écrans/facteurs de sortie |
+| Overlay, zones de clic, focus (`main/src/windowing`) | oui | layer-shell natif, suivi Wayland | panneau au-dessus de PoE, clics, 5 cycles, focus passif, changement d’app confirmé par l’utilisateur ; cycle de vie et menus sur River privé | réduction, plusieurs écrans/facteurs de sortie |
 | Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
@@ -87,3 +87,21 @@ invalide la génération sans HTTP ; ses callbacks utilisent des références fa
 aux widgets. Une liaison circulaire du contrôle Min/Max des filtres d’objet a
 également été supprimée. Les sources exactes avancées restent facultatives et
 séparées des critères par défaut du preset upstream.
+
+
+## Jalon 0.9 : suivi des fenêtres et menus natifs
+
+Le suivi foreign-toplevel publie chaque fenêtre seulement après son événement
+`done`. Les mises à jour partielles d’une autre fenêtre ne contaminent plus
+l’instantané. La fin du moniteur efface les fenêtres et révoque les entrées.
+La machine d’états distingue jeu absent, réduit, inactif et autre application ;
+le retour au jeu ne rouvre pas le panneau. Les journaux et `status` exposent la
+cause du masquage, les surfaces suivies et la géométrie des contrôles.
+
+Un contrôle différé de 30 ms distingue la perte de focus d’un transfert vers un
+menu GTK appartenant au panneau. Son jeton est indépendant de la génération des
+prix : éditer un filtre n’annule pas une véritable perte de focus. Aucun appel
+ne force l’activation. Masquer révoque aussi les grabs des menus ouverts.
+Le test privé vérifie les clics, les presets à la souris, le masquage avec menu,
+le changement d’application et la disparition/recréation du faux jeu. Il ne
+valide ni la réduction réelle de PoE ni le clavier des menus. Voir VALIDATION.

@@ -6,7 +6,7 @@ use crate::{
     economy::{Economy, Quote},
     filters,
     item::Item,
-    overlay::{Overlay, State},
+    overlay::{DesktopState, HideReason, Overlay, State},
     settings::Settings,
     trade::{Prices, SearchKind, Trade},
 };
@@ -42,7 +42,7 @@ enum Event {
     Prices(u64, Result<Prices, String>),
     Economy(u64, Result<Option<Quote>, String>),
     MapSettings(crate::inspection::Edit),
-    FiltersChanged(u64),
+    FiltersChanged(u64, String),
 }
 struct EconomyJob {
     generation: u64,
@@ -61,6 +61,8 @@ struct Job {
 }
 struct Ui {
     window: gtk::Window,
+    started: Instant,
+    desktop: RefCell<Snapshot>,
     title: gtk::Label,
     text: gtk::Label,
     hint: gtk::Label,
@@ -121,17 +123,97 @@ fn apply_input(window: &gtk::Window, interactive: bool) {
         w.input_shape_combine_region(&region, 0, 0);
     }
 }
+fn belongs_to_window(widget: &gtk::Widget, window: &gtk::Window, depth: u8) -> bool {
+    if widget == window.upcast_ref::<gtk::Widget>() {
+        return true;
+    }
+    if depth >= 8 {
+        return false;
+    }
+    if let Some(menu) = widget.downcast_ref::<gtk::Menu>() {
+        if menu
+            .attach_widget()
+            .is_some_and(|w| belongs_to_window(&w, window, depth + 1))
+        {
+            return true;
+        }
+    }
+    if let Some(w) = widget.downcast_ref::<gtk::Window>() {
+        if w.attached_to()
+            .is_some_and(|a| belongs_to_window(&a, window, depth + 1))
+            || w.transient_for()
+                .is_some_and(|p| belongs_to_window(p.upcast_ref(), window, depth + 1))
+        {
+            return true;
+        }
+    }
+    widget
+        .toplevel()
+        .filter(|top| top != widget)
+        .is_some_and(|top| belongs_to_window(&top, window, depth + 1))
+}
+fn owned_popup(window: &gtk::Window) -> Option<gtk::Widget> {
+    let grab = gtk::grab_get_current()?;
+    let popup = grab.is::<gtk::Menu>()
+        || grab.is::<gtk::Popover>()
+        || grab
+            .toplevel()
+            .is_some_and(|top| top != *window.upcast_ref::<gtk::Widget>());
+    (popup && belongs_to_window(&grab, window, 0)).then_some(grab)
+}
+fn dismiss_owned_popup(window: &gtk::Window) {
+    if let Some(grab) = owned_popup(window) {
+        if let Some(menu) = grab.downcast_ref::<gtk::Menu>() {
+            menu.popdown();
+        } else if let Some(popover) = grab.downcast_ref::<gtk::Popover>() {
+            popover.popdown();
+            popover.hide();
+        } else {
+            grab.grab_remove();
+            if let Some(top) = grab.toplevel() {
+                top.hide();
+            }
+        }
+    }
+}
 impl Ui {
+    fn defer_focus_check(self: &Rc<Self>) {
+        let Some(token) = self.state.borrow_mut().focus_lost() else {
+            return;
+        };
+        let weak = Rc::downgrade(self);
+        // GTK menus temporarily move keyboard focus to another native surface.
+        // Observe settled state; never request activation or focus to compensate.
+        glib::timeout_add_local_once(Duration::from_millis(30), move || {
+            if let Some(ui) = weak.upgrade() {
+                let active = ui.window.is_active();
+                let popup = owned_popup(&ui.window).is_some();
+                let hide = ui
+                    .state
+                    .borrow()
+                    .should_hide_after_focus_loss(token, active, popup);
+                eprintln!("overlay event=focus-check token={token} elapsed_ms={} main_active={active} owned_popup={popup} hide={hide}",ui.started.elapsed().as_millis());
+                if hide {
+                    ui.hide(HideReason::FocusLost);
+                }
+            }
+        });
+    }
     fn sync_generation(&self) {
         self.current
             .store(self.state.borrow().generation, Ordering::Release);
     }
-    fn hide(&self) {
-        self.state.borrow_mut().hide();
+    fn hide(&self, reason: HideReason) {
+        let previous = self.state.borrow().state;
+        let focused = self.window.is_active();
+        self.state.borrow_mut().hide(reason);
         self.sync_generation();
         apply_input(&self.window, false);
+        dismiss_owned_popup(&self.window);
         self.window.hide();
-        eprintln!("overlay state=Hidden input=empty keyboard=None");
+        let state = self.state.borrow();
+        let desktop = self.desktop.borrow();
+        eprintln!("overlay state=Hidden reason={reason:?} previous={previous:?} generation={} elapsed_ms={} was_focused={focused} game_active={} game_exists={} game_visible={} other_active={} input=empty keyboard=None", state.generation,self.started.elapsed().as_millis(),state.game_active,desktop.game_exists(),desktop.game_present(),desktop.other_active());
     }
     fn show(&self) -> bool {
         let generation = self.state.borrow_mut().show();
@@ -187,7 +269,7 @@ impl Ui {
                     eprintln!("capture refused: PoE is not active");
                     return;
                 }
-                self.hide();
+                self.hide(HideReason::Capture);
                 let generation = self.state.borrow().generation;
                 if let Err(e) = self.capture_worker.try_send(CaptureJob {
                     generation,
@@ -212,11 +294,11 @@ impl Ui {
                     eprintln!("interact refused: first frame not ready or PoE inactive");
                 }
             }
-            "hide" => self.hide(),
+            "hide" => self.hide(HideReason::Explicit),
             "evaluate" => self.change_view(View::Inspection),
             "prices" => self.change_view(View::Price),
             "quit" => {
-                self.hide();
+                self.hide(HideReason::Quit);
                 gtk::main_quit();
             }
             _ => eprintln!("unknown command: {command}"),
@@ -284,8 +366,12 @@ impl Ui {
             let row = stat_row::StatRow::new(candidate);
             let sender = self.events.clone();
             let current = self.current.clone();
+            let origin = format!("stat:{}", candidate.modifier.id);
             row.connect_changed(move || {
-                let _ = sender.send(Event::FiltersChanged(current.load(Ordering::Acquire)));
+                let _ = sender.send(Event::FiltersChanged(
+                    current.load(Ordering::Acquire),
+                    origin.clone(),
+                ));
             });
             if candidate.hidden.is_some() {
                 advanced.pack_start(&row.container, false, false, 0);
@@ -339,7 +425,8 @@ impl Ui {
         }
         self.item_filters.container.show();
     }
-    fn filters_changed(&self, observed_generation: u64) {
+    fn filters_changed(&self, observed_generation: u64, origin: &str) {
+        eprintln!("filters change origin={origin:?} observed_generation={observed_generation} current_generation={} state={:?} elapsed_ms={}",self.state.borrow().generation,self.state.borrow().state,self.started.elapsed().as_millis());
         if self.view.get() != View::Price || !self.window.is_visible() {
             return;
         }
@@ -490,20 +577,22 @@ impl Ui {
                         s.other_active()
                     );
                 }
-                self.state.borrow_mut().game_active = active;
+                let reason = self.state.borrow_mut().desktop_changed(DesktopState {
+                    game_exists: s.game_exists(),
+                    game_visible: s.game_present(),
+                    game_active: active,
+                    other_active: s.other_active(),
+                });
                 self.game_active.store(active, Ordering::Release);
-                if (s.other_active()
-                    || !s.game_present()
-                    || (!active && self.state.borrow().state != State::Interactive))
-                    && self.state.borrow().state != State::Hidden
-                {
-                    self.hide();
+                self.desktop.replace(s);
+                if let Some(reason) = reason {
+                    self.hide(reason);
                 }
             }
             Event::TrackerError(e) => {
                 self.game_active.store(false, Ordering::Release);
                 self.state.borrow_mut().game_active = false;
-                self.hide();
+                self.hide(HideReason::TrackerFailure);
                 self.state.borrow_mut().fail();
                 eprintln!("tracker error={e}");
             }
@@ -591,7 +680,7 @@ impl Ui {
                     }
                 }
             }
-            Event::FiltersChanged(generation) => self.filters_changed(generation),
+            Event::FiltersChanged(generation, origin) => self.filters_changed(generation, &origin),
             Event::MapSettings(edit) => {
                 let mut settings = self.settings.borrow().clone();
                 let old = settings.map_check.clone();
@@ -943,6 +1032,7 @@ pub fn run() -> Result<(), String> {
     let item_filters = item_filters_panel::Panel::new(move || {
         let _ = item_sender.send(Event::FiltersChanged(
             edit_generation.load(Ordering::Acquire),
+            "item".into(),
         ));
     });
     item_filters.container.set_no_show_all(true);
@@ -1053,6 +1143,8 @@ pub fn run() -> Result<(), String> {
     }
     let ui = Rc::new(Ui {
         window: window.clone(),
+        started: Instant::now(),
+        desktop: RefCell::new(Snapshot::default()),
         title,
         text,
         hint,
@@ -1094,7 +1186,7 @@ pub fn run() -> Result<(), String> {
             if let Some(item) = ui.item.borrow().as_ref() {
                 ui.reset_item_filters(item);
                 let generation = ui.state.borrow().generation;
-                ui.filters_changed(generation);
+                ui.filters_changed(generation, "league");
             }
         });
     }
@@ -1104,7 +1196,7 @@ pub fn run() -> Result<(), String> {
         online.connect_toggled(move |c| {
             ui.item_filters.set_offline(!c.is_active());
             let generation = ui.state.borrow().generation;
-            ui.filters_changed(generation);
+            ui.filters_changed(generation, "online");
         });
     }
     {
@@ -1114,7 +1206,7 @@ pub fn run() -> Result<(), String> {
     }
     {
         let ui = ui.clone();
-        close.connect_clicked(move |_| ui.hide());
+        close.connect_clicked(move |_| ui.hide(HideReason::Button));
     }
     {
         let ui = ui.clone();
@@ -1124,7 +1216,7 @@ pub fn run() -> Result<(), String> {
         let ui = ui.clone();
         browser.connect_clicked(move |_| {
             if let Some(url) = ui.url.borrow().clone() {
-                ui.hide();
+                ui.hide(HideReason::ExternalLink);
                 if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
                     eprintln!("open Trade: {e}");
                 }
@@ -1136,7 +1228,7 @@ pub fn run() -> Result<(), String> {
         let open = ui.economy_panel.open.clone();
         open.connect_clicked(move |_| {
             if let Some(url) = ui.economy_panel.url() {
-                ui.hide();
+                ui.hide(HideReason::ExternalLink);
                 if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
                     eprintln!("open economy: {e}");
                 }
@@ -1157,7 +1249,9 @@ pub fn run() -> Result<(), String> {
     {
         let panel = ui.inspection.clone();
         let ui = ui.clone();
-        panel.close.connect_clicked(move |_| ui.hide());
+        panel
+            .close
+            .connect_clicked(move |_| ui.hide(HideReason::Button));
     }
     for (button, kind) in [
         (ui.inspection.wiki.clone(), 0),
@@ -1176,7 +1270,7 @@ pub fn run() -> Result<(), String> {
                     _ => r.links.craft_of_exile.clone(),
                 });
             if let Some(url) = url {
-                ui.hide();
+                ui.hide(HideReason::ExternalLink);
                 if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
                     eprintln!("inspection open link: {error}");
                 }
@@ -1208,7 +1302,7 @@ pub fn run() -> Result<(), String> {
         let ui = ui.clone();
         window.connect_key_press_event(move |_, e| {
             if e.keyval() == gdk::keys::constants::Escape {
-                ui.hide();
+                ui.hide(HideReason::Escape);
                 glib::Propagation::Stop
             } else {
                 glib::Propagation::Proceed
@@ -1217,17 +1311,51 @@ pub fn run() -> Result<(), String> {
     }
     {
         let ui = ui.clone();
-        window.connect_focus_out_event(move |_, _| {
-            if ui.state.borrow().state == State::Interactive {
-                ui.hide();
-            }
+        window.connect_focus_in_event(move |_, event| {
+            eprintln!(
+                "overlay event=focus-in in={} elapsed_ms={} state={:?} generation={} gtk_active={}",
+                event.is_in(),
+                ui.started.elapsed().as_millis(),
+                ui.state.borrow().state,
+                ui.state.borrow().generation,
+                ui.window.is_active()
+            );
+            ui.state.borrow_mut().focus_restored();
             glib::Propagation::Proceed
         });
     }
     {
         let ui = ui.clone();
+        window.connect_focus_out_event(move |_, event| {
+            eprintln!("overlay event=focus-out in={} elapsed_ms={} state={:?} generation={} gtk_active={}",event.is_in(),ui.started.elapsed().as_millis(),ui.state.borrow().state,ui.state.borrow().generation,ui.window.is_active());
+            ui.defer_focus_check();
+            glib::Propagation::Proceed
+        });
+    }
+    {
+        let weak = Rc::downgrade(&ui);
+        window.connect_is_active_notify(move |w| {
+            if let Some(ui) = weak.upgrade() {
+                if w.is_active() {
+                    ui.state.borrow_mut().focus_restored();
+                } else {
+                    ui.defer_focus_check();
+                }
+            }
+        });
+    }
+    {
+        let weak = Rc::downgrade(&ui);
+        window.connect_grab_notify(move |_, _| {
+            if let Some(ui) = weak.upgrade() {
+                ui.defer_focus_check();
+            }
+        });
+    }
+    {
+        let ui = ui.clone();
         window.connect_delete_event(move |_, _| {
-            ui.hide();
+            ui.hide(HideReason::WindowClosed);
             glib::Propagation::Stop
         });
     }
@@ -1273,7 +1401,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

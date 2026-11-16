@@ -630,3 +630,66 @@ Kio (76,74 Mio), stable sur ce parcours. Après masquage : 1 tick CPU sur 3 s à
 CLK_TCK=100. Cette fenêtre courte ne mesure pas une charge durable et ne prouve
 pas l’absence de toute fuite. Aucun rendu périodique n’est demandé. Les préférences
 initiales sont conservées ; PoE et River restent ouverts, panneau masqué.
+
+
+## Jalon 0.9 : transitions du bureau et menus
+
+85 tests Rust réussis et Clippy toutes cibles sans avertissement. Sept tests
+ajoutés couvrent les commits `done` indépendants, la réduction distincte de
+l’absence, l’arrêt du moniteur, le retour au jeu sans réouverture, les menus et
+les contrôles différés invalidés sans dépendre des générations de recherche.
+
+Le banc `scripts/test-overlay-lifecycle.py` lance un River/XWayland privé à
+2560×1600, faux jeu et autre application, avec données synthétiques/locales et
+proxy bloquant les services externes. Rapport :
+[overlay-lifecycle-0.9.json](overlay-lifecycle-0.9.json). Résultats : 30 vrais clics
+virtuels modifient la sélection et la génération sans HTTP ni masquage ; preset
+natif sélectionné à la souris ; fermeture explicite d’un menu ouvert sans grab
+résiduel ; changement d’application masqué ; retour sans réouverture ; unmap/map
+en modes passif et interactif ; destruction puis nouvel XID redécouvert.
+La fermeture du faux jeu ne ferme jamais le PoE réel. Un clavier virtuel reste
+présent pendant le test, comme le clavier du bureau réel ; aucune touche n’est
+émise sur ce parcours. Sans clavier, GTK ne reçoit pas les mêmes événements de
+focus, ce qui avait faussé une première vérification après sélection du menu.
+
+Un scénario distinct avec wtype a reproduit le masquage immédiat de l’ancien
+code lors d’un transfert vers le menu. Le contrôle différé conserve ce menu
+reconnu et ne demande aucune activation. La sélection End/Return de ce scénario
+n’a toutefois pas abouti de façon fiable : la validation clavier des menus reste
+ouverte. Cette observation n’explique pas le clic isolé décrit au jalon 0.8.
+
+Sur le bureau réel avant le dernier ajustement des menus : vraie wand copiée
+avant affichage (75 ms), 560 résultats/10 offres Trade, 732 ms réseau ; premier
+rendu 28 ms. Deux clics sur la case du mod invalident les prix sans HTTP et
+gardent le panneau interactif. Échap ferme et révoque le clavier ; son événement
+de perte de focus tardif ne remplace pas la cause Escape. L’utilisateur confirme
+que le panneau disparaît lors d’un passage volontaire vers une autre application.
+
+La demande foreign-toplevel de réduction de PoE est ignorée par ce River :
+pendant les 2 s observées, le jeu reste actif et non réduit. La restauration a
+également été demandée ; aucune réduction/restauration réelle n’est donc déclarée
+réussie. Le drapeau réduit est testé dans la logique, pas graphiquement sur PoE.
+Autres compositeurs, Windows, plusieurs sorties et autres facteurs restent non
+validés. Aucun gain de performance n’est revendiqué pour ce jalon.
+
+
+Paquet 0.9.0-1 : build et 85 tests hors ligne réussis ; 475 fichiers de l’archive
+source comparés au dépôt ; 350 fichiers du paquet root/root ; notices des 188
+crates et de la bibliothèque standard contrôlées par hash. Binaire extrait sans
+installation système : cinq cycles passifs sur PoE puis vraie copie Ctrl+D de la
+wand, 558 résultats/10 offres, 652 ms réseau, 74 ms copie/parsing, 3 ms préparation
+et 10 ms premier rendu. Le jeu garde le focus en mode passif. Un clic sur le mod
+invalide les prix et garde le panneau interactif ; Échap ferme avec la bonne cause.
+
+Sur ce même binaire au-dessus du jeu, une bague synthétique permet d’ouvrir le
+menu de presets, choisir Base d’artisanat à la souris et rester interactif avec
+le focus du panneau. Le menu rouvert puis masqué explicitement disparaît : pas
+de grab résiduel, KeyboardNone et jeu actif. Une réponse réseau devenue obsolète
+est rejetée. Aucune création d’objet dans le jeu n’est impliquée.
+
+Dernière copie réelle Ctrl+Alt+D de la wand : presse-papiers comparé à la fixture
+normalisée, DPS physique local 11 et aucun HTTP. Après masquage, RSS 75 412 Kio
+(73,64 Mio), zéro tick CPU sur 3 s à CLK_TCK=100. Cette mesure ponctuelle ne
+constitue ni un benchmark comparatif ni une preuve d’absence de fuite. Les
+préférences sont identiques à leur sauvegarde initiale. PoE et River restent
+ouverts ; le service 0.9 est masqué.

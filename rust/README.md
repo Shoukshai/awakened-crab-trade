@@ -158,7 +158,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.8.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.9.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -187,6 +187,7 @@ cargo build --locked --example equipment-presets
 node scripts/export-mod-mechanics.cjs --check
 node scripts/compare-equipment-presets.cjs
 sh scripts/test-shortcut-replay.sh
+python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```
 
@@ -195,7 +196,9 @@ Node et les dépendances upstream (`npm ci` dans `../renderer`, voir DEVELOPING.
 Elle n'est pas requise pour construire ou utiliser l'application Rust.
 Le test de raccourcis exige River et xdotool, démarre son propre serveur sans écran
 et ne transmet ses touches qu'à sa fenêtre de test. Il vérifie aussi la libération
-des grabs partiels après conflit. Le test `smoke-overlay.py` nécessite le service
+des grabs partiels après conflit. Le test de cycle de vie exige aussi wl-copy,
+wlr-randr et wtype ; il utilise un bureau River privé, un faux jeu et un proxy
+bloquant les services externes. Il ne touche pas au PoE réel. Le test `smoke-overlay.py` nécessite le service
 lancé et PoE actif ; il ouvre et ferme cinq
 panneaux passifs, sans envoyer de commande de jeu. Les exemples de contrôle du
 pointeur et des fenêtres sont des outils de validation manuelle.

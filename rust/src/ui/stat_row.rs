@@ -136,8 +136,25 @@ impl StatRow {
         filter.max = (self.numeric && self.max_enabled.is_active()).then(|| self.max.value());
         Some(filter)
     }
+    pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
+        let rect = |w: &gtk::Widget| {
+            w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
+        };
+        serde_json::json!({"id":self.template.id,"selected":self.selected.is_active(),"select":rect(self.selected.upcast_ref()),"min":rect(self.min.upcast_ref()),"max":rect(self.max.upcast_ref())})
+    }
     pub fn connect_changed(&self, send: impl Fn() + 'static) {
         use std::{cell::RefCell, rc::Rc};
+        let id = self.template.id.clone();
+        self.selected.connect_button_press_event(move |_, e| {
+            eprintln!(
+                "stat pointer-press id={id:?} root={:?} button={} time={} kind={:?}",
+                e.root(),
+                e.button(),
+                e.time(),
+                e.event_type()
+            );
+            glib::Propagation::Proceed
+        });
         let selected = self.selected.downgrade();
         let min_enabled = self.min_enabled.downgrade();
         let max_enabled = self.max_enabled.downgrade();
