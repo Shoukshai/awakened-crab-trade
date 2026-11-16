@@ -1,0 +1,17 @@
+Item Class: Mercenary Warrants
+Rarity: Normal
+Mercenary Warrant
+--------
+Mercenary Level: 83
+Build: Bastion
+--------
+Shield Crush
+Lesser Increased Area of Effect (Tier: 1)
+Faster Attacks (Tier: 2)
+Greater Brutality (Tier: 3)
+Lesser Pulverise (Tier: 1)
+Greater Fortify (Tier: 3)
+--------
+Tempest Shield
+--------
+Dash

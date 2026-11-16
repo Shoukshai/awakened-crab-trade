@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real overlay on a private River/XWayland desktop. Never touches the real game."""
-import hashlib,json,os,pathlib,select,shutil,subprocess,sys,tempfile,time
+import hashlib,json,os,pathlib,select,shutil,subprocess,sys,tempfile,time,urllib.parse
 root=pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
 for name in ['river','riverctl','wlr-randr','xdotool','wl-copy','wtype']:
@@ -48,7 +48,7 @@ def fixture_command(name):
     return json.loads(fixture.stdout.readline())
 def show_price():
     focus_game();command('check');s=wait_for(lambda:state(state='Passive',rendered=True,visible=True),'price visible')
-    assert s['game_active'] and s['keyboard_mode']=='None' and s['stat_controls'],s
+    assert s['game_active'] and s['keyboard_mode']=='None' and (s['stat_controls'] or s.get('mercenary_controls')),s
     return s
 try:
     river=start(['river','-c',str(init)],'river')
@@ -148,6 +148,60 @@ try:
     assert [f['id'] for f in s['stat_controls']]==['pseudo.pseudo_logbook_faction_druids'],s
     report['logbook_zone_change']={'from':'I','to':'II','clears_prices':True,'faction_and_boss_isolated':True}
     command('hide');focus_game()
+    subprocess.run(['wl-copy','--type','text/plain;charset=utf-8'],input=(root/'src/fixtures/synthetic-mercenary.txt').read_text(),env=env,text=True,check=True,stderr=subprocess.DEVNULL)
+    s=show_price();assert s['mercenary_controls'],s
+    command('interact');wait_for(lambda:state(state='Interactive'),'mercenary interactive')
+    s=status();r=s['mod_expander'];o=s['origin']
+    if not r['expanded']:
+        pointer(o['x']+r['x']+10,o['y']+r['y']+10,True)
+    wait_for(lambda:status()['mod_expander']['expanded'],'mercenary filters expanded')
+    def control(child):return next(c for c in status()['mercenary_controls'] if c['node']==0 and c['child']==child)
+    def mapped_support_expander():
+        r=control(None)['expander']['rect']
+        return r if r and r['mapped'] and r['width']>20 and r['height']>10 else None
+    r=wait_for(mapped_support_expander,'support expander mapped');o=status()['origin']
+    pointer(o['x']+r['x']+10,o['y']+r['y']+10,True)
+    wait_for(lambda:control(None)['expander']['expanded'],'support expander opened')
+    def merc_click(child,key='select',value_key=None):
+        for _ in range(24):
+            s=status();c=next(c for c in s['mercenary_controls'] if c['node']==0 and c['child']==child)
+            r=c[key] if key=='select' else c[key]['rect'];assert r and r['mapped'] and r['width']>10 and r['height']>10,c
+            v=s['mod_scroll'];o=s['origin'];y=r['y']+r['height']/2
+            if v['y']+12<y<v['y']+v['height']-12:
+                pointer(o['x']+r['x']+(10 if key=='select' else r['width']/2),o['y']+y,True);time.sleep(.05);return
+            delta=10 if y>v['y']+v['height']/2 else -10
+            subprocess.run([str(target/'debug/examples/pointer'),str(o['x']+v['x']+v['width']//2),str(o['y']+v['y']+v['height']//2),'2560','1600','--scroll',str(delta)],env=env,check=True)
+            time.sleep(.05)
+            assert status()['generation']==s['generation'],'scroll edited a support instead of the list'
+            report['mercenary_scroll_events']=report.get('mercenary_scroll_events',0)+1
+        raise RuntimeError('Mercenary control cannot be scrolled into view: '+json.dumps({'control':c,'viewport':v}))
+    merc_click(None);assert control(None)['selected']
+    merc_click(0);assert control(0)['selected']
+    merc_click(0,'minimum')
+    s=status();r=control(0)['minimum']['rect'];o=s['origin'];before_min=control(0)['minimum']['value']
+    assert before_min<5
+    pointer(o['x']+r['x']+r['width']-10,o['y']+r['y']+r['height']/2,True)
+    wait_for(lambda:control(0)['minimum']['value']==before_min+1,'minimum tier count incremented')
+    for child in [1,2]:
+        merc_click(child);assert control(child)['selected']
+        merc_click(child,'option');wait_for(lambda:status()['owned_popup'],'support mode popup')
+        s=status();r=control(child)['option']['rect'];o=s['origin']
+        pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']*1.5,True)
+        wait_for(lambda:control(child)['option']['value']=='0','optional support selected')
+        time.sleep(.1);assert status()['state']=='Interactive'
+    assert status()['request'] is None and status()['query'] is None
+    command('prices');s=wait_for(lambda:status() if status()['request'] is not None else None,'mercenary request')
+    assert any(g['type']=='mercenary' for g in s['request']['query']['stats']),s['request']
+    link=urllib.parse.urlparse(s['trade_link']);assert link.hostname=='www.pathofexile.com'
+    assert json.loads(urllib.parse.parse_qs(link.query)['q'][0])==s['request']
+    merc_click(None);assert not control(None)['selected']
+    assert status()['request'] is None and status()['query'] is None and status()['trade_link'] is None
+    command('prices');s=wait_for(lambda:status() if status()['request'] is not None else None,'disabled group request')
+    assert all(g['type']!='mercenary' for g in s['request']['query']['stats']),s['request']
+    assert s['state']=='Interactive' and s['keyboard_mode']=='OnDemand'
+    assert report.get('mercenary_scroll_events',0)>0,'scroll coverage is required'
+    report['mercenary_editor']={'six_links':True,'minimum_edited':True,'optional_supports':2,'group_disable_suspends_children':True,'edits_clear_prices':True,'pointer_scroll':True,'browser_fallback_keeps_query':True}
+    command('hide');focus_game()
     show_price();fixture_command('destroy');s=wait_for(lambda:state(state='Hidden',game_active=False),'game destroyed');assert s['last_hide_reason']=='GameGone',s
     new=fixture_command('create');assert new['game']!=first['game'];focus_game();assert status()['state']=='Hidden'
     show_price();command('hide');assert status()['keyboard_mode']=='None'
@@ -155,7 +209,7 @@ try:
     report['network']='external services blocked by private proxy environment'
     report['scope']='private headless River/XWayland at 2560x1600; fake game only; no real PoE input'
     report['binary_version']=subprocess.check_output([str(app),'--version'],env=env,text=True).strip()
-    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs']}
+    report['source_sha256']={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ['scripts/test-overlay-lifecycle.py','examples/overlay-fixture.rs','src/desktop/wayland.rs','src/overlay.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/mercenary_panel.rs','src/item/mercenary.rs','src/item/mercenary/query.rs']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 finally:

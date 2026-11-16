@@ -747,3 +747,58 @@ collés dans le presse-papiers (aucun objet spécial créé ou copié dans le je
 Ces contrôles ne valident pas les copies réelles de ces objets spéciaux. La
 réduction réelle, le clavier des menus, Windows et les autres configurations
 restent dans les limites déjà décrites. Aucun gain de performance n’est revendiqué.
+
+
+## Jalon 0.11 : compétences et supports des mercenaires
+
+98 tests Rust et Clippy toutes cibles réussis. Les tests ajoutés vérifient les
+prérequis de copie, la compétence principale conservée, la fusion des deux IDs de
+Gilded Extra Targets et le signalement d’un tier synthétique inconnu. Un test de
+prédicats vérifie qu’un groupe N−1 accepte un support optionnel absent mais ne
+remplace jamais la compétence ni le support requis ; une exclusion locale force
+les six liens sans devenir une exclusion globale. Le lien navigateur conserve le
+JSON entier, encode la ligue comme un segment unique et rejette le mode bulk.
+
+[mercenary-0.11.json](mercenary-0.11.json) : 16 900 cas, zéro écart. Le catalogue
+compte 64 noms de builds (35 définitions et 29 alias), dont les compétences et
+supports atteignables sont parcourus. Le comparateur exécute le parseur anglais,
+les presets et le générateur Trade TypeScript inchangés. Il compare build/niveau,
+compétences/supports/lignes inconnues, modèle initial puis édité de chaque groupe,
+IDs, textes, tags, icônes, familles, tiers/options/borne minimale, sélections,
+masquages, modèle complet des filtres d’objet et corps Trade effectif. Les cas
+couvrent supports seuls, cinq supports, requis, N−1/mixte, un seul optionnel,
+exclusions locales, tous requis, minima absents/hors bornes/fractionnaires et
+fixtures multi-compétences aux niveaux 1/83/100. Les textes sont synthétiques.
+
+Tous les corpus précédents sont rejoués sans écart : 55 961 traductions/effets,
+1 651 calculs/bornes, 3 144 inspections et 1 875 décisions, 221 presets de zones /
+flacons / Heist, 2 312 modèles de filtres d’objet, 1 145 presets d’équipement et
+2 599 presets spéciaux. Le parseur entier, les autres langues et l’éditeur global
+ne sont pas déclarés équivalents.
+
+[overlay-lifecycle-0.11.json](overlay-lifecycle-0.11.json) reprend le cycle de vie
+précédent sur River privé et ajoute l’éditeur de mercenaire : activation d’un
+groupe et des six liens, incrément réel du minimum par SpinButton, deux menus
+N−1, trois événements de molette sans édition des critères, requête générée puis
+groupe décoché sans groupe Mercenary résiduel, panneau toujours interactif. Le
+lien navigateur est décodé et comparé à la requête entière après l’erreur réseau
+simulée. Une édition l’efface avec les résultats. Les services externes sont
+bloqués par le banc ; aucune entrée n’est transmise au vrai PoE.
+
+Sur le PoE resté ouvert, release natif avec la fixture synthétique Bastion :
+recherche simple Shield Crush, 202 résultats/10 offres, 665 ms réseau. Le panneau
+passif laisse le jeu actif. Les cases, deux menus de supports et le défilement
+fonctionnent dans le panneau interactif. Une recherche six liens + deux N−1 reçoit
+HTTP 400, « Query is too complex » ; le serveur propose de réduire les filtres ou
+de se connecter pour augmenter la limite. Aucune connexion n’est effectuée et
+aucun retry n’est envoyé. Décocher le groupe retire ses critères enfants : la
+requête simple revient depuis le cache, 202 résultats, zéro ms réseau. Une capture
+de l’éditeur et de ses contrôles visibles a été inspectée.
+
+Le lien navigateur pour les recherches refusées est maintenant généré sans
+supprimer de critère ; son ouverture réelle dans un navigateur et le comportement
+authentifié du site restent à vérifier. La fixture n’est pas une copie réelle de
+Warrant du personnage. La limitation anonyme ne prouve pas un défaut des poids,
+qui sont comparés au générateur upstream, ni le succès de toutes les recherches
+complexes. Windows, autres compositeurs/sorties et réduction réelle restent non
+validés. Aucun gain de performance n’est revendiqué.

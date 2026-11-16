@@ -43,6 +43,21 @@ pub struct Prices {
     pub network_ms: u128,
     pub cached: bool,
 }
+/// A browser can retain the exact ordinary Trade query even if the anonymous
+/// API rejects its complexity. Opening it always remains an explicit UI action.
+pub fn query_link(league: &str, query: &Value) -> Result<String, String> {
+    if league.is_empty() || league.len() > 100 || query["engine"] == "new" {
+        return Err("Ordinary Trade query and valid league required".into());
+    }
+    let mut url = reqwest::Url::parse("https://www.pathofexile.com/trade/search/")
+        .map_err(|e| e.to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "Invalid Trade URL")?
+        .pop_if_empty()
+        .push(league);
+    url.query_pairs_mut().append_pair("q", &query.to_string());
+    Ok(url.into())
+}
 pub struct Trade {
     client: Client,
     base: String,
@@ -532,6 +547,21 @@ mod tests {
             s.write_all(response.as_bytes()).unwrap();
         });
         (url, h)
+    }
+    #[test]
+    fn browser_link_keeps_the_full_query_and_encodes_league_as_one_segment() {
+        let query = serde_json::json!({"query":{"type":"Mercenary Warrant","stats":[{"type":"mercenary","value":{"min":4},"filters":[{"id":"mercenary.skill_21201"}]}]},"sort":{"price":"asc"}});
+        let link = query_link("Hardcore Covens/a?b#c", &query).unwrap();
+        let url = reqwest::Url::parse(&link).unwrap();
+        assert_eq!(url.host_str(), Some("www.pathofexile.com"));
+        assert!(url.path().ends_with("Hardcore%20Covens%2Fa%3Fb%23c"));
+        assert!(url.fragment().is_none());
+        let pairs: Vec<_> = url.query_pairs().collect();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0, "q");
+        assert_eq!(serde_json::from_str::<Value>(&pairs[0].1).unwrap(), query);
+        assert!(query_link("", &query).is_err());
+        assert!(query_link("Covens", &serde_json::json!({"engine":"new"})).is_err());
     }
     #[test]
     fn search_accepts_current_base64url_query_ids() {

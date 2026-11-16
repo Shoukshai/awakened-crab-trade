@@ -158,7 +158,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.10.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.11.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -188,6 +188,8 @@ node scripts/export-mod-mechanics.cjs --check
 node scripts/compare-equipment-presets.cjs
 node scripts/export-special-rules.cjs --check
 node scripts/compare-special-presets.cjs
+cargo build --locked --example mercenary
+node scripts/compare-mercenary.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
@@ -218,6 +220,13 @@ compte des explosifs accessibles. Le Tablet utilise la difficulté maximale des
 reflets répétés ; son parcours réseau reste limité : les filtres lake ont été
 rejetés par le serveur Covens malgré leur présence dans son catalogue public.
 Le panneau affiche l’erreur serveur et ne retire pas ces critères automatiquement.
+
+Les Mercenary Warrants disposent d’un éditeur de compétences, supports requis ou
+N−1, six liens et exclusions. Décocher un groupe suspend ses critères enfants en
+conservant leurs choix pour sa réactivation. Les compétences principales restent
+recherchées. Une requête très complexe peut dépasser la limite du Trade anonyme :
+réduire ses critères, ou utiliser **Ouvrir Trade** pour conserver la requête exacte
+dans le navigateur. Aucun compte n’est connecté par l’application native.
 
 Ce n'est pas encore un remplacement complet d'Awakened PoE Trade. Inventaire et
 travail restant : [PORTING.md](docs/PORTING.md). Preuves, observations et tests

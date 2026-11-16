@@ -22,6 +22,8 @@ pub struct Filters {
     pub collapse_listings: bool,
     #[serde(skip)]
     pub item: Option<crate::item_filters::Plan>,
+    #[serde(skip)]
+    pub mercenary: Option<crate::item::mercenary::Preset>,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -66,6 +68,7 @@ impl Default for Filters {
             merchant_only: true,
             collapse_listings: true,
             item: None,
+            mercenary: None,
         }
     }
 }
@@ -208,6 +211,20 @@ pub fn query(item: &Item, filters: &Filters) -> Result<Value, String> {
             value["min"] = json!(1);
         }
         q["filters"][group]["filters"][property] = value;
+    }
+    if item.reference == "Mercenary Warrant" {
+        let parsed = item
+            .mercenary
+            .as_ref()
+            .ok_or("Description du mercenaire incomplète : build et compétences requis.")?;
+        let default_preset;
+        let preset = if let Some(p) = &filters.mercenary {
+            p
+        } else {
+            default_preset = parsed.preset()?;
+            &default_preset
+        };
+        preset.append_query(&mut q);
     }
     Ok(json!({"query":q,"sort":{"price":"asc"}}))
 }

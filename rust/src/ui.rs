@@ -13,6 +13,7 @@ use crate::{
 mod economy_panel;
 mod inspection_panel;
 mod item_filters_panel;
+mod mercenary_panel;
 mod stat_row;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -81,6 +82,7 @@ struct Ui {
     inspection_result: RefCell<Option<crate::inspection::Report>>,
     view: Cell<View>,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
+    mercenary_panel: RefCell<Option<mercenary_panel::Panel>>,
     preset: gtk::ComboBoxText,
     item_filters: Rc<item_filters_panel::Panel>,
     events: glib::Sender<Event>,
@@ -335,6 +337,36 @@ impl Ui {
             self.mod_box.remove(&child);
         }
         self.stat_rows.borrow_mut().clear();
+        self.mercenary_panel.replace(None);
+        if let Some(parsed) = &item.mercenary {
+            match parsed.preset() {
+                Ok(preset) => {
+                    let sender = self.events.clone();
+                    let current = self.current.clone();
+                    let panel = mercenary_panel::Panel::new(preset, move || {
+                        let _ = sender.send(Event::FiltersChanged(
+                            current.load(Ordering::Acquire),
+                            "mercenary".into(),
+                        ));
+                    });
+                    self.mod_expander.set_label(Some(&format!(
+                        "Mercenaire · {} choix cochés",
+                        panel.active_count()
+                    )));
+                    self.mod_box.pack_start(&panel.container, false, false, 0);
+                    self.mercenary_panel.replace(Some(panel));
+                }
+                Err(error) => {
+                    self.mod_box
+                        .pack_start(&gtk::Label::new(Some(&error)), false, false, 0)
+                }
+            }
+            self.mod_scroll.vadjustment().set_value(0.);
+            self.mod_scroll.set_min_content_height(300);
+            self.mod_box.show_all();
+            self.preset.show();
+            return;
+        }
         let mode = crate::presets::available(item)
             .into_iter()
             .find(|m| Some(m.id()) == self.preset.active_id().as_deref());
@@ -445,6 +477,12 @@ impl Ui {
                 .count()
                 + self.settings.borrow().filters.stats.len()
         )));
+        if let Some(panel) = self.mercenary_panel.borrow().as_ref() {
+            self.mod_expander.set_label(Some(&format!(
+                "Mercenaire · {} choix cochés",
+                panel.active_count()
+            )));
+        }
         self.text
             .set_text("Filtres modifiés. Vérifiez la portée puis cliquez Rechercher.");
         eprintln!(
@@ -527,6 +565,17 @@ impl Ui {
         );
         self.mod_expander
             .set_label(Some(&format!("Filtres · {} actifs", selected.stats.len())));
+        selected.mercenary = self
+            .mercenary_panel
+            .borrow()
+            .as_ref()
+            .map(mercenary_panel::Panel::read);
+        if let Some(panel) = self.mercenary_panel.borrow().as_ref() {
+            self.mod_expander.set_label(Some(&format!(
+                "Mercenaire · {} choix cochés",
+                panel.active_count()
+            )));
+        }
         let query = match filters::search_query(&item, &selected) {
             Ok(query) => query,
             Err(e) => {
@@ -534,6 +583,8 @@ impl Ui {
                 return;
             }
         };
+        self.url
+            .replace(crate::trade::query_link(&settings.league, &query).ok());
         self.request.replace(Some((generation, query.clone())));
         self.economy_panel.reset();
         if self
@@ -736,7 +787,11 @@ impl Ui {
                         );
                     }
                     Err(e) => {
-                        self.text.set_text(&e);
+                        if e.contains("Query is too complex") {
+                            self.text.set_text(&format!("{e}\n\nRéduisez les critères, ou utilisez Ouvrir Trade pour reprendre cette requête dans votre navigateur."));
+                        } else {
+                            self.text.set_text(&e);
+                        }
                         eprintln!("trade error generation={generation} error={e}");
                     }
                 }
@@ -833,7 +888,7 @@ pub fn run() -> Result<(), String> {
             );
             println!(
                 "{}",
-                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"item_filters":filters.item,"presets":modes.iter().map(|m|crate::presets::create(&item,range,*m)).collect::<Vec<_>>(),"suggested_query":filters::search_query(&item,&suggested)})
+                serde_json::json!({"mercenary_preset":item.mercenary.as_ref().map(|m|m.preset()),"item":item,"query":query,"candidate_filters":candidate_filters,"item_filters":filters.item,"presets":modes.iter().map(|m|crate::presets::create(&item,range,*m)).collect::<Vec<_>>(),"suggested_query":filters::search_query(&item,&suggested)})
             );
             return Ok(());
         }
@@ -1163,6 +1218,7 @@ pub fn run() -> Result<(), String> {
         inspection_result: RefCell::new(None),
         view: Cell::new(View::Price),
         stat_rows: RefCell::new(Vec::new()),
+        mercenary_panel: RefCell::new(None),
         preset,
         item_filters,
         events: sender.clone(),
@@ -1401,7 +1457,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

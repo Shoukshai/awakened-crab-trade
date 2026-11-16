@@ -172,6 +172,12 @@ fn is_blighted(item: &Item) -> bool {
     )
 }
 pub fn create(item: &Item, range: f64, mode: Mode) -> Preset {
+    if item.reference == "Mercenary Warrant" {
+        return Preset {
+            mode,
+            filters: vec![],
+        };
+    }
     if let Mode::Logbook(index) = mode {
         let mut area_item = item.clone();
         area_item.modifiers = item

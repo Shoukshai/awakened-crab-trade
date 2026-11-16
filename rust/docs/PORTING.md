@@ -17,7 +17,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; vérification du focus réel | Ctrl+D copie et prix ; Maj+Espace interaction ; replay et conflit sur serveur isolé | backend River/portail pour Wayland natif, configuration UI |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
-| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; reste Mercenary Warrant ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
+| Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; Mercenary Warrant porté au jalon 0.11 ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
 | Prix poe.ninja, tendances, prix liés, valeur espérée (poussière locale portée dans l’évaluation) | oui | feed dense, cache 31 min, variantes simples, prix unitaire/pile, graphe Cairo, lien source | feed réel Covens et pile de 3 Wisdom ; tests variantes/cache/erreurs | uniques à variantes complexes, prix liés, valeur espérée (poussière locale portée dans l’évaluation) |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE de l’objet copié, fermeture avant ouverture explicite | génération/encodage et conditions CoE testés ; ouverture réelle navigateur non testée | recherche du catalogue, raccourcis dédiés, validation navigateur |
@@ -123,5 +123,32 @@ sont acceptées sur Covens ; le Tablet reçoit un rejet pour un ID lake, encore
 présent dans le catalogue public. Cette limite ne justifie aucune suppression
 silencieuse de critère. Le panneau expose maintenant le message JSON d’une
 réponse HTTP en erreur, lu sur au plus 16 Kio et limité à 300 caractères.
-Mercenary Warrant, les autres enrichissements du parser, la parité globale de
+Mercenary Warrant porté au jalon 0.11 ; les autres enrichissements du parser, la parité globale de
 l’éditeur, les widgets et les autres fonctions de l’inventaire restent à porter.
+
+
+## Jalon 0.11 : Mercenary Warrant
+
+`item/mercenary.rs` porte les sections du presse-papiers, les alias de build, les
+familles/canoniques/tiers des supports et les groupes de presets. Les données
+proviennent des mêmes catalogues embarqués, avec résolution des IDs fusionnés.
+`item/mercenary/query.rs` produit les groupes Trade spécifiques et leurs poids.
+Les critères de compétences principales, supports requis/N−1, six liens, minimum
+de meilleurs tiers et exclusions locales/globales sont comparés au TypeScript
+inchangé sur 16 900 cas. Les descriptions sans build/compétences sont refusées
+pour la recherche ; les supports de familles synthétiques non reconnus restent
+signalés dans les lignes inconnues.
+
+`ui/mercenary_panel.rs` expose ces choix avec des widgets GTK, séparés du métier.
+Les choix enfants sont conservés dans les widgets ; décocher le groupe les marque
+inactifs dans le modèle envoyé à la recherche, y compris N−1. Le moteur métier
+reste compatible avec les états upstream, dont les combinaisons parent décoché /
+supports optionnels cochés. La molette sur les menus/compteurs fait défiler la
+liste sans éditer les critères. Toute édition invalide les résultats sans HTTP.
+
+Les recherches complexes peuvent dépasser la limite anonyme du service. Le lien
+Trade ordinaire conserve le corps complet par paramètre `q` dès la recherche,
+puis utilise l’ID serveur si elle aboutit. Une erreur ne supprime pas les critères.
+La navigation reste un clic explicite, après révocation des entrées du panneau.
+Authentification native, images des compétences, copies réelles de Warrants et
+navigation réelle du navigateur restent non validées/non implémentées.

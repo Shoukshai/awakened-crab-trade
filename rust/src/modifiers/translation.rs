@@ -2,7 +2,7 @@
 //! follows upstream's duplicate/collision resolution, including advanced text.
 use super::Modifier;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::OnceLock};
 
 #[derive(Clone, Deserialize)]
@@ -43,7 +43,62 @@ struct Stat {
     mod_family: Vec<String>,
     #[serde(default)]
     anointments: Vec<Anointment>,
+    mercenary: Option<MercenaryMetadata>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MercenaryMetadata {
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub supports: Vec<String>,
+    pub tier: Option<u8>,
+    pub canonical: Option<String>,
+    #[serde(default, rename = "syntheticFamily")]
+    pub synthetic_family: bool,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct MercenaryGem {
+    pub reference: String,
+    pub text: String,
+    pub ids: Vec<String>,
+    pub family: Vec<String>,
+    pub meta: MercenaryMetadata,
+}
+pub fn mercenary_gem(reference: &str) -> Option<&'static MercenaryGem> {
+    static GEMS: OnceLock<HashMap<String, MercenaryGem>> = OnceLock::new();
+    GEMS.get_or_init(|| {
+        database()
+            .records
+            .iter()
+            .filter(|record| record.stats().iter().any(|s| s.mercenary.is_some()))
+            .filter_map(|record| {
+                // Reference lookup merges all IDs, without a clipboard matcher.
+                let s = match record {
+                    Record::Group { resolve, stats } if resolve.strat == "trivial-merge" => {
+                        let mut s = stats.first()?.clone();
+                        for other in stats.iter().skip(1) {
+                            merge(&mut s, other, "");
+                        }
+                        s
+                    }
+                    _ => resolve(record, "", "pseudo", Some("Mercenary Warrant"), None)?,
+                };
+                Some((
+                    s.reference.clone(),
+                    MercenaryGem {
+                        reference: s.reference.clone(),
+                        text: s.matchers.first()?.string.clone(),
+                        ids: s.trade.ids.get("pseudo")?.clone(),
+                        family: s.mod_family.clone(),
+                        meta: s.mercenary.clone()?,
+                    },
+                ))
+            })
+            .collect()
+    })
+    .get(reference)
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Anointment {
     pub oils: String,

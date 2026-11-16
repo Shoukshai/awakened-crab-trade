@@ -1,5 +1,7 @@
 //! First parser port: English item text and the upstream item catalogue.
 //! Unsupported modifiers remain in the raw text and never become guessed filters.
+#[path = "item/mercenary.rs"]
+pub mod mercenary;
 #[path = "item/special.rs"]
 mod special;
 use serde::{Deserialize, Serialize};
@@ -47,6 +49,8 @@ pub struct Item {
     pub area: AreaProperties,
     #[serde(default)]
     pub logbook_areas: Vec<Vec<crate::modifiers::Modifier>>,
+    #[serde(default)]
+    pub mercenary: Option<mercenary::Parsed>,
     pub market: MarketMetadata,
 }
 
@@ -171,6 +175,8 @@ struct CatalogueEntry {
     #[serde(default)]
     exchangeable: bool,
     gem: Option<GemMetadata>,
+    #[serde(rename = "mercenaryBuild")]
+    mercenary_build: Option<mercenary::BuildRecord>,
     unique: Option<Unique>,
     #[serde(default)]
     armour: crate::properties::ArmourBase,
@@ -359,7 +365,15 @@ impl Item {
             .unwrap_or_else(|| identity.clone());
         let parsed = special::parse(text, &reference, category);
         let mut modifiers = parsed.modifiers;
-        let unknown_modifiers = parsed.unknown;
+        let mut unknown_modifiers = parsed.unknown;
+        let mercenary = if reference == "Mercenary Warrant" {
+            mercenary::parse(text)?
+        } else {
+            None
+        };
+        if let Some(m) = &mercenary {
+            unknown_modifiers.extend(m.unknown.clone());
+        }
         if [Some("Amulet"), Some("Belt"), Some("Ring"), Some("Quiver")].contains(&category) {
             let quality: Vec<_> = lines
                 .iter()
@@ -498,7 +512,10 @@ impl Item {
             rarity,
             name,
             base,
-            item_level: prop("Item Level: "),
+            item_level: mercenary
+                .as_ref()
+                .and_then(|m| m.level)
+                .or_else(|| prop("Item Level: ")),
             gem_level: prop("Level: "),
             quality: lines.iter().find_map(|line| {
                 if [Some("Amulet"), Some("Belt"), Some("Ring"), Some("Quiver")].contains(&category)
@@ -541,6 +558,7 @@ impl Item {
             unique_dust_value: info.and_then(|v| v.unique.as_ref().and_then(|u| u.dust)),
             area,
             logbook_areas: parsed.logbook_areas,
+            mercenary,
             market,
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
