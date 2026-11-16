@@ -61,7 +61,11 @@ impl Key {
             }
             Some(variant)
         } else if item.rarity == Rarity::Unique {
-            if item.unidentified {
+            if item.unidentified
+                || item.market.foulborn
+                || item.market.vestigial
+                || item.market.foil
+            {
                 return None;
             }
             // These need additional variant rules; refuse an aggregate of a different item.
@@ -96,7 +100,7 @@ impl Key {
                 }
                 Some(v)
             }
-        } else if item.category.is_some() {
+        } else if item.market.craftable {
             if item.influences.len() > 1 {
                 return None;
             }
@@ -618,5 +622,25 @@ mod tests {
                 .unwrap_err(),
             "Cancelled"
         );
+    }
+}
+
+#[cfg(test)]
+mod variant_metadata_tests {
+    use super::*;
+    #[test]
+    fn recognised_special_unique_variants_never_reuse_an_ordinary_quote() {
+        for text in [
+            "Foulborn Lifesprig\nDriftwood Wand",
+            "Lifesprig\nVestigial Driftwood Wand",
+            "Lifesprig\nDriftwood Wand\n--------\nFoil Unique",
+        ] {
+            let item = Item::parse(&format!(
+                "Item Class: Wands\nRarity: Unique\n{text}\n--------\nItem Level: 83"
+            ))
+            .unwrap();
+            assert!(item.market.known);
+            assert!(Key::for_item(&item).is_none());
+        }
     }
 }

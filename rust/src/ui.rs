@@ -12,6 +12,7 @@ use crate::{
 };
 mod economy_panel;
 mod inspection_panel;
+mod item_filters_panel;
 mod stat_row;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -41,6 +42,7 @@ enum Event {
     Prices(u64, Result<Prices, String>),
     Economy(u64, Result<Option<Quote>, String>),
     MapSettings(crate::inspection::Edit),
+    ItemFiltersChanged(u64),
 }
 struct EconomyJob {
     generation: u64,
@@ -63,11 +65,9 @@ struct Ui {
     text: gtk::Label,
     hint: gtk::Label,
     league: gtk::Entry,
-    ilvl: gtk::SpinButton,
     online: gtk::CheckButton,
     search_range: gtk::SpinButton,
     currency: gtk::ComboBoxText,
-    stock: gtk::SpinButton,
     economy_panel: economy_panel::EconomyPanel,
     economy_worker: SyncSender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
@@ -80,7 +80,7 @@ struct Ui {
     view: Cell<View>,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
     preset: gtk::ComboBoxText,
-    preset_scope: gtk::Label,
+    item_filters: Rc<item_filters_panel::Panel>,
     updating_preset: Cell<bool>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
@@ -173,7 +173,7 @@ impl Ui {
                 self.inspection_result.replace(None);
                 self.item.replace(None);
                 self.preset.hide();
-                self.preset_scope.hide();
+                self.item_filters.container.hide();
                 self.url.replace(None);
                 self.economy_panel.reset();
                 self.economy_panel.show(&Ok(None), None);
@@ -260,35 +260,6 @@ impl Ui {
         } else {
             crate::calculated::candidates(item, self.search_range.value())
         };
-        let scope = match item.category.as_deref() {
-            Some("Heist Contract") if item.rarity != crate::item::Rarity::Unique => format!(
-                "Contrats de tout type · niveau de zone ≥ {}",
-                item.area
-                    .level
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| "—".into())
-            ),
-            Some("Chart") => format!("Zone : {}", item.map_area.as_deref().unwrap_or("inconnue")),
-            Some("Map") if item.reference == "Map" => format!(
-                "Toutes les zones · tier {}",
-                item.map_tier
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| "—".into())
-            ),
-            Some("Map")
-                if item.reference == "Blighted Map" || item.reference == "Blight-ravaged Map" =>
-            {
-                format!("Zone : {}", item.map_area.as_deref().unwrap_or("inconnue"))
-            }
-            _ => String::new(),
-        };
-        let scope = if mode.is_some() && !item.influences.is_empty() {
-            format!("{scope} · Influences : {}", item.influences.join(", "))
-        } else {
-            scope
-        };
-        self.preset_scope.set_text(&scope);
-        self.preset_scope.set_visible(!scope.is_empty());
         self.preset.show();
         let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
         let expander = gtk::Expander::new(Some("Autres filtres et sources exactes"));
@@ -322,6 +293,40 @@ impl Ui {
         )));
         self.mod_box.show_all();
     }
+    fn reset_item_filters(&self, item: &Item) {
+        let settings = self.settings.borrow();
+        let mut current = settings.filters.clone();
+        current.online = self.online.is_active();
+        let result = filters::plan_for_league(item, &current, self.league.text().trim());
+        match result {
+            Ok(p) => self.item_filters.show(
+                p,
+                !(item.market.exchangeable && item.trade_tag.is_none()),
+                item.trade_tag.is_some()
+                    && self.stat_rows.borrow().is_empty()
+                    && settings.filters.stats.is_empty(),
+            ),
+            Err(error) => self.item_filters.clear(&error),
+        }
+        self.item_filters.container.show();
+    }
+    fn item_filters_changed(&self, observed_generation: u64) {
+        if self.view.get() != View::Price || !self.window.is_visible() {
+            return;
+        }
+        if !self.state.borrow_mut().edited(observed_generation) {
+            return;
+        }
+        self.sync_generation();
+        self.request.replace(None);
+        self.url.replace(None);
+        self.text
+            .set_text("Filtres d’objet modifiés. Vérifiez la portée puis cliquez Rechercher.");
+        eprintln!(
+            "item filters edited generation={} automatic_http=false",
+            self.state.borrow().generation
+        );
+    }
     fn preset_changed(&self) {
         if self.updating_preset.get() {
             return;
@@ -334,6 +339,7 @@ impl Ui {
         self.request.replace(None);
         self.url.replace(None);
         self.build_stat_rows(&item);
+        self.reset_item_filters(&item);
         self.text
             .set_text("Preset modifié. Vérifiez les filtres puis cliquez Rechercher.");
         eprintln!(
@@ -362,21 +368,32 @@ impl Ui {
         settings.league = self.league.text().trim().to_string();
         settings.filters.online = self.online.is_active();
         settings.search_range = self.search_range.value();
-        settings.filters.min_item_level =
-            (self.ilvl.value_as_int() > 0).then_some(self.ilvl.value_as_int() as u32);
+        let mut plan = match self.item_filters.read() {
+            Ok(p) => p,
+            Err(e) => {
+                self.text.set_text(&e);
+                return;
+            }
+        };
+        plan.trade.offline = !self.online.is_active();
+        plan.trade.league = settings.league.clone();
+        if let Some(value) = self.item_filters.merchant_preference() {
+            settings.filters.merchant_only = value;
+        }
+        settings.filters.collapse_listings = plan.trade.collapse_listings == "api";
         settings.filters.bulk_currency = self
             .currency
             .active_id()
             .map(|s| s.to_string())
             .unwrap_or_else(|| "chaos".into());
-        settings.filters.minimum_stock =
-            (self.stock.value_as_int() > 0).then_some(self.stock.value_as_int() as u32);
+
         if let Err(e) = settings.save() {
             self.text.set_text(&e);
             return;
         }
         self.settings.replace(settings.clone());
         let mut selected = settings.filters.clone();
+        selected.item = Some(plan);
         selected.stats.extend(
             self.stat_rows
                 .borrow()
@@ -466,7 +483,6 @@ impl Ui {
                         );
                         self.title.set_text(&item.description());
                         self.currency.set_sensitive(item.trade_tag.is_some());
-                        self.stock.set_sensitive(item.trade_tag.is_some());
                         if item.trade_tag.as_deref() == self.currency.active_id().as_deref() {
                             self.currency.set_active_id(Some(
                                 if item.trade_tag.as_deref() == Some("chaos") {
@@ -490,6 +506,7 @@ impl Ui {
                         self.preset.set_active(Some(0));
                         self.updating_preset.set(false);
                         self.build_stat_rows(&item);
+                        self.reset_item_filters(&item);
                         self.item.replace(Some(item));
                         self.view.set(view);
                         if view == View::Inspection {
@@ -526,7 +543,7 @@ impl Ui {
                         self.inspection_result.replace(None);
                         self.item.replace(None);
                         self.preset.hide();
-                        self.preset_scope.hide();
+                        self.item_filters.container.hide();
                         self.economy_panel.reset();
                         self.economy_panel.show(&Ok(None), None);
                         self.title.set_text("Impossible de lire l'objet");
@@ -536,6 +553,7 @@ impl Ui {
                     }
                 }
             }
+            Event::ItemFiltersChanged(generation) => self.item_filters_changed(generation),
             Event::MapSettings(edit) => {
                 let mut settings = self.settings.borrow().clone();
                 let old = settings.map_check.clone();
@@ -649,7 +667,17 @@ pub fn run() -> Result<(), String> {
             );
             return Ok(());
         }
-        let mut filters = filters::Filters::default();
+        let profile = Settings::load()?;
+        let league = args
+            .get(2)
+            .cloned()
+            .unwrap_or_else(|| profile.league.clone());
+        let mut filters = filters::Filters {
+            stats: vec![],
+            ..profile.filters.clone()
+        };
+        let plan = filters::plan_for_league(&item, &filters, &league)?;
+        filters.item = Some(plan);
         if let Some(currency) = args.get(3) {
             filters.bulk_currency = currency.clone();
         } else if item.trade_tag.as_deref() == Some("chaos") {
@@ -678,11 +706,10 @@ pub fn run() -> Result<(), String> {
             );
             println!(
                 "{}",
-                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"presets":modes.iter().map(|m|crate::presets::create(&item,range,*m)).collect::<Vec<_>>(),"suggested_query":filters::search_query(&item,&suggested)})
+                serde_json::json!({"item":item,"query":query,"candidate_filters":candidate_filters,"item_filters":filters.item,"presets":modes.iter().map(|m|crate::presets::create(&item,range,*m)).collect::<Vec<_>>(),"suggested_query":filters::search_query(&item,&suggested)})
             );
             return Ok(());
         }
-        let league = args.get(2).cloned().unwrap_or(Settings::load()?.league);
         let current = Arc::new(AtomicU64::new(1));
         let prices = Trade::new()?.search(&league, &query, 1, &current);
         let economy = Economy::new()?.quote(&league, &item, 1, &current);
@@ -829,15 +856,10 @@ pub fn run() -> Result<(), String> {
     league.set_text(&settings.league);
     league.set_width_chars(18);
     league.set_placeholder_text(Some("Ligue"));
-    let ilvl = gtk::SpinButton::with_range(0., 100., 1.);
-    ilvl.set_value(settings.filters.min_item_level.unwrap_or(0) as f64);
-    ilvl.set_tooltip_text(Some("Niveau d'objet minimum ; 0 = aucun"));
     let online = gtk::CheckButton::with_label("En ligne");
     online.set_active(settings.filters.online);
     row.pack_start(&gtk::Label::new(Some("Ligue")), false, false, 0);
     row.pack_start(&league, true, true, 0);
-    row.pack_start(&gtk::Label::new(Some("ilvl ≥")), false, false, 0);
-    row.pack_start(&ilvl, false, false, 0);
     row.pack_start(&online, false, false, 0);
     let range_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let search_range = gtk::SpinButton::with_range(0., 100., 1.);
@@ -859,10 +881,6 @@ pub fn run() -> Result<(), String> {
     }
     currency.set_active_id(Some(&settings.filters.bulk_currency));
     currency.set_sensitive(false);
-    let stock = gtk::SpinButton::with_range(0., 1000000., 1.);
-    stock.set_value(settings.filters.minimum_stock.unwrap_or(0) as f64);
-    stock.set_sensitive(false);
-    stock.set_tooltip_text(Some("Stock minimum du vendeur ; 0 = pas de filtre"));
     bulk_row.pack_start(
         &gtk::Label::new(Some("Échange : paiement")),
         false,
@@ -870,8 +888,6 @@ pub fn run() -> Result<(), String> {
         0,
     );
     bulk_row.pack_start(&currency, true, true, 0);
-    bulk_row.pack_start(&gtk::Label::new(Some("Stock ≥")), false, false, 0);
-    bulk_row.pack_start(&stock, false, false, 0);
     let economy_panel = economy_panel::EconomyPanel::new();
     let mod_scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
     mod_scroll.set_min_content_height(180);
@@ -883,10 +899,15 @@ pub fn run() -> Result<(), String> {
     mod_expander.add(&mod_scroll);
     let preset = gtk::ComboBoxText::new();
     preset.set_no_show_all(true);
-    let preset_scope = gtk::Label::new(None);
-    preset_scope.set_xalign(0.);
-    preset_scope.set_line_wrap(true);
-    preset_scope.set_no_show_all(true);
+    let current = Arc::new(AtomicU64::new(0));
+    let edit_generation = current.clone();
+    let item_sender = sender.clone();
+    let item_filters = item_filters_panel::Panel::new(move || {
+        let _ = item_sender.send(Event::ItemFiltersChanged(
+            edit_generation.load(Ordering::Acquire),
+        ));
+    });
+    item_filters.container.set_no_show_all(true);
     preset.set_tooltip_text(Some(
         "Sélection des filtres selon le type d’objet ; un changement exige Rechercher.",
     ));
@@ -911,7 +932,7 @@ pub fn run() -> Result<(), String> {
     price_content.pack_start(&bulk_row, false, false, 0);
     price_content.pack_start(&economy_panel.container, false, false, 0);
     price_content.pack_start(&preset, false, false, 0);
-    price_content.pack_start(&preset_scope, false, false, 0);
+    price_content.pack_start(&item_filters.container, false, false, 0);
     price_content.pack_start(&mod_expander, false, false, 0);
     price_content.pack_start(&actions, false, false, 0);
     let inspection_sender = sender.clone();
@@ -929,7 +950,7 @@ pub fn run() -> Result<(), String> {
     content.pack_start(&stack, true, true, 0);
     content.pack_start(&hint, false, false, 0);
     window.add(&content);
-    let current = Arc::new(AtomicU64::new(0));
+
     let game_active = Arc::new(AtomicBool::new(false));
 
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
@@ -998,11 +1019,9 @@ pub fn run() -> Result<(), String> {
         text,
         hint,
         league,
-        ilvl,
         online,
         search_range,
         currency,
-        stock,
         economy_panel,
         economy_worker,
         economy_result: RefCell::new(None),
@@ -1015,7 +1034,7 @@ pub fn run() -> Result<(), String> {
         view: Cell::new(View::Price),
         stat_rows: RefCell::new(Vec::new()),
         preset,
-        preset_scope,
+        item_filters,
         updating_preset: Cell::new(false),
         state: RefCell::new(Overlay::default()),
         settings: RefCell::new(settings),
@@ -1029,6 +1048,26 @@ pub fn run() -> Result<(), String> {
         result: RefCell::new(None),
         request: RefCell::new(None),
     });
+    {
+        let ui = ui.clone();
+        let league = ui.league.clone();
+        league.connect_changed(move |_| {
+            if let Some(item) = ui.item.borrow().as_ref() {
+                ui.reset_item_filters(item);
+                let generation = ui.state.borrow().generation;
+                ui.item_filters_changed(generation);
+            }
+        });
+    }
+    {
+        let ui = ui.clone();
+        let online = ui.online.clone();
+        online.connect_toggled(move |c| {
+            ui.item_filters.set_offline(!c.is_active());
+            let generation = ui.state.borrow().generation;
+            ui.item_filters_changed(generation);
+        });
+    }
     {
         let ui = ui.clone();
         let preset = ui.preset.clone();
@@ -1195,7 +1234,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.stock.value_as_int(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let value = serde_json::json!({"state":format!("{:?}",state.state),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size})),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(Some(q))=>serde_json::json!({"chaos":q.chaos,"age_seconds":q.age_seconds,"cached":q.from_cache,"category":q.category,"variant":q.variant}),Ok(None)=>serde_json::json!({"matched":false}),Err(e)=>serde_json::json!({"error":e})}),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         let _ = socket.send_to(value.to_string().as_bytes(), path);
                     }
                     continue;

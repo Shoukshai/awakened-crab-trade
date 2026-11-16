@@ -69,6 +69,14 @@ impl Overlay {
                 State::Preparing | State::Passive | State::Interactive
             )
     }
+    /// An edit queued before a newer search must not cancel that newer search.
+    pub fn edited(&mut self, observed_generation: u64) -> bool {
+        if !self.accepts(observed_generation) {
+            return false;
+        }
+        self.generation += 1;
+        true
+    }
 }
 
 #[cfg(test)]
@@ -115,5 +123,29 @@ mod tests {
         assert!(!o.rendered);
         assert!(!o.accepts(g));
         assert!(!o.interact());
+    }
+}
+
+#[cfg(test)]
+mod edit_tests {
+    use super::*;
+    #[test]
+    fn an_older_queued_edit_cannot_cancel_a_newer_search() {
+        let mut overlay = Overlay {
+            game_active: true,
+            ..Default::default()
+        };
+        let frame = overlay.show().unwrap();
+        overlay.painted();
+        assert!(overlay.edited(frame));
+        let edited = overlay.generation;
+        assert!(!overlay.edited(frame));
+        // Search reads the latest widget values before its queued edit arrives.
+        overlay.generation += 1;
+        let search = overlay.generation;
+        assert!(!overlay.edited(edited));
+        assert!(overlay.accepts(search));
+        overlay.hide();
+        assert!(!overlay.edited(overlay.generation));
     }
 }

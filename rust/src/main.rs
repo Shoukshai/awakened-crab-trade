@@ -5,6 +5,7 @@ mod economy;
 mod filters;
 mod inspection;
 mod item;
+mod item_filters;
 mod modifiers;
 mod overlay;
 mod presets;

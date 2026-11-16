@@ -43,6 +43,42 @@ pub struct Item {
     pub map_area: Option<String>,
     pub unique_dust_value: Option<f64>,
     pub area: AreaProperties,
+    pub market: MarketMetadata,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MarketMetadata {
+    pub known: bool,
+    pub name: String,
+    pub craftable: bool,
+    pub exchangeable: bool,
+    pub unique_base: Option<String>,
+    pub gem: Option<GemMetadata>,
+    pub vaal_gem: Option<GemIdentity>,
+    pub synthesised: bool,
+    pub fractured: bool,
+    pub split: bool,
+    pub foil: bool,
+    pub foulborn: bool,
+    pub vestigial: bool,
+    pub veiled: bool,
+    pub veiled_refs: Vec<String>,
+    pub imbued_gem: bool,
+    pub sentinel_charge: Option<u32>,
+    pub linked_sockets: Option<u32>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GemMetadata {
+    pub max_level: u32,
+    #[serde(default)]
+    pub transfigured: bool,
+    pub normal_variant: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GemIdentity {
+    pub name: String,
+    pub reference: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -125,6 +161,9 @@ struct CatalogueEntry {
     #[serde(rename = "tradeDisc")]
     trade_discriminator: Option<String>,
     craftable: Option<Craftable>,
+    #[serde(default)]
+    exchangeable: bool,
+    gem: Option<GemMetadata>,
     unique: Option<Unique>,
     #[serde(default)]
     armour: crate::properties::ArmourBase,
@@ -154,7 +193,8 @@ fn catalogue() -> &'static Vec<CatalogueEntry> {
 }
 
 fn number(text: &str) -> Option<u32> {
-    text.split(|c: char| !c.is_ascii_digit())
+    text.replace(',', "")
+        .split(|c: char| !c.is_ascii_digit())
         .find(|s| !s.is_empty())?
         .parse()
         .ok()
@@ -188,12 +228,37 @@ impl Item {
             .filter(|s| !s.is_empty())
             .copied()
             .collect();
-        let name = names.first().ok_or("Missing item name")?.to_string();
+        let mut name = names.first().ok_or("Missing item name")?.to_string();
+        let unidentified = lines.contains(&"Unidentified");
+        let foulborn = rarity == Rarity::Unique && !unidentified && name.starts_with("Foulborn ");
+        if foulborn {
+            name = name.strip_prefix("Foulborn ").unwrap().into();
+        }
         let mut base = if matches!(rarity, Rarity::Rare | Rarity::Unique) && names.len() >= 2 {
             names[1].to_string()
         } else {
             name.clone()
         };
+        let vestigial =
+            rarity == Rarity::Unique && names.len() >= 2 && base.starts_with("Vestigial ");
+        if vestigial {
+            base = base.strip_prefix("Vestigial ").unwrap().into();
+        }
+        let synthesised = lines.contains(&"Synthesised Item");
+        if synthesised {
+            base = base.strip_prefix("Synthesised ").unwrap_or(&base).into();
+        }
+        let captured = lines.contains(&"Right-click to add this to your bestiary.");
+        let metamorph =
+            lines.contains(&"Combine this with four other different samples in Tane's Laboratory.");
+        if metamorph {
+            for suffix in ["Brain", "Eye", "Lung", "Heart", "Liver"] {
+                if name.ends_with(&format!(" {suffix}")) {
+                    base = format!("Metamorph {suffix}");
+                    break;
+                }
+            }
+        }
         // Longest catalogue match avoids suffix/prefix ambiguity for magic items.
         if rarity == Rarity::Magic {
             base = catalogue()
@@ -226,30 +291,40 @@ impl Item {
             }
         }
         let namespace = match rarity {
-            Rarity::Unique => "UNIQUE",
+            _ if captured => "CAPTURED_BEAST",
+            Rarity::Unique if !unidentified => "UNIQUE",
             Rarity::Gem => "GEM",
             Rarity::Divination => "DIVINATION_CARD",
             _ => "ITEM",
         };
-        let identity = if rarity == Rarity::Unique {
-            &name
-        } else {
-            &base
-        };
+        let identity = if namespace == "UNIQUE" { &name } else { &base };
         let info = catalogue().iter().find(|v| {
             v.namespace == namespace
                 && v.name == *identity
-                && (rarity != Rarity::Unique
+                && (namespace != "UNIQUE"
                     || v.unique.as_ref().and_then(|u| u.base.as_deref()) == Some(base.as_str()))
         });
-        let category = info
-            .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
-            .or_else(|| {
-                catalogue()
-                    .iter()
-                    .find(|v| v.namespace == "ITEM" && v.name == base)
-                    .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
-            });
+        let category_override = if captured {
+            Some("Captured Beast")
+        } else if metamorph {
+            Some("Metamorph Sample")
+        } else {
+            match rarity {
+                Rarity::Gem => Some("Gem"),
+                Rarity::Currency => Some("Currency"),
+                Rarity::Divination => Some("Divination Card"),
+                _ => None,
+            }
+        };
+        let category = category_override.or_else(|| {
+            info.and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+                .or_else(|| {
+                    catalogue()
+                        .iter()
+                        .find(|v| v.namespace == "ITEM" && v.name == base)
+                        .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+                })
+        });
         let prop = |key: &str| {
             lines
                 .iter()
@@ -311,6 +386,79 @@ impl Item {
                     .find(|v| v.namespace == "AREA" && v.name == *name)
             })
             .and_then(|v| v.trade_discriminator.clone());
+        let mut veiled_refs = Vec::new();
+        let mut header_name = None;
+        let mut veiled = false;
+        for line in &lines {
+            if *line == "--------" {
+                header_name = None;
+            }
+            if line.starts_with('{') {
+                header_name = line.split('"').nth(1);
+            }
+            if ["Veiled Prefix", "Veiled Suffix"].contains(line) && header_name.is_some() {
+                veiled = true;
+                if let Some(m) = header_name.and_then(|name| {
+                    crate::modifiers::translation::translate(name, "veiled", category, false)
+                }) {
+                    if !veiled_refs.contains(&m.reference) {
+                        veiled_refs.push(m.reference);
+                    }
+                }
+            }
+        }
+        let mut vaal_gem = None;
+        let mut imbued_gem = false;
+        if category == Some("Gem") {
+            for section in normalized.split("--------").skip(1) {
+                let section = section.trim();
+                if section.lines().count() != 1 {
+                    continue;
+                }
+                if let Some(gem) = catalogue()
+                    .iter()
+                    .find(|v| v.namespace == "GEM" && v.name == section)
+                {
+                    if vaal_gem.is_none() {
+                        vaal_gem = Some(GemIdentity {
+                            name: gem.name.clone(),
+                            reference: gem.reference.clone(),
+                        });
+                    }
+                }
+                imbued_gem |=
+                    crate::modifiers::translation::translate(section, "imbued", category, false)
+                        .is_some();
+            }
+        }
+        let market = MarketMetadata {
+            known: info.is_some(),
+            name: info
+                .map(|v| v.name.clone())
+                .unwrap_or_else(|| identity.clone()),
+            craftable: info.is_some_and(|v| v.craftable.is_some()),
+            exchangeable: info.is_some_and(|v| v.exchangeable),
+            unique_base: info
+                .and_then(|v| v.unique.as_ref())
+                .and_then(|v| v.base.clone()),
+            gem: info.and_then(|v| v.gem.clone()),
+            vaal_gem,
+            synthesised,
+            fractured: modifiers.iter().any(|m| m.kind == "fractured")
+                || lines.iter().any(|l| {
+                    l.contains("Fractured Prefix Modifier")
+                        || l.contains("Fractured Suffix Modifier")
+                }),
+            split: lines.contains(&"Split"),
+            foil: rarity == Rarity::Unique && lines.contains(&"Foil Unique"),
+            foulborn,
+            vestigial,
+            veiled,
+            veiled_refs,
+            imbued_gem,
+            sentinel_charge: prop("Charge: "),
+            linked_sockets: (links >= 5).then_some(links),
+        };
         Ok(Self {
             class,
             rarity,
@@ -338,6 +486,7 @@ impl Item {
             map_area,
             unique_dust_value: info.and_then(|v| v.unique.as_ref().and_then(|u| u.dust)),
             area,
+            market,
             namespace: namespace.into(),
             trade_tag: info.and_then(|v| v.trade_tag.as_deref()).map(str::to_owned),
             trade_discriminator: info
@@ -355,6 +504,17 @@ impl Item {
         })
     }
     pub fn description(&self) -> String {
+        let markers = [
+            (self.corrupted, "Corrupted"),
+            (self.unidentified, "Unidentified"),
+            (self.market.foulborn, "Foulborn"),
+            (self.market.vestigial, "Vestigial"),
+            (self.market.foil, "Foil Unique"),
+        ]
+        .into_iter()
+        .filter(|(active, _)| *active)
+        .map(|(_, text)| format!(" · {text}"))
+        .collect::<String>();
         format!(
             "{}\n{} · {:?} · ilvl {}{}",
             self.name,
@@ -363,7 +523,7 @@ impl Item {
             self.item_level
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| "—".into()),
-            if self.corrupted { " · Corrupted" } else { "" }
+            markers
         )
     }
 }

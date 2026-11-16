@@ -361,6 +361,7 @@ mod tests {
                 ..Default::default()
             },
         )
+        .unwrap()
     }
     #[test]
     fn map_properties_and_bulk_are_distinct_and_never_stat_ids() {

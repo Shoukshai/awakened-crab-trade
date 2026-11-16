@@ -88,6 +88,9 @@ mod tests {
         assert_eq!(settings.filters.bulk_currency, "chaos");
         assert_eq!(settings.filters.minimum_stock, None);
         assert_eq!(settings.search_range, 10.);
+        assert!(settings.filters.merchant_only);
+        assert!(settings.filters.collapse_listings);
+        assert!(settings.filters.item.is_none());
         assert_eq!(settings.map_check, crate::inspection::MapConfig::default());
     }
     #[test]

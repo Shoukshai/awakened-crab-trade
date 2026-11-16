@@ -18,6 +18,10 @@ pub struct Filters {
     pub stats: Vec<StatFilter>,
     pub bulk_currency: String,
     pub minimum_stock: Option<u32>,
+    pub merchant_only: bool,
+    pub collapse_listings: bool,
+    #[serde(skip)]
+    pub item: Option<crate::item_filters::Plan>,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -57,10 +61,51 @@ impl Default for Filters {
             stats: vec![],
             bulk_currency: "chaos".into(),
             minimum_stock: None,
+            merchant_only: true,
+            collapse_listings: true,
+            item: None,
         }
     }
 }
-pub fn query(item: &Item, filters: &Filters) -> Value {
+pub fn plan(item: &Item, filters: &Filters) -> Result<crate::item_filters::Plan, String> {
+    plan_for_league(item, filters, "Standard")
+}
+pub fn plan_for_league(
+    item: &Item,
+    filters: &Filters,
+    league: &str,
+) -> Result<crate::item_filters::Plan, String> {
+    if let Some(plan) = &filters.item {
+        return Ok(plan.clone());
+    }
+    let mut p = crate::item_filters::create(
+        item,
+        &crate::item_filters::Options {
+            league: league.into(),
+            exact: crate::item_filters::exact_default(item),
+            merchant_only: filters.merchant_only,
+            collapse_listings: if filters.collapse_listings {
+                "api".into()
+            } else {
+                "app".into()
+            },
+            ..Default::default()
+        },
+    )?;
+    p.trade.offline = !filters.online;
+    if let Some(n) = filters.min_item_level {
+        p.item_level = Some(crate::item_filters::Numeric::new(n, false));
+    }
+    if let Some(n) = filters.min_links {
+        p.linked_sockets = Some(crate::item_filters::Numeric::new(n, false));
+    }
+    if let Some(n) = filters.minimum_stock {
+        p.stack_size = Some(crate::item_filters::Numeric::new(n, false));
+    }
+    Ok(p)
+}
+pub fn query(item: &Item, filters: &Filters) -> Result<Value, String> {
+    let plan = plan(item, filters)?;
     let mut and = Vec::new();
     let mut groups = Vec::new();
     let mut properties = Vec::new();
@@ -88,92 +133,12 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
             groups.push(json!({"type":"count","value":{"min":1},"filters":values}));
         }
     }
-    if !crate::presets::available(item).is_empty() && item.influences.len() <= 2 {
-        for influence in &item.influences {
-            if let Some(modifier) =
-                crate::modifiers::translation::pseudo(&format!("Has {influence} Influence"))
-            {
-                and.push(json!({"id":modifier.id,"value":{}}));
-            }
-        }
-    }
     groups.insert(0, json!({"type":"and","filters":and}));
     if !exclusions.is_empty() {
         groups.push(json!({"type":"not","filters":exclusions}));
     }
-    let mut q = json!({"status":{"option":if filters.online {"online"} else {"any"}},"type":item.base,"stats":groups,"filters":{}});
-    if item.rarity == Rarity::Unique && !item.unidentified {
-        q["name"] = json!(item.name);
-    }
-    if let Some(discriminator) = &item.trade_discriminator {
-        q["type"] = json!({"option":item.base,"discriminator":discriminator});
-    }
-    if matches!(item.rarity, Rarity::Normal | Rarity::Magic | Rarity::Rare) {
-        q["filters"]["type_filters"] = json!({"filters":{"rarity":{"option":"nonunique"}}});
-    }
-    if item.category.as_deref() == Some("Heist Contract") && item.rarity != Rarity::Unique {
-        q.as_object_mut().unwrap().remove("type");
-        q["filters"]["type_filters"]["filters"]["category"] =
-            json!({"option":"heistmission.contract"});
-    }
-    if item.category.as_deref() == Some("Map") && item.base == "Map" {
-        q["type"] = json!({"option":"Map","discriminator":"map"});
-    }
-    if item.category.as_deref() == Some("Chart")
-        || matches!(
-            item.reference.as_str(),
-            "Blighted Map" | "Blight-ravaged Map"
-        )
-    {
-        if let Some(area) = &item.area.trade_disc {
-            q["type"] = json!({"option":area,"discriminator":item.trade_discriminator.as_deref().unwrap_or("chart")});
-        }
-    }
-    let mut misc = json!({"corrupted":{"option":item.corrupted.to_string()}});
-    if let Some(n) = filters.min_item_level {
-        misc["ilvl"] = json!({"min":n});
-    }
-    if let Some(n) = item.gem_level {
-        misc["gem_level"] = json!({"min":n});
-    }
-    if let Some(n) = item.quality.filter(|_| item.rarity == Rarity::Gem) {
-        misc["quality"] = json!({"min":n});
-    }
-    q["filters"]["misc_filters"] = json!({"filters":misc});
-    if let Some(n) = item.map_tier {
-        q["filters"]["map_filters"] = json!({"filters":{"map_tier":{"min":n,"max":n}}});
-    }
-    if let Some(reward) = &item.area.completion_reward {
-        q["filters"]["map_filters"]["filters"]["map_completion_reward"] = json!({"option": reward});
-    }
-    if item.category.as_deref() == Some("Map") {
-        for (key, value) in match item.reference.as_str() {
-            "Map" => vec![("map_blighted", false), ("map_uberblighted", false)],
-            "Blighted Map" => vec![("map_blighted", true)],
-            "Blight-ravaged Map" => vec![("map_uberblighted", true)],
-            _ => vec![],
-        } {
-            q["filters"]["map_filters"]["filters"][key] = json!({"option":value.to_string()});
-        }
-    }
-    if item.rarity != Rarity::Unique
-        && [
-            Some("Heist Contract"),
-            Some("Heist Blueprint"),
-            Some("Chart"),
-        ]
-        .contains(&item.category.as_deref())
-    {
-        if let Some(level) = item.area.level {
-            q["filters"]["map_filters"]["filters"]["area_level"] = json!({"min":level});
-        }
-    }
-    if let Some(n) = filters
-        .min_links
-        .or_else(|| (item.links >= 5).then_some(item.links))
-    {
-        q["filters"]["socket_filters"] = json!({"filters":{"links":{"min":n}}});
-    }
+    let mut q = json!({"stats":groups,"filters":{}});
+    plan.append_query(&mut q)?;
     for (group, property, stat) in properties {
         let mut value = stat_to_query(&stat.id, stat)["value"].clone();
         if stat.id == "item.heist_target_priceless" {
@@ -183,7 +148,7 @@ pub fn query(item: &Item, filters: &Filters) -> Value {
         }
         q["filters"][group]["filters"][property] = value;
     }
-    json!({"query":q,"sort":{"price":"asc"}})
+    Ok(json!({"query":q,"sort":{"price":"asc"}}))
 }
 fn property_path(id: &str) -> Option<(&'static str, &'static str)> {
     Some(match id {
@@ -307,17 +272,41 @@ pub fn search_query(item: &Item, filters: &Filters) -> Result<Value, String> {
                 return Err("Choose a payment currency different from this item".into());
             }
             let mut query = json!({"engine":"new","query":{"status":{"option":if filters.online {"online"} else {"any"}},"have":[have],"want":[want]},"sort":{"have":"asc"}});
-            if let Some(stock) = filters.minimum_stock {
+            let stock = if let Some(p) = &filters.item {
+                p.stack_size
+                    .as_ref()
+                    .filter(|f| !f.disabled)
+                    .map(|f| f.value)
+            } else {
+                filters.minimum_stock
+            };
+            if let Some(stock) = stock {
                 query["query"]["minimum"] = json!(stock);
             }
             return Ok(query);
         }
     }
-    Ok(query(item, filters))
+    query(item, filters)
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn configured_league_changes_the_split_policy_and_keeps_legacy_overrides() {
+        let item = Item::parse(include_str!("fixtures/synthetic-calculated-ring.txt")).unwrap();
+        let filters = Filters {
+            online: false,
+            min_item_level: Some(80),
+            ..Default::default()
+        };
+        let standard = plan_for_league(&item, &filters, "Standard").unwrap();
+        let league = plan_for_league(&item, &filters, "Covens").unwrap();
+        assert!(standard.split.is_none());
+        assert!(league.split.as_ref().unwrap().disabled);
+        assert!(league.trade.offline);
+        assert_eq!(league.trade.league, "Covens");
+        assert_eq!(league.item_level.unwrap().value, 80);
+    }
     #[test]
     fn calculated_weapon_property_is_routed_to_weapon_filters_and_keeps_other_constraints() {
         let i = Item::parse(include_str!("fixtures/driftwood-wand.txt")).unwrap();
@@ -374,7 +363,7 @@ mod tests {
             }],
             ..Filters::default()
         };
-        let body = query(&item, &filters);
+        let body = query(&item, &filters).unwrap();
         assert_eq!(body["query"]["stats"][0]["filters"], json!([]));
         let group = &body["query"]["stats"][1];
         assert_eq!(group["type"], "count");
@@ -486,33 +475,60 @@ mod tests {
             .is_none());
     }
     #[test]
-    fn rare_query_uses_base_not_random_name() {
+    fn rare_query_uses_category_or_explicit_base_without_random_name() {
         let i = Item::parse(
-            "Item Class: Rings\nRarity: Rare\nDoom Hold\nGold Ring\n--------\nItem Level: 83",
+            "Item Class: Rings\nRarity: Rare\nDoom Circle\nGold Ring\n--------\nItem Level: 83",
         )
         .unwrap();
-        let q = query(&i, &Filters::default());
-        assert_eq!(q["query"]["type"], "Gold Ring");
+        let q = query(&i, &Filters::default()).unwrap();
+        assert!(q["query"].get("type").is_none());
         assert!(q["query"].get("name").is_none());
+        assert_eq!(
+            q["query"]["filters"]["type_filters"]["filters"]["category"]["option"],
+            "accessory.ring"
+        );
+        let plan = crate::item_filters::create(
+            &i,
+            &crate::item_filters::Options {
+                exact: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let exact = query(
+            &i,
+            &Filters {
+                item: Some(plan),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(exact["query"]["type"], "Gold Ring");
+        assert!(exact["query"].get("name").is_none());
     }
     #[test]
     fn unique_query_keeps_unique_identity() {
         let i =
             Item::parse("Item Class: Wands\nRarity: Unique\nLifesprig\nDriftwood Wand\n--------")
                 .unwrap();
-        assert_eq!(query(&i, &Filters::default())["query"]["name"], "Lifesprig");
+        assert_eq!(
+            query(&i, &Filters::default()).unwrap()["query"]["name"],
+            "Lifesprig"
+        );
     }
     #[test]
-    fn map_tier_and_links_are_meaningful_filters() {
-        let i = Item::parse("Item Class: Maps\nRarity: Normal\nBeach Map\n--------\nMap Tier: 16\nSockets: R-G-B-R-G-B").unwrap();
-        let q = query(&i, &Filters::default());
+    fn map_tier_and_equipment_links_use_their_own_filters() {
+        let map = Item::parse(include_str!("fixtures/synthetic-map.txt")).unwrap();
+        let q = query(&map, &Filters::default()).unwrap();
         assert_eq!(
-            q["query"]["filters"]["map_filters"]["filters"]["map_tier"]["min"],
-            16
+            q["query"]["filters"]["map_filters"]["filters"]["map_tier"],
+            json!({"min":16,"max":16})
         );
+        let armour=Item::parse("Item Class: Body Armours\nRarity: Rare\nDoom Vest\nPlate Vest\n--------\nArmour: 16\n--------\nSockets: R-R-R-R-R-R\n--------\nItem Level: 83").unwrap();
+        let q = query(&armour, &Filters::default()).unwrap();
         assert_eq!(
-            q["query"]["filters"]["socket_filters"]["filters"]["links"]["min"],
-            6
+            q["query"]["filters"]["socket_filters"]["filters"]["links"],
+            json!({"min":6})
         );
     }
 }
@@ -535,7 +551,8 @@ mod exclusion_tests {
                 stats: vec![f],
                 ..Default::default()
             },
-        );
+        )
+        .unwrap();
         assert_eq!(q["query"]["stats"][0]["filters"], json!([]));
         assert_eq!(q["query"]["stats"][1]["type"], "not");
         assert_eq!(

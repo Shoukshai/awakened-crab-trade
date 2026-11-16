@@ -478,3 +478,76 @@ Après masquage, RSS 75 744 Kio (73,97 Mio), 0 tick CPU sur 3 s à CLK_TCK=100.
 Mesure ponctuelle après parcours de plusieurs nouveaux panneaux ; elle n'est pas
 une comparaison mémoire à parcours identique avec le jalon 0.5. Aucune optimisation
 revendiquée à ce jalon. PoE et River sont restés ouverts et le panneau est masqué.
+
+
+## Jalon 0.7 : politique et édition des filtres d’objet
+
+75 tests Rust passent, ainsi que Clippy sur toutes les cibles sans avertissement.
+Le corpus `compare-item-filters.cjs` exécute le parseur anglais complet puis les
+corps AST inchangés de `createFilters` et `createTradeRequest` upstream. Le modèle
+entier et le corps Trade entier sans presets de mods sont comparés : 2 312 cas,
+2 299 reconnus, 13 rejets attendus pour des références obsolètes absentes du
+catalogue (Charged Compass et Metamorph). Zéro écart, dont 10 politiques éditées
+et une gemme imprégnée : [item-filters-0.7.json](item-filters-0.7.json).
+
+Couverture : catégories/bases, raretés, gemmes/transfigurations/Vaal, seuils de
+niveau/qualité, influence, synthèse, fracture, miroir, split, foil/Foulborn/Vestigial,
+objets non identifiés, mods voilés, paliers de clusters/objets de zone, liens,
+piles avec séparateurs de milliers, Agnerod, identité de cartes/Heist et réglages
+Trade en ligne/hors ligne, devise, date, regroupement. Les fonctions HTTP, IPC et
+stores réactifs ne sont pas chargés. Les corpus antérieurs de 55 961 traductions,
+1 651 calculs, 3 144 inspections/1 875 décisions et 221 presets passent sans écart.
+La comparaison ne démontre pas la parité complète du parseur, des presets de mods
+ou de l’éditeur. Certaines options du modèle n’ont pas encore de contrôle natif.
+
+Observations du build release au-dessus du même PoE ouvert :
+
+- Vraie wand : 572 résultats/10 offres, 614 ms réseau ; copie 74 ms, préparation
+  6 ms, premier rendu froid 90 ms, état Passive et focus jeu.
+- Maj+Espace et clic ouvrent les filtres d’objet. Modifier ilvl 1 → 2 invalide les
+  anciens résultats sans HTTP ; Rechercher donne 551 résultats en 610 ms.
+  Min 2/Max 1 est refusé localement. Saisie de Min 3 et clic immédiat Rechercher :
+  539 résultats/10 offres, 563 ms ; le signal GTK en attente n’annule pas cette
+  nouvelle génération. `min_item_level` global reste null.
+- Bague synthétique : nouveau plan, ilvl 83 désactivé au lieu de conserver Min 3,
+  catégorie Ring, résistances min 43 et vie min 81. 10 000 résultats/10 offres en
+  864 ms. Choix natif Base ou nom exact : `type: Gold Ring`, catégorie retirée,
+  862 résultats/10 offres, 581 ms. Prix en chaos, marchands décochés, regroupement
+  API coché : statut `available`, `collapse: true`, `price: chaos` ; 744 résultats/
+  10 offres, 671 ms. L’indication ninja 2 chaos porte explicitement sur la base.
+- Vraie pile de 3 Wisdom : échange en lot, 24 résultats/20 offres, 317 ms.
+  Cocher Stock minimum envoie `minimum: 3` ; 17 résultats/17 offres, 353 ms.
+  Le stock saisi ne devient pas une préférence globale.
+
+Les contrôles corruption/rareté ne sont proposés que si la politique de l’objet
+les définit. Pour les devises sans mods, les options propres à Trade sont
+insensibles et le panneau renvoie au stock et à la devise de paiement. Les
+variantes uniques reconnues restent visibles dans le titre ; aucune cote ninja
+ordinaire n’est réutilisée pour les variantes encore non prises en charge.
+Les réglages marchands modifiés pendant les contrôles sont remis à leur valeur
+initiale. Les tests n’envoient aucun message de chat ni commande de jeu.
+
+Paquet 0.7.0-1 : build et 75 tests hors ligne réussis ; 464 fichiers de l’archive
+source comparés aux fichiers locaux ; 348 fichiers du paquet root/root ; notices
+des 188 crates et de la bibliothèque standard vérifiées par hash. Malgré un
+message interne de libfakeroot pendant le nettoyage, la création réussit et
+l’audit du contenu, des propriétaires et des sommes ne trouve aucun écart.
+
+Le binaire extrait sans installation système passe cinq cycles passifs puis une
+vraie copie de la wand : 570 résultats/10 offres, 705 ms réseau, 73 ms copie/parsing,
+5 ms préparation et 12 ms premier rendu. Les nouveaux contrôles sont visibles ;
+désactiver le minimum ilvl invalide résultats/requête sans HTTP. Une recherche
+lancée puis masquée est rejetée à son retour. La copie Wisdom immédiatement après
+rencontre le cooldown local, sans retry ; après expiration et clic explicite avec
+Stock minimum 3 : 15 résultats/15 offres, 356 ms. Un clic sur Marchands, désactivé
+dans ce mode, ne change ni la génération ni la préférence. La nouvelle copie ne
+reprend pas l’ancien stock actif.
+
+Dernière vraie copie par Ctrl+Alt+D : DPS physique local 11, aucun HTTP, état
+Passive et jeu actif. Le presse-papiers contient la copie avancée réelle de la
+wand (seul l’espace final de la ligne Sockets diffère de la fixture normalisée).
+Après masquage : RSS 77 820 Kio (76,00 Mio), 0 tick CPU sur 3 s à CLK_TCK=100.
+Cette mesure ponctuelle ne démontre aucune optimisation mémoire. PoE et River
+restent ouverts, les préférences de départ sont conservées et le panneau est
+masqué. Windows, autres compositeurs, langues et facteurs d’écran restent non
+validés ; la parité globale des fonctionnalités n’est pas encore atteinte.

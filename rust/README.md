@@ -55,8 +55,19 @@ flacons, les métiers, cibles Priceless et ailes révélées. Les contrats se co
 par catégorie ; le panneau indique la portée de la recherche. Changer de preset
 recrée les filtres et invalide la réponse en cours ; cliquer ensuite **Rechercher**.
 La plage suggérée s’applique à la prochaine copie ou sélection de preset.
-Les liens entre corruption, rareté, split/fracture et les autres options d’objet
-ne sont pas encore tous portés. Les presets d’équipement/base d’artisanat, bijoux
+Le volet **Filtres d’objet** reprend la politique upstream pour la base/catégorie,
+corruption, rareté, influences, fracture, miroir, split, niveaux, qualité, liens et
+stock. Les valeurs concernent la copie courante et se réinitialisent à la suivante ;
+modifier un filtre invalide les offres sans lancer HTTP. Les plages inversées sont
+refusées localement. Les choix Marchands et regroupement API sont mémorisés ; les
+bornes d’objet ne deviennent pas des réglages globaux. Les anciens minima JSON
+restent reconnus pour les profils existants. Les options Trade sont désactivées
+pour les devises sans mods en échange en lot ; utiliser stock et paiement.
+Les seuils de gemmes, variantes uniques reconnues, objets voilés et contraintes de
+zone suivent également cette politique. Cela ne prouve pas la parité du parseur
+entier. L’éditeur reste partiel : pas d’ajout libre de critère, filtre de date ou
+sélection de toutes les options d’online/groupement upstream.
+Les presets d’équipement/base d’artisanat, bijoux
 de cluster et les règles spécialisées restantes restent à porter.
 
 Les objets possédant un identifiant d'échange upstream utilisent la recherche
@@ -135,7 +146,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.6.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.7.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -158,6 +169,8 @@ node scripts/export-map-defaults.cjs --check
 node scripts/compare-inspection.cjs
 cargo build --locked --example presets
 node scripts/compare-presets.cjs
+cargo build --locked --example item-filters
+node scripts/compare-item-filters.cjs
 sh scripts/test-shortcut-replay.sh
 python3 scripts/smoke-overlay.py target/release/awakened-poe-trade-rs
 ```

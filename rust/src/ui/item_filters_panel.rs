@@ -1,0 +1,661 @@
+//! Native per-item editor. Programmatic resets suppress change events; edits
+//! only invalidate the current result and never start HTTP or request focus.
+use crate::item_filters::{self, Numeric, Plan};
+use gtk::prelude::*;
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
+#[derive(Debug, Clone, Copy)]
+enum Number {
+    ItemLevel,
+    Quality,
+    GemLevel,
+    Links,
+    White,
+    Stack,
+    MapTier,
+    AreaLevel,
+    Charge,
+}
+impl Number {
+    fn label(self) -> &'static str {
+        match self {
+            Self::ItemLevel => "Niveau d’objet minimum",
+            Self::Quality => "Qualité minimum",
+            Self::GemLevel => "Niveau de gemme minimum",
+            Self::Links => "Sockets liés minimum",
+            Self::White => "Sockets blancs minimum",
+            Self::Stack => "Stock minimum",
+            Self::MapTier => "Tier de carte exact",
+            Self::AreaLevel => "Niveau de zone minimum",
+            Self::Charge => "Charges de Sentinel minimum",
+        }
+    }
+    fn get(self, p: &Plan) -> &Option<Numeric> {
+        match self {
+            Self::ItemLevel => &p.item_level,
+            Self::Quality => &p.quality,
+            Self::GemLevel => &p.gem_level,
+            Self::Links => &p.linked_sockets,
+            Self::White => &p.white_sockets,
+            Self::Stack => &p.stack_size,
+            Self::MapTier => &p.map_tier,
+            Self::AreaLevel => &p.area_level,
+            Self::Charge => &p.sentinel_charge,
+        }
+    }
+    fn get_mut(self, p: &mut Plan) -> &mut Option<Numeric> {
+        match self {
+            Self::ItemLevel => &mut p.item_level,
+            Self::Quality => &mut p.quality,
+            Self::GemLevel => &mut p.gem_level,
+            Self::Links => &mut p.linked_sockets,
+            Self::White => &mut p.white_sockets,
+            Self::Stack => &mut p.stack_size,
+            Self::MapTier => &mut p.map_tier,
+            Self::AreaLevel => &mut p.area_level,
+            Self::Charge => &mut p.sentinel_charge,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
+enum Flag {
+    Fractured,
+    Imbued,
+    Mirrored,
+    Split,
+    Foulborn,
+    Vestigial,
+    Unidentified,
+    Veiled,
+    Influence(usize),
+}
+struct NumberRow {
+    kind: Number,
+    enabled: gtk::CheckButton,
+    min: gtk::SpinButton,
+    max_enabled: Option<gtk::CheckButton>,
+    max: Option<gtk::SpinButton>,
+}
+pub struct Panel {
+    pub container: gtk::Box,
+    summary: gtk::Label,
+    expander: gtk::Expander,
+    fields: gtk::Box,
+    model: RefCell<Option<Plan>>,
+    numbers: RefCell<Vec<NumberRow>>,
+    flags: RefCell<Vec<(Flag, gtk::CheckButton)>>,
+    scope: RefCell<Option<gtk::ComboBoxText>>,
+    sub: RefCell<Option<gtk::CheckButton>>,
+    corruption: RefCell<Option<gtk::ComboBoxText>>,
+    rarity: RefCell<Option<gtk::ComboBoxText>>,
+    currency: RefCell<Option<gtk::ComboBoxText>>,
+    merchant: RefCell<Option<gtk::CheckButton>>,
+    collapse: RefCell<Option<gtk::CheckButton>>,
+    merchant_allowed: Cell<bool>,
+    bulk_only: Cell<bool>,
+    updating: Cell<bool>,
+    last_snapshot: RefCell<Option<String>>,
+    send: Rc<dyn Fn()>,
+}
+fn label(text: &str) -> gtk::Label {
+    let l = gtk::Label::new(Some(text));
+    l.set_xalign(0.);
+    l.set_line_wrap(true);
+    l
+}
+fn combo(values: &[(&str, &str)], active: &str) -> gtk::ComboBoxText {
+    let c = gtk::ComboBoxText::new();
+    for (id, name) in values {
+        c.append(Some(id), name);
+    }
+    c.set_active_id(Some(active));
+    c
+}
+impl Panel {
+    pub fn new(send: impl Fn() + 'static) -> Rc<Self> {
+        let container = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        let summary = label("Copiez un objet pour préparer ses filtres.");
+        let expander = gtk::Expander::new(Some("Filtres d’objet"));
+        let fields = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        scroll.set_min_content_height(300);
+        scroll.set_max_content_height(300);
+        scroll.add(&fields);
+        expander.add(&scroll);
+        container.pack_start(&summary, false, false, 0);
+        container.pack_start(&expander, false, false, 0);
+        Rc::new(Self {
+            container,
+            summary,
+            expander,
+            fields,
+            model: RefCell::new(None),
+            numbers: RefCell::new(vec![]),
+            flags: RefCell::new(vec![]),
+            scope: RefCell::new(None),
+            sub: RefCell::new(None),
+            corruption: RefCell::new(None),
+            rarity: RefCell::new(None),
+            currency: RefCell::new(None),
+            merchant: RefCell::new(None),
+            collapse: RefCell::new(None),
+            merchant_allowed: Cell::new(true),
+            bulk_only: Cell::new(false),
+            updating: Cell::new(false),
+            last_snapshot: RefCell::new(None),
+            send: Rc::new(send),
+        })
+    }
+    fn changed(&self) {
+        if self.updating.get() {
+            return;
+        }
+        self.update_scope();
+        self.update_trade();
+        self.update_summary();
+        let snapshot = serde_json::to_string(&self.read()).ok();
+        if *self.last_snapshot.borrow() == snapshot {
+            return;
+        }
+        self.last_snapshot.replace(snapshot);
+        (self.send)();
+    }
+    fn wire_check(self: &Rc<Self>, check: &gtk::CheckButton) {
+        let weak = Rc::downgrade(self);
+        check.connect_toggled(move |_| {
+            if let Some(p) = weak.upgrade() {
+                p.changed();
+            }
+        });
+    }
+    fn wire_combo(self: &Rc<Self>, combo: &gtk::ComboBoxText) {
+        let weak = Rc::downgrade(self);
+        combo.connect_changed(move |_| {
+            if let Some(p) = weak.upgrade() {
+                p.changed();
+            }
+        });
+    }
+    fn flag(self: &Rc<Self>, kind: Flag, text: &str, active: bool) {
+        let check = gtk::CheckButton::with_label(text);
+        check.set_active(active);
+        self.wire_check(&check);
+        self.fields.pack_start(&check, false, false, 0);
+        self.flags.borrow_mut().push((kind, check));
+    }
+    pub fn clear(&self, message: &str) {
+        self.updating.set(true);
+        self.model.replace(None);
+        self.last_snapshot.replace(None);
+        for child in self.fields.children() {
+            self.fields.remove(&child);
+        }
+        self.numbers.borrow_mut().clear();
+        self.flags.borrow_mut().clear();
+        for field in [&self.scope, &self.corruption, &self.rarity, &self.currency] {
+            field.replace(None);
+        }
+        self.sub.replace(None);
+        self.merchant.replace(None);
+        self.collapse.replace(None);
+        self.summary.set_text(message);
+        self.summary.show();
+        self.expander.hide();
+        self.updating.set(false);
+    }
+    pub fn show(self: &Rc<Self>, plan: Plan, merchant_allowed: bool, bulk_only: bool) {
+        self.clear("");
+        self.updating.set(true);
+        self.merchant_allowed.set(merchant_allowed);
+        self.bulk_only.set(bulk_only);
+        self.model.replace(Some(plan.clone()));
+        let scope = combo(
+            &[
+                ("exact", "Base ou nom exact"),
+                ("relaxed", "Catégorie / zone"),
+            ],
+            if plan
+                .search_relaxed
+                .as_ref()
+                .is_some_and(|s| s.disabled != Some(true))
+            {
+                "relaxed"
+            } else {
+                "exact"
+            },
+        );
+        scope.set_sensitive(plan.search_relaxed.is_some());
+        self.wire_combo(&scope);
+        self.fields.pack_start(&scope, false, false, 0);
+        self.scope.replace(Some(scope));
+        if plan.search_exact.sub.is_some()
+            || plan
+                .search_relaxed
+                .as_ref()
+                .is_some_and(|s| s.sub.is_some())
+        {
+            let active = plan
+                .search_relaxed
+                .as_ref()
+                .filter(|s| s.disabled != Some(true))
+                .unwrap_or(&plan.search_exact)
+                .sub
+                .as_ref()
+                .is_some_and(|s| s.disabled != Some(true));
+            let sub = gtk::CheckButton::with_label("Limiter à la zone copiée");
+            sub.set_active(active);
+            self.wire_check(&sub);
+            self.fields.pack_start(&sub, false, false, 0);
+            self.sub.replace(Some(sub));
+        }
+        let corruption = combo(
+            &[
+                ("all", "Corruption : tous états"),
+                ("false", "Objets non corrompus"),
+                ("true", "Objets corrompus seulement"),
+            ],
+            match &plan.corrupted {
+                Some(c) if !c.value => "false",
+                Some(c) if c.exact == Some(true) => "true",
+                _ => "all",
+            },
+        );
+        if plan.corrupted.is_some() {
+            self.wire_combo(&corruption);
+            self.fields.pack_start(&corruption, false, false, 0);
+            self.corruption.replace(Some(corruption));
+        }
+        let rarity = combo(
+            &[
+                ("all", "Rareté : toutes"),
+                ("nonunique", "Non uniques"),
+                ("normal", "Normaux"),
+                ("magic", "Magiques"),
+                ("rare", "Rares"),
+                ("unique", "Uniques"),
+                ("uniquefoil", "Uniques foil"),
+            ],
+            if plan.foil.as_ref().is_some_and(|f| !f.disabled) {
+                "uniquefoil"
+            } else {
+                plan.rarity
+                    .as_ref()
+                    .map(|f| {
+                        if f.disabled {
+                            "nonunique"
+                        } else {
+                            f.value.as_str()
+                        }
+                    })
+                    .unwrap_or("all")
+            },
+        );
+        if plan.rarity.is_some() || plan.foil.is_some() {
+            self.wire_combo(&rarity);
+            self.fields.pack_start(&rarity, false, false, 0);
+            self.rarity.replace(Some(rarity));
+        }
+        for kind in [
+            Number::ItemLevel,
+            Number::Quality,
+            Number::GemLevel,
+            Number::Links,
+            Number::White,
+            Number::Stack,
+            Number::MapTier,
+            Number::AreaLevel,
+            Number::Charge,
+        ] {
+            let Some(n) = kind.get(&plan) else {
+                continue;
+            };
+            let group = gtk::Box::new(gtk::Orientation::Vertical, 3);
+            let enabled = gtk::CheckButton::with_label(kind.label());
+            enabled.set_active(!n.disabled);
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            let min = gtk::SpinButton::with_range(0., 1_000_000., 1.);
+            min.set_width_chars(8);
+            min.set_value(n.value as f64);
+            min.set_sensitive(!n.disabled);
+            row.pack_start(&min, false, false, 0);
+            let (max_enabled, max) = if matches!(kind, Number::ItemLevel | Number::AreaLevel) {
+                let check = gtk::CheckButton::with_label("Max");
+                check.set_active(n.max.is_some());
+                let spin = gtk::SpinButton::with_range(1., 1_000_000., 1.);
+                spin.set_width_chars(8);
+                spin.set_value(n.max.unwrap_or(n.value.max(1)) as f64);
+                spin.set_sensitive(!n.disabled && n.max.is_some());
+                row.pack_start(&check, false, false, 0);
+                row.pack_start(&spin, false, false, 0);
+                (Some(check), Some(spin))
+            } else {
+                (None, None)
+            };
+            {
+                let min = min.clone();
+                let max = max.clone();
+                let max_enabled = max_enabled.clone();
+                enabled.connect_toggled(move |c| {
+                    min.set_sensitive(c.is_active());
+                    if let Some(s) = &max {
+                        s.set_sensitive(
+                            c.is_active() && max_enabled.as_ref().is_some_and(|m| m.is_active()),
+                        );
+                    }
+                });
+            }
+            self.wire_check(&enabled);
+            {
+                let weak = Rc::downgrade(self);
+                min.connect_value_changed(move |_| {
+                    if let Some(p) = weak.upgrade() {
+                        p.changed();
+                    }
+                });
+            }
+            if let (Some(check), Some(spin)) = (&max_enabled, &max) {
+                let spin = spin.clone();
+                let enabled = enabled.clone();
+                check.connect_toggled(move |c| {
+                    spin.set_sensitive(c.is_active() && enabled.is_active())
+                });
+                self.wire_check(check);
+            }
+            if let Some(spin) = &max {
+                let weak = Rc::downgrade(self);
+                spin.connect_value_changed(move |_| {
+                    if let Some(p) = weak.upgrade() {
+                        p.changed();
+                    }
+                });
+            }
+            group.pack_start(&enabled, false, false, 0);
+            group.pack_start(&row, false, false, 0);
+            self.fields.pack_start(&group, false, false, 0);
+            self.numbers.borrow_mut().push(NumberRow {
+                kind,
+                enabled,
+                min,
+                max_enabled,
+                max,
+            });
+        }
+        if let Some(f) = &plan.fractured {
+            self.flag(Flag::Fractured, "Exclure les objets fracturés", !f.value);
+        }
+        if let Some(f) = &plan.imbued_gem {
+            self.flag(Flag::Imbued, "Exclure les gemmes imprégnées", f.disabled);
+        }
+        if let Some(f) = &plan.mirrored {
+            self.flag(Flag::Mirrored, "Exclure les copies miroir", f.disabled);
+        }
+        if let Some(f) = &plan.split {
+            self.flag(Flag::Split, "Exclure les objets Split", f.disabled);
+        }
+        if let Some(f) = &plan.foulborn {
+            self.flag(Flag::Foulborn, "Exclure les variantes Foulborn", !f.value);
+        }
+        if let Some(f) = &plan.vestigial {
+            self.flag(Flag::Vestigial, "Exclure les variantes Vestigial", !f.value);
+        }
+        if let Some(f) = &plan.unidentified {
+            self.flag(Flag::Unidentified, "Non identifié seulement", !f.disabled);
+        }
+        if let Some(f) = &plan.veiled {
+            self.flag(Flag::Veiled, "Mods voilés reconnus", !f.disabled);
+        }
+        if let Some(influences) = &plan.influences {
+            for (i, f) in influences.iter().enumerate() {
+                self.flag(
+                    Flag::Influence(i),
+                    &format!("Influence {}", f.value),
+                    !f.disabled,
+                );
+            }
+        }
+        let merchant = gtk::CheckButton::with_label("Trade : marchands uniquement");
+        merchant.set_active(plan.trade.merchant_only);
+        merchant.set_sensitive(merchant_allowed && !bulk_only);
+        self.wire_check(&merchant);
+        self.fields.pack_start(&merchant, false, false, 0);
+        self.merchant.replace(Some(merchant));
+        let collapse = gtk::CheckButton::with_label("Trade : regrouper par compte (API)");
+        collapse.set_active(plan.trade.collapse_listings == "api");
+        self.wire_check(&collapse);
+        self.fields.pack_start(&collapse, false, false, 0);
+        self.collapse.replace(Some(collapse));
+        let currency = combo(
+            &[
+                ("all", "Prix : toutes devises"),
+                ("chaos_divine", "Prix : chaos et divines"),
+                ("chaos", "Prix : chaos"),
+                ("divine", "Prix : divines"),
+                ("exalted", "Prix : exalted"),
+                ("alch", "Prix : alchemy"),
+                ("alt", "Prix : alteration"),
+            ],
+            plan.trade.currency.as_deref().unwrap_or("all"),
+        );
+        self.wire_combo(&currency);
+        self.fields.pack_start(&currency, false, false, 0);
+        self.currency.replace(Some(currency));
+        if bulk_only {
+            if let Some(c) = self.currency.borrow().as_ref() {
+                c.set_sensitive(false);
+            }
+            self.fields.pack_start(&label("Échange en lot : utilisez le stock minimum et la devise de paiement au-dessus."), false, false, 0);
+        }
+        self.fields.pack_start(&label("Ces choix concernent l’objet copié. Vérifiez la portée et les critères actifs avant Rechercher."),false,false,0);
+        self.fields.show_all();
+        self.summary.show();
+        self.expander.show_all();
+        self.update_scope();
+        self.update_trade();
+        self.update_summary();
+        self.last_snapshot
+            .replace(serde_json::to_string(&self.read()).ok());
+        self.updating.set(false);
+    }
+    fn update_scope(&self) {
+        let Some(plan) = self.model.borrow().clone() else {
+            return;
+        };
+        let relaxed = self
+            .scope
+            .borrow()
+            .as_ref()
+            .and_then(|c| c.active_id())
+            .as_deref()
+            == Some("relaxed");
+        let search = if relaxed {
+            plan.search_relaxed.as_ref().unwrap_or(&plan.search_exact)
+        } else {
+            &plan.search_exact
+        };
+        if let Some(check) = self.sub.borrow().as_ref() {
+            check.set_visible(search.sub.is_some());
+        }
+    }
+    fn update_trade(&self) {
+        let Some(plan) = self.model.borrow().clone() else {
+            return;
+        };
+        let merchant = self
+            .merchant
+            .borrow()
+            .as_ref()
+            .is_some_and(|c| c.is_active());
+        if let Some(check) = self.collapse.borrow().as_ref() {
+            check.set_sensitive(
+                !self.bulk_only.get()
+                    && (plan.trade.offline || !merchant || plan.trade.collapse_merchant),
+            );
+        }
+    }
+    pub fn set_offline(&self, offline: bool) {
+        if let Some(p) = self.model.borrow_mut().as_mut() {
+            p.trade.offline = offline;
+        }
+        self.update_trade();
+    }
+    pub fn merchant_preference(&self) -> Option<bool> {
+        (self.merchant_allowed.get() && !self.bulk_only.get()).then(|| {
+            self.merchant
+                .borrow()
+                .as_ref()
+                .is_some_and(|c| c.is_active())
+        })
+    }
+    pub fn read(&self) -> Result<Plan, String> {
+        let mut p = self
+            .model
+            .borrow()
+            .clone()
+            .ok_or("Copie d’objet non reconnue.")?;
+        if let Some(relaxed) = &mut p.search_relaxed {
+            relaxed.disabled = Some(
+                self.scope
+                    .borrow()
+                    .as_ref()
+                    .and_then(|c| c.active_id())
+                    .as_deref()
+                    != Some("relaxed"),
+            );
+        }
+        let search = if p
+            .search_relaxed
+            .as_ref()
+            .is_some_and(|s| s.disabled != Some(true))
+        {
+            p.search_relaxed.as_mut().unwrap()
+        } else {
+            &mut p.search_exact
+        };
+        if let (Some(sub), Some(check)) = (search.sub.as_mut(), self.sub.borrow().as_ref()) {
+            sub.disabled = Some(!check.is_active());
+        }
+        if let Some(c) = self.corruption.borrow().as_ref() {
+            p.corrupted = match c.active_id().as_deref() {
+                Some("true") => Some(item_filters::Corrupted {
+                    value: true,
+                    exact: Some(true),
+                }),
+                Some("false") => Some(item_filters::Corrupted {
+                    value: false,
+                    exact: Some(true),
+                }),
+                _ => None,
+            };
+        }
+        if let Some(c) = self.rarity.borrow().as_ref() {
+            p.rarity = c
+                .active_id()
+                .filter(|s| s != "all")
+                .map(|s| item_filters::Choice {
+                    value: s.into(),
+                    disabled: false,
+                });
+            if let Some(foil) = &mut p.foil {
+                foil.disabled = true;
+            }
+        }
+        for row in self.numbers.borrow().iter() {
+            if let Some(f) = row.kind.get_mut(&mut p) {
+                f.disabled = !row.enabled.is_active();
+                f.value = row.min.value().round() as u32;
+                f.max = if let (Some(check), Some(max)) = (&row.max_enabled, &row.max) {
+                    check.is_active().then(|| max.value().round() as u32)
+                } else {
+                    None
+                };
+                if !f.disabled && f.max.is_some_and(|max| f.value > max) {
+                    return Err(format!(
+                        "{} : minimum supérieur au maximum.",
+                        row.kind.label()
+                    ));
+                }
+            }
+        }
+        for (kind, check) in self.flags.borrow().iter() {
+            let enabled = check.is_active();
+            match kind {
+                Flag::Fractured => {
+                    if let Some(f) = &mut p.fractured {
+                        f.value = !enabled;
+                    }
+                }
+                Flag::Imbued => {
+                    if let Some(f) = &mut p.imbued_gem {
+                        f.disabled = enabled;
+                    }
+                }
+                Flag::Mirrored => {
+                    if let Some(f) = &mut p.mirrored {
+                        f.disabled = enabled;
+                    }
+                }
+                Flag::Split => {
+                    if let Some(f) = &mut p.split {
+                        f.disabled = enabled;
+                    }
+                }
+                Flag::Foulborn => {
+                    if let Some(f) = &mut p.foulborn {
+                        f.value = !enabled;
+                    }
+                }
+                Flag::Vestigial => {
+                    if let Some(f) = &mut p.vestigial {
+                        f.value = !enabled;
+                    }
+                }
+                Flag::Unidentified => {
+                    if let Some(f) = &mut p.unidentified {
+                        f.disabled = !enabled;
+                    }
+                }
+                Flag::Veiled => {
+                    if let Some(f) = &mut p.veiled {
+                        f.disabled = !enabled;
+                    }
+                }
+                Flag::Influence(i) => {
+                    if let Some(f) = p.influences.as_mut().and_then(|v| v.get_mut(*i)) {
+                        f.disabled = !enabled;
+                    }
+                }
+            }
+        }
+        if let Some(c) = self.merchant.borrow().as_ref() {
+            p.trade.merchant_only = c.is_active() && self.merchant_allowed.get();
+        }
+        if let Some(c) = self.collapse.borrow().as_ref() {
+            p.trade.collapse_listings = if c.is_active() { "api" } else { "app" }.into();
+        }
+        if let Some(c) = self.currency.borrow().as_ref() {
+            p.trade.currency = c.active_id().filter(|s| s != "all").map(|s| s.into());
+        }
+        Ok(p)
+    }
+    fn update_summary(&self) {
+        match self.read() {
+            Ok(p) => {
+                let s = p.active_search();
+                let text = if let Some(name) = s.name.as_ref() {
+                    format!("Nom : {name}")
+                } else if let Some(c) = &s.category {
+                    format!("Catégorie : {c}")
+                } else if let Some(base) = &s.base_type {
+                    format!("Base / zone : {base}")
+                } else {
+                    String::new()
+                };
+                self.summary.set_text(&text);
+                self.expander.set_label(Some("Filtres d’objet"));
+            }
+            Err(error) => self.summary.set_text(&error),
+        }
+    }
+}
