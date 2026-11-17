@@ -13,13 +13,13 @@ plus compilés dans le panneau actuel. L’ancien inventaire est dans
 | Copie de l’objet survolé | Implémentée, avant affichage | PoE XWayland ; geste Ctrl+Alt+C ; capture annulée si le contexte change |
 | Parsing anglais, propriétés, mods et pseudo stats | Implémentés | Corpus comparés aux règles upstream ; parseur complet et autres langues non revendiqués |
 | Sélection des mods, Min/Max, presets | Implémentée | Rectangles entièrement cliquables, champs Min/Max indépendants ; filtres calculés et sources exactes ; tests graphiques privés réussis |
-| Filtres d’objet | Implémentés | Base/catégorie, rareté, corruption, ilvl, qualité, gemmes, liens, influences, stock ; éditeur avancé encore partiel |
+| Filtres d’objet | Implémentés | Boutons directs base/catégorie, rareté, corruption et valeurs numériques ; influences et autres options disponibles ; éditeur avancé encore partiel |
 | Recherche Trade et échange en lot | Implémentés | Zone principale pour les offres, propriétés et mods de chaque objet vendu au survol ; limites réseau, cache, annulation et résultats obsolètes gérés |
 | Prix indicatifs poe.ninja | Implémentés | À distinguer du prix d’un rare filtré ; pas de prédiction automatique d’un rare |
-| Overlay et focus | Implémentés sous River | Panneau pleine hauteur à côté de l’inventaire ; premier rendu avant interaction ; masquage après changement d’application |
+| Overlay et focus | Implémentés sous River | Panneau pleine hauteur à côté de l’inventaire ; premier rendu avant interaction ; léger voile sombre, fermeture au clic extérieur ; masquage après changement d’application |
 | Ligue actuelle | Automatique | Liste publique poe.ninja, PC softcore ; cache de 5 min ; choix manuel possible dans Réglages |
 | Réglages | Limités au price checker | Général et cinq raccourcis ; brouillon, annulation, validation et écriture transactionnelle |
-| Distribution Linux | Paquet Artix/Arch | Construction reproductible ; paquet de la nouvelle version centrée prix en préparation |
+| Distribution Linux | Paquet Artix/Arch | Construction reproductible ; version 0.24 avec sources et licences |
 | Windows | Étape suivante | Moteur PoE/réseau réutilisable ; intégration native fenêtres, presse-papiers, raccourcis, rendu et focus à implémenter puis tester sur Windows |
 
 Le moteur PoE (`item`, `modifiers`, `calculated`, `presets`, `item_filters`,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Native settings on a private River/XWayland desktop. Never touches the real game."""
+from PIL import Image
 import hashlib,json,os,pathlib,select,shutil,subprocess,sys,tempfile,time,urllib.parse,http.server,threading
 root=pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
@@ -96,6 +97,23 @@ try:
             if v['y']+8<y<v['y']+v['height']-8:return r
             o=status()['origin'];subprocess.run([str(target/'debug/examples/pointer'),str(int(o['x']+v['x']+v['width']-10)),str(int(o['y']+v['y']+v['height']/2)),'2560','1600','--scroll','60' if y>v['y']+v['height']/2 else '-60'],env=env,check=True);time.sleep(.06)
         raise RuntimeError('stat row unreachable')
+    command('hide');focus_game();time.sleep(.1)
+    subprocess.run(['grim',str(runtime/'before-veil.png')],env=env,check=True)
+    before_pixel=Image.open(runtime/'before-veil.png').getpixel((2300,1200))[:3]
+    for interactive in [False,True]:
+        copy('ctrl+alt+d' if interactive else 'ctrl+d',interactive)
+        wait_for(lambda:status()['backdrop']['input_ready'],'painted backdrop ready')
+        assert status()['backdrop']['keyboard_mode']=='None'
+        time.sleep(.1)
+        subprocess.run(['grim',str(runtime/'with-veil.png')],env=env,check=True)
+        after_pixel=Image.open(runtime/'with-veil.png').getpixel((2300,1200))[:3]
+        assert all(abs(b*.82-a)<=3 for a,b in zip(after_pixel,before_pixel)),(before_pixel,after_pixel)
+        report['dark_veil_pixel_before_after']=[before_pixel,after_pixel]
+        before=fixture_command('input')['clicks']
+        pointer(2300,1200,True)
+        wait_for(lambda:state(state='Hidden',visible=False) and not status()['backdrop']['visible'],'outside click closes both surfaces')
+        assert fixture_command('input')['clicks']==before,'outside click leaked to fake game'
+    report['outside_click_closes_passive_and_interactive_without_forwarding_to_game']=True
     copy();s=status();assert s['keyboard_mode']=='None' and s['game_active'] and not s['overlay_focused'] and s['mod_expander']['expanded'];assert s['request'] is None
     assert not any(k in s for k in ['widget_canvas','widget_menu','delve','images','stash','stopwatches','catalogue'])
     report['ctrl_d_copies_rare_into_passive_checker_with_mods_expanded_and_no_auxiliary_surfaces']=True
@@ -109,6 +127,31 @@ try:
     assert status()['state']=='Passive' and status()['game_active'] and not status()['overlay_focused'] and current_life()['selected']
     report['passive_rectangles_pass_clicks_to_fake_game_without_selection_or_focus']=True
     copy('ctrl+alt+d',True);assert status()['keyboard_mode']=='OnDemand';time.sleep(.15)
+    controls=status()['item_filter_controls'];base=controls['base'];assert base['sensitive']
+    click(base['rect']);wait_for(lambda:status()['item_filter_controls']['base']['active'] != base['active'],'same base toggled')
+    assert status()['request'] is None
+    click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'base filter query')
+    q=status()['request']['query'];assert ('type' in q)==(not base['active']),q
+    time.sleep(5.1)
+    click(status()['item_filter_controls']['base']['rect'])
+    ilvl=next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')
+    click(ilvl['rect']);wait_for(lambda:next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')['active']!=ilvl['active'],'ilvl toggled')
+    click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'ilvl query')
+    assert ('ilvl' in status()['request']['query'].get('filters',{}).get('misc_filters',{}).get('filters',{})) == (not ilvl['active']),status()['request']
+    time.sleep(5.1)
+    click(next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')['rect'])
+    report['direct_base_and_ilvl_buttons_change_trade_query_without_automatic_requests']=True
+    for name in ['corruption','rarity']:
+        assert status()['item_filter_controls'][name]['active']
+        click(status()['item_filter_controls'][name]['rect'])
+    wait_for(lambda:status()['item_filters'].get('corrupted') is None and status()['item_filters'].get('rarity') is None,'corruption and rarity disabled')
+    assert status()['request'] is None
+    click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'query without rarity or corruption')
+    q=status()['request']['query']['filters']
+    assert 'corrupted' not in q.get('misc_filters',{}).get('filters',{}) and 'rarity' not in q.get('type_filters',{}).get('filters',{}),q
+    time.sleep(5.1)
+    for name in ['corruption','rarity']:click(status()['item_filter_controls'][name]['rect'])
+    report['direct_corruption_and_rarity_buttons_remove_criteria_from_query']=True
     r=reveal(current_life);assert r['selected'] and r['min_enabled'];field=r['min'];click(dict(field,x=field['x']+6,width=28));time.sleep(.1)
     subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','60'],env=env,check=True)
     assert status()['request'] is None
@@ -122,9 +165,13 @@ try:
     offers=status()['listings']['offers'];assert all(o['has_item_details'] for o in offers)
     assert '+73 to maximum Life' in offers[0]['tooltip'] and '+110 to maximum Life' not in offers[0]['tooltip']
     assert offers[0]['rect']['y']<1000,'offers are still compressed at the bottom'
-    r=offers[0]['rect'];o=status()['origin'];pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']/2)
+    r=offers[0]['rect'];o=status()['origin'];pointer(o['x']+r['x']+r['width']-5,o['y']+r['y']+r['height']/2)
+    hover_started=time.monotonic()
     wait_for(lambda:status()['listings']['tooltip_queries']>0 and status()['listings']['tooltip_visible'],'native tooltip painted at offer hover')
+    report['whole_offer_right_edge_hover_ms']=round((time.monotonic()-hover_started)*1000)
+    assert report['whole_offer_right_edge_hover_ms']<450,report
     assert status()['state']=='Interactive' and status()['overlay_focused'],'hover tooltip changed keyboard owner'
+    time.sleep(.3);assert status()['listings']['tooltip_visible'],'hover detail flickered away'
     if os.environ.get('APT_HOVER_SCREENSHOT'):subprocess.run(['grim',os.environ['APT_HOVER_SCREENSHOT']],env=env,check=True)
     report['native_hover_shows_fetched_offer_stats_and_preserves_parent_focus']=True
     report['first_offered_item_life']=73;report['searched_item_life']=85
@@ -193,7 +240,7 @@ try:
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines
     assert fixture_command('input')['submitted']==[]
     report.update(scope='Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.',binary_version=subprocess.check_output([str(app),'--version'],text=True).strip())
-    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs']}
+    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/item_filters_panel.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 

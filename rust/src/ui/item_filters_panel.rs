@@ -21,15 +21,15 @@ enum Number {
 impl Number {
     fn label(self) -> &'static str {
         match self {
-            Self::ItemLevel => "Niveau d’objet minimum",
+            Self::ItemLevel => "ilvl minimum",
             Self::Quality => "Qualité minimum",
-            Self::GemLevel => "Niveau de gemme minimum",
+            Self::GemLevel => "Gemme minimum",
             Self::Links => "Sockets liés minimum",
             Self::White => "Sockets blancs minimum",
             Self::Stack => "Stock minimum",
             Self::MapTier => "Tier de carte exact",
-            Self::AreaLevel => "Niveau de zone minimum",
-            Self::Charge => "Charges de Sentinel minimum",
+            Self::AreaLevel => "Zone minimum",
+            Self::Charge => "Charges minimum",
         }
     }
     fn get(self, p: &Plan) -> &Option<Numeric> {
@@ -73,7 +73,7 @@ enum Flag {
 }
 struct NumberRow {
     kind: Number,
-    enabled: gtk::CheckButton,
+    enabled: gtk::ToggleButton,
     min: gtk::SpinButton,
     max_enabled: Option<gtk::CheckButton>,
     max: Option<gtk::SpinButton>,
@@ -83,13 +83,16 @@ pub struct Panel {
     summary: gtk::Label,
     expander: gtk::Expander,
     fields: gtk::Box,
+    quick: gtk::Box,
     model: RefCell<Option<Plan>>,
     numbers: RefCell<Vec<NumberRow>>,
     flags: RefCell<Vec<(Flag, gtk::CheckButton)>>,
-    scope: RefCell<Option<gtk::ComboBoxText>>,
+    scope: RefCell<Option<gtk::ToggleButton>>,
     sub: RefCell<Option<gtk::CheckButton>>,
     corruption: RefCell<Option<gtk::ComboBoxText>>,
+    corruption_enabled: RefCell<Option<gtk::ToggleButton>>,
     rarity: RefCell<Option<gtk::ComboBoxText>>,
+    rarity_enabled: RefCell<Option<gtk::ToggleButton>>,
     currency: RefCell<Option<gtk::ComboBoxText>>,
     merchant: RefCell<Option<gtk::CheckButton>>,
     collapse: RefCell<Option<gtk::CheckButton>>,
@@ -119,25 +122,26 @@ impl Panel {
         let summary = label("Copiez un objet pour préparer ses filtres.");
         let expander = gtk::Expander::new(Some("Filtres d’objet"));
         let fields = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        scroll.set_min_content_height(300);
-        scroll.set_max_content_height(300);
-        scroll.add(&fields);
-        expander.add(&scroll);
+        expander.add(&fields);
+        let quick = gtk::Box::new(gtk::Orientation::Vertical, 5);
         container.pack_start(&summary, false, false, 0);
+        container.pack_start(&quick, false, false, 0);
         container.pack_start(&expander, false, false, 0);
         Rc::new(Self {
             container,
             summary,
             expander,
             fields,
+            quick,
             model: RefCell::new(None),
             numbers: RefCell::new(vec![]),
             flags: RefCell::new(vec![]),
             scope: RefCell::new(None),
             sub: RefCell::new(None),
             corruption: RefCell::new(None),
+            corruption_enabled: RefCell::new(None),
             rarity: RefCell::new(None),
+            rarity_enabled: RefCell::new(None),
             currency: RefCell::new(None),
             merchant: RefCell::new(None),
             collapse: RefCell::new(None),
@@ -170,6 +174,46 @@ impl Panel {
             }
         });
     }
+    fn wire_toggle(self: &Rc<Self>, check: &gtk::ToggleButton) {
+        let weak = Rc::downgrade(self);
+        check.connect_toggled(move |_| {
+            if let Some(p) = weak.upgrade() {
+                p.changed();
+            }
+        });
+    }
+    pub fn commit(&self) {
+        for row in self.numbers.borrow().iter() {
+            row.min.update();
+            if let Some(max) = &row.max {
+                max.update();
+            }
+        }
+    }
+    pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
+        let rect = |w: &gtk::Widget| {
+            w.translate_coordinates(window,0,0).map(|(x,y)| serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
+        };
+        serde_json::json!({"corruption":self.corruption_enabled.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"active":b.is_active()})),"rarity":self.rarity_enabled.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"active":b.is_active()})),"base":self.scope.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"active":b.is_active(),"sensitive":b.is_sensitive()})),"numbers":self.numbers.borrow().iter().map(|r|serde_json::json!({"name":format!("{:?}",r.kind),"rect":rect(r.enabled.upcast_ref()),"active":r.enabled.is_active()})).collect::<Vec<_>>()})
+    }
+    fn quick_choice(
+        self: &Rc<Self>,
+        text: &str,
+        choice: &gtk::ComboBoxText,
+        active: bool,
+    ) -> gtk::ToggleButton {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+        let enabled = gtk::ToggleButton::with_label(text);
+        enabled.set_active(active);
+        choice.set_sensitive(active);
+        let field = choice.clone();
+        enabled.connect_toggled(move |b| field.set_sensitive(b.is_active()));
+        self.wire_toggle(&enabled);
+        row.pack_start(&enabled, false, false, 0);
+        row.pack_start(choice, true, true, 0);
+        self.quick.pack_start(&row, false, false, 0);
+        enabled
+    }
     fn wire_combo(self: &Rc<Self>, combo: &gtk::ComboBoxText) {
         let weak = Rc::downgrade(self);
         combo.connect_changed(move |_| {
@@ -189,12 +233,18 @@ impl Panel {
         self.updating.set(true);
         self.model.replace(None);
         self.last_snapshot.replace(None);
+        for child in self.quick.children() {
+            self.quick.remove(&child);
+        }
         for child in self.fields.children() {
             self.fields.remove(&child);
         }
         self.numbers.borrow_mut().clear();
         self.flags.borrow_mut().clear();
-        for field in [&self.scope, &self.corruption, &self.rarity, &self.currency] {
+        self.scope.replace(None);
+        self.corruption_enabled.replace(None);
+        self.rarity_enabled.replace(None);
+        for field in [&self.corruption, &self.rarity, &self.currency] {
             field.replace(None);
         }
         self.sub.replace(None);
@@ -211,24 +261,19 @@ impl Panel {
         self.merchant_allowed.set(merchant_allowed);
         self.bulk_only.set(bulk_only);
         self.model.replace(Some(plan.clone()));
-        let scope = combo(
-            &[
-                ("exact", "Base ou nom exact"),
-                ("relaxed", "Catégorie / zone"),
-            ],
-            if plan
+        let scope = gtk::ToggleButton::with_label("Même base / nom exact");
+        scope.set_active(
+            !plan
                 .search_relaxed
                 .as_ref()
-                .is_some_and(|s| s.disabled != Some(true))
-            {
-                "relaxed"
-            } else {
-                "exact"
-            },
+                .is_some_and(|s| s.disabled != Some(true)),
         );
         scope.set_sensitive(plan.search_relaxed.is_some());
-        self.wire_combo(&scope);
-        self.fields.pack_start(&scope, false, false, 0);
+        scope.set_tooltip_text(Some(
+            "Activé : même base ou nom. Désactivé : recherche dans la catégorie de l’objet.",
+        ));
+        self.wire_toggle(&scope);
+        self.quick.pack_start(&scope, false, false, 0);
         self.scope.replace(Some(scope));
         if plan.search_exact.sub.is_some()
             || plan
@@ -264,7 +309,14 @@ impl Panel {
         );
         if plan.corrupted.is_some() {
             self.wire_combo(&corruption);
-            self.fields.pack_start(&corruption, false, false, 0);
+            let enabled = self.quick_choice(
+                "Corruption",
+                &corruption,
+                plan.corrupted
+                    .as_ref()
+                    .is_some_and(|c| !c.value || c.exact == Some(true)),
+            );
+            self.corruption_enabled.replace(Some(enabled));
             self.corruption.replace(Some(corruption));
         }
         let rarity = combo(
@@ -294,7 +346,8 @@ impl Panel {
         );
         if plan.rarity.is_some() || plan.foil.is_some() {
             self.wire_combo(&rarity);
-            self.fields.pack_start(&rarity, false, false, 0);
+            let enabled = self.quick_choice("Rareté", &rarity, true);
+            self.rarity_enabled.replace(Some(enabled));
             self.rarity.replace(Some(rarity));
         }
         for kind in [
@@ -311,12 +364,12 @@ impl Panel {
             let Some(n) = kind.get(&plan) else {
                 continue;
             };
-            let group = gtk::Box::new(gtk::Orientation::Vertical, 3);
-            let enabled = gtk::CheckButton::with_label(kind.label());
+            let group = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+            let enabled = gtk::ToggleButton::with_label(kind.label());
             enabled.set_active(!n.disabled);
             let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
             let min = gtk::SpinButton::with_range(0., 1_000_000., 1.);
-            min.set_width_chars(8);
+            min.set_width_chars(4);
             min.set_value(n.value as f64);
             min.set_sensitive(!n.disabled);
             row.pack_start(&min, false, false, 0);
@@ -324,7 +377,7 @@ impl Panel {
                 let check = gtk::CheckButton::with_label("Max");
                 check.set_active(n.max.is_some());
                 let spin = gtk::SpinButton::with_range(1., 1_000_000., 1.);
-                spin.set_width_chars(8);
+                spin.set_width_chars(4);
                 spin.set_value(n.max.unwrap_or(n.value.max(1)) as f64);
                 spin.set_sensitive(!n.disabled && n.max.is_some());
                 row.pack_start(&check, false, false, 0);
@@ -346,7 +399,7 @@ impl Panel {
                     }
                 });
             }
-            self.wire_check(&enabled);
+            self.wire_toggle(&enabled);
             {
                 let weak = Rc::downgrade(self);
                 min.connect_value_changed(move |_| {
@@ -375,7 +428,7 @@ impl Panel {
             }
             group.pack_start(&enabled, false, false, 0);
             group.pack_start(&row, false, false, 0);
-            self.fields.pack_start(&group, false, false, 0);
+            self.quick.pack_start(&group, false, false, 0);
             self.numbers.borrow_mut().push(NumberRow {
                 kind,
                 enabled,
@@ -450,6 +503,7 @@ impl Panel {
             self.fields.pack_start(&label("Échange en lot : utilisez le stock minimum et la devise de paiement au-dessus."), false, false, 0);
         }
         self.fields.pack_start(&label("Ces choix concernent l’objet copié. Vérifiez la portée et les critères actifs avant Rechercher."),false,false,0);
+        self.quick.show_all();
         self.fields.show_all();
         self.summary.show();
         self.expander.show_all();
@@ -464,13 +518,7 @@ impl Panel {
         let Some(plan) = self.model.borrow().clone() else {
             return;
         };
-        let relaxed = self
-            .scope
-            .borrow()
-            .as_ref()
-            .and_then(|c| c.active_id())
-            .as_deref()
-            == Some("relaxed");
+        let relaxed = self.scope.borrow().as_ref().is_some_and(|c| !c.is_active());
         let search = if relaxed {
             plan.search_relaxed.as_ref().unwrap_or(&plan.search_exact)
         } else {
@@ -517,14 +565,7 @@ impl Panel {
             .clone()
             .ok_or("Copie d’objet non reconnue.")?;
         if let Some(relaxed) = &mut p.search_relaxed {
-            relaxed.disabled = Some(
-                self.scope
-                    .borrow()
-                    .as_ref()
-                    .and_then(|c| c.active_id())
-                    .as_deref()
-                    != Some("relaxed"),
-            );
+            relaxed.disabled = Some(self.scope.borrow().as_ref().is_none_or(|c| c.is_active()));
         }
         let search = if p
             .search_relaxed
@@ -539,7 +580,12 @@ impl Panel {
             sub.disabled = Some(!check.is_active());
         }
         if let Some(c) = self.corruption.borrow().as_ref() {
-            p.corrupted = match c.active_id().as_deref() {
+            p.corrupted = match c.active_id().as_deref().filter(|_| {
+                self.corruption_enabled
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|b| b.is_active())
+            }) {
                 Some("true") => Some(item_filters::Corrupted {
                     value: true,
                     exact: Some(true),
@@ -554,7 +600,14 @@ impl Panel {
         if let Some(c) = self.rarity.borrow().as_ref() {
             p.rarity = c
                 .active_id()
-                .filter(|s| s != "all")
+                .filter(|s| {
+                    s != "all"
+                        && self
+                            .rarity_enabled
+                            .borrow()
+                            .as_ref()
+                            .is_some_and(|b| b.is_active())
+                })
                 .map(|s| item_filters::Choice {
                     value: s.into(),
                     disabled: false,

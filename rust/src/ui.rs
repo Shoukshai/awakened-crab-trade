@@ -10,6 +10,7 @@ use crate::{
     settings::Settings,
     trade::{Prices, SearchKind, Trade},
 };
+mod backdrop;
 mod economy_panel;
 mod item_filters_panel;
 mod listings_panel;
@@ -69,6 +70,7 @@ struct Job {
     query: serde_json::Value,
 }
 struct Ui {
+    backdrop: Rc<backdrop::Backdrop>,
     window: gtk::Window,
     game_bounds: Cell<Option<crate::price_layout::Rect>>,
     game_window: Cell<Option<u32>>,
@@ -130,7 +132,7 @@ struct Ui {
 }
 fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
     window.set_size_request((480. * scale) as i32, 0);
-    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 0px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native .mod-row {{ border: 1px solid #59606b; border-radius: 4px; background-color: #1b2430; }} #apt-native .mod-row.selected {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row {{ border: 1px solid #4a515e; border-radius: 3px; background-color: #1b2430; }} #apt-native .trade-row:hover {{ border-color: #b99a5b; }} tooltip {{ background-color: #151b24; border: 1px solid #b99a5b; padding: 10px; }} tooltip label {{ color: #eeeeef; font: 14px Sans; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 0px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native .mod-row {{ border: 1px solid #59606b; border-radius: 4px; background-color: #1b2430; }} #apt-native .mod-row.selected {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row {{ border: 1px solid #4a515e; border-radius: 3px; background-color: #1b2430; }} #apt-native togglebutton:checked, #apt-native button:checked {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row:hover {{ border-color: #b99a5b; }} #apt-offer-details, tooltip {{ background-color: #151b24; border: 1px solid #b99a5b; padding: 10px; }} #apt-offer-details label, tooltip label {{ color: #eeeeef; font: 14px Sans; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
     Ok(())
 }
 fn socket_path() -> Result<std::path::PathBuf, String> {
@@ -270,6 +272,16 @@ impl Ui {
             return;
         }
         self.panel_bounds.set(Some(p));
+        self.backdrop.position(
+            &monitor,
+            Rect {
+                x: p.x - output.x,
+                y: p.y - output.y,
+                ..p
+            },
+        );
+        self.mod_scroll
+            .set_max_content_height((output.height * 42 / 100).clamp(220, 650));
         self.window.set_monitor(&monitor);
         self.window
             .set_layer_shell_margin(Edge::Left, p.x - output.x);
@@ -317,6 +329,7 @@ impl Ui {
         self.sync_generation();
         apply_input(&self.window, false);
         dismiss_owned_popup(&self.window);
+        self.backdrop.hide();
         self.window.hide();
         eprintln!(
             "overlay state=Hidden reason={reason:?} generation={} input=empty keyboard=None",
@@ -333,6 +346,7 @@ impl Ui {
         self.shown.replace(Some(Instant::now()));
         self.position_panel(None);
         apply_input(&self.window, false);
+        self.backdrop.show();
         self.window.show_all();
         self.window.queue_draw();
         let settings = self.settings.borrow();
@@ -867,6 +881,7 @@ impl Ui {
         for row in self.stat_rows.borrow().iter() {
             row.commit();
         }
+        self.item_filters.commit();
         // Even a locally rejected edit supersedes pending results. Otherwise an
         // older response could replace the validation error with stale prices.
         self.state.borrow_mut().generation += 1;
@@ -1414,10 +1429,11 @@ pub fn run() -> Result<(), String> {
     mod_scroll.set_vexpand(false);
     mod_scroll.set_max_content_height(380);
     mod_scroll.set_propagate_natural_height(true);
-    mod_scroll.add(&mod_box);
+    let filter_content = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    mod_scroll.add(&filter_content);
     let mod_expander =
         gtk::Expander::new(Some("Mods reconnus — cochez un filtre, puis Rechercher"));
-    mod_expander.add(&mod_scroll);
+    mod_expander.add(&mod_box);
     mod_expander.set_expanded(true);
     let preset = gtk::ComboBoxText::new();
     preset.set_no_show_all(true);
@@ -1457,9 +1473,10 @@ pub fn run() -> Result<(), String> {
     price_content.pack_start(&row, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     price_content.pack_start(&economy_panel.container, false, false, 0);
-    price_content.pack_start(&preset, false, false, 0);
-    price_content.pack_start(&item_filters.container, false, false, 0);
-    price_content.pack_start(&mod_expander, false, false, 0);
+    filter_content.pack_start(&item_filters.container, false, false, 0);
+    filter_content.pack_start(&preset, false, false, 0);
+    filter_content.pack_start(&mod_expander, false, false, 0);
+    price_content.pack_start(&mod_scroll, false, false, 0);
     price_content.pack_start(&actions, false, false, 0);
     price_content.pack_start(&scroll, true, true, 0);
     stack.add_named(&preferences.container, "settings");
@@ -1571,7 +1588,12 @@ pub fn run() -> Result<(), String> {
         });
     }
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
+    let close_sender = sender.clone();
+    let backdrop = backdrop::Backdrop::new(move || {
+        let _ = close_sender.send(Event::Hotkey(crate::hotkeys::Action::Command("hide")));
+    });
     let ui = Rc::new(Ui {
+        backdrop,
         window: window.clone(),
         game_bounds: Cell::new(None),
         game_window: Cell::new(None),
@@ -1737,6 +1759,7 @@ pub fn run() -> Result<(), String> {
             let weak = Rc::downgrade(&ui);
             clock.connect_after_paint(move |_| { if let Some(ui) = weak.upgrade() {
                 ui.frames.set(ui.frames.get()+1);
+                ui.backdrop.main_painted();
                 if ui.state.borrow().state == State::Preparing {
                     ui.state.borrow_mut().painted();
                     eprintln!("overlay state=Passive first_frame=painted display_ms={} geometry={}x{} activation_requested=false",ui.shown.borrow().as_ref().map(|t| t.elapsed().as_millis()).unwrap_or(0),ui.window.allocated_width(),ui.window.allocated_height());
@@ -1875,6 +1898,8 @@ pub fn run() -> Result<(), String> {
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
                         value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
                         value["frames"] = serde_json::json!(ui.frames.get());
+                        value["backdrop"] = ui.backdrop.diagnostics();
+                        value["item_filter_controls"] = ui.item_filters.diagnostics(&ui.window);
                         value["listings"] = ui.listings.diagnostics(&ui.window);
                         value["league_selection"] = serde_json::json!({"automatic":ui.settings.borrow().automatic_league,"ready":ui.league_ready.get(),"label":ui.league_label.text().as_str()});
                         value["panel_bounds"] = serde_json::json!(ui.panel_bounds.get());

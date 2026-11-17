@@ -1,7 +1,7 @@
 //! GTK X11 search field on the private desktop; never starts on the host display.
 use gtk::{gdk, prelude::*};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     io::{BufRead, Write},
     rc::Rc,
 };
@@ -61,6 +61,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let submitted = Rc::new(RefCell::new(Vec::<String>::new()));
     let keys = Rc::new(RefCell::new(Vec::<u32>::new()));
     let key_events = Rc::new(RefCell::new(Vec::<serde_json::Value>::new()));
+    let clicks = Rc::new(Cell::new(0u64));
+    {
+        let clicks = clicks.clone();
+        window.add_events(gdk::EventMask::BUTTON_PRESS_MASK);
+        window.connect_button_press_event(move |_, _| {
+            clicks.set(clicks.get() + 1);
+            glib::Propagation::Proceed
+        });
+    }
     let wheels = Rc::new(RefCell::new(Vec::<serde_json::Value>::new()));
     window.add_events(gdk::EventMask::SCROLL_MASK | gdk::EventMask::SMOOTH_SCROLL_MASK);
     {
@@ -119,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let entry = entry.clone();
         let keys = keys.clone();
-        rx.attach(None,move |line|{match line.as_str(){"input"=>{println!("{}",serde_json::json!({"submitted":*submitted.borrow(),"text":entry.text().as_str(),"keys":*keys.borrow(),"key_events":*key_events.borrow(),"wheels":*wheels.borrow()}));std::io::stdout().flush().unwrap();},"quit"=>{gtk::main_quit();return glib::ControlFlow::Break;},_=>panic!("unknown fixture command")};glib::ControlFlow::Continue});
+        rx.attach(None,move |line|{match line.as_str(){"input"=>{println!("{}",serde_json::json!({"clicks":clicks.get(),"submitted":*submitted.borrow(),"text":entry.text().as_str(),"keys":*keys.borrow(),"key_events":*key_events.borrow(),"wheels":*wheels.borrow()}));std::io::stdout().flush().unwrap();},"quit"=>{gtk::main_quit();return glib::ControlFlow::Break;},_=>panic!("unknown fixture command")};glib::ControlFlow::Continue});
     }
     window.connect_delete_event(|_, _| {
         gtk::main_quit();

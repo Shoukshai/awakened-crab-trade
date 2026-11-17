@@ -27,17 +27,20 @@ Le programme démarre masqué. Dans PoE, survoler un objet :
 La ligue actuelle PC softcore est sélectionnée automatiquement depuis la liste
 poe.ninja au lancement (Covens dans la session testée). Pour une autre ligue, désactiver
 la sélection automatique dans Réglages. Le panneau occupe toute la hauteur de
-l’écran, au bord gauche de l’inventaire. Pour un équipement rare, choisir
+l’écran, au bord gauche de l’inventaire. Un léger voile sombre couvre le jeu ;
+cliquer en dehors du panneau le ferme sans transmettre ce clic au jeu. Pour un équipement rare, choisir
 les stats pertinentes en cliquant sur leurs rectangles, activer Min et/ou Max,
 saisir les bornes puis cliquer
 **Rechercher**. Modifier un filtre invalide les anciennes offres sans lancer de
-recherche. Les offres occupent la zone principale sous les filtres. Survoler une offre
-affiche les propriétés et les mods de cet objet vendu ; les bornes de recherche
+recherche. Les offres occupent la zone principale sous les filtres. Survoler n’importe où dans la case d’une offre
+affiche rapidement les propriétés et les mods de cet objet vendu ; les bornes de recherche
 ne sont pas utilisées comme statistiques de l’offre. **Ouvrir Trade** ouvre la
 requête dans le navigateur sur une action explicite.
 
-**Filtres d’objet** regroupe base/catégorie, corruption, ilvl, gemmes, qualité,
-liens, influences et stock selon l’objet. Les presets proposent les filtres
+Les boutons **Même base / nom exact**, **ilvl**, **Rareté**, **Corruption**,
+qualité, niveau de gemme et liens (selon l’objet) activent ou désactivent ces critères
+directement. **Filtres d’objet** conserve les options complémentaires, dont les
+influences et le regroupement Trade. Les presets proposent les filtres
 adaptés à son type. **Autres filtres et sources exactes** donne accès aux stats
 masquées par les calculs pseudo. Une comparaison par base seule ne suffit pas à
 estimer un rare. Les cotes poe.ninja sont indicatives.
@@ -64,7 +67,7 @@ l’installer. Les dépendances Cargo doivent être disponibles localement
 
 ```sh
 cargo test --locked -j 3
-python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs docs/price-checker-lifecycle-0.23.json
+python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs docs/price-checker-lifecycle-0.24.json
 ```
 
 Voir [périmètre et état](docs/PORTING.md), [démarrage rapide](docs/QUICKSTART.md)
