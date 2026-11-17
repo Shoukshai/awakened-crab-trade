@@ -1,10 +1,7 @@
 use std::{
     io::Write,
     process::{Command, Stdio},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::Mutex,
     time::{Duration, Instant},
 };
 static MUTATION: Mutex<()> = Mutex::new(());
@@ -42,59 +39,44 @@ fn write(text: &str) -> Result<(), String> {
 }
 /// Explicit user command only. Never runs while the overlay owns keyboard input.
 /// The marker prevents accepting a previous item (also works around Proton 10+).
-pub fn copy_from_game(active: &Arc<AtomicBool>, restore: bool) -> Result<String, String> {
+pub fn copy_from_game(
+    context: &super::game_input::Context<'_>,
+    restore: bool,
+) -> Result<String, String> {
+    context.check()?;
     let _mutation = MUTATION
         .try_lock()
         .map_err(|_| "Clipboard action already in progress")?;
+    let guard = super::game_input::Guard::new(context)?;
     let previous = read().ok();
-    if !active.load(Ordering::Acquire) {
-        return Err("PoE is not active; copy cancelled".into());
-    }
+    guard.check()?;
     let marker = format!("__APT_RS_COPY_{}", std::process::id());
     write(&marker)?;
-    let focused = Command::new("xdotool")
-        .args(["getwindowfocus", "getwindowname"])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !active.load(Ordering::Acquire)
-        || String::from_utf8_lossy(&focused.stdout).trim() != "Path of Exile"
-    {
-        if read().is_ok_and(|s| s == marker) {
-            if let Some(previous) = &previous {
-                let _ = write(previous);
-            }
-        }
-        return Err("PoE focus changed before copy; no keys sent".into());
-    }
-    // This is the XWayland game's clipboard gesture. It is not a general Wayland input backend.
-    let status = Command::new("xdotool")
-        .args(["key", "--clearmodifiers", "ctrl+alt+c"])
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !status.success() {
-        return Err("XWayland copy gesture failed".into());
-    }
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_millis(1200) {
-        if !active.load(Ordering::Acquire) {
-            break;
-        }
-        if let Ok(text) = read() {
-            if text.starts_with("Item Class: ") {
-                if restore {
-                    restore_if_unchanged(&text, previous.as_deref());
+    let result = (|| {
+        guard.key("ctrl+alt+c")?;
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_millis(1200) {
+            context.check()?;
+            if let Ok(text) = read() {
+                context.check()?;
+                if text.starts_with("Item Class: ") {
+                    if restore {
+                        restore_if_unchanged(&text, previous.as_deref());
+                    }
+                    return Ok(text);
                 }
-                return Ok(text);
             }
+            std::thread::sleep(Duration::from_millis(40));
         }
-        std::thread::sleep(Duration::from_millis(40));
+        Err(
+            "No new item copied. Hover an item in PoE; alternatively Ctrl+Alt+C then run check."
+                .into(),
+        )
+    })();
+    if result.is_err() {
+        restore_if_unchanged(&marker, previous.as_deref());
     }
-    if read().is_ok_and(|s| s == marker) {
-        if let Some(previous) = &previous {
-            let _ = write(previous);
-        }
-    }
-    Err("No new item copied. Hover an item in PoE; alternatively Ctrl+Alt+C then run check.".into())
+    result
 }
 fn restore_if_unchanged(owned: &str, previous: Option<&str>) {
     if let Some(previous) = previous {

@@ -56,7 +56,7 @@ enum View {
 }
 enum Event {
     Stash(stash_panel::Action),
-    StashDone(u64, Result<(), String>),
+    StashDone(u64, bool, Result<(), String>),
     Menu(widget_menu::Action),
     WidgetOrder,
     Shortcut(&'static str),
@@ -67,7 +67,7 @@ enum Event {
     ImageManager(image_manager::Action),
     Windows(Snapshot),
     TrackerError(String),
-    Captured(u64, View, bool, Box<Result<(Item, u128), String>>),
+    Captured(u64, CaptureTarget, bool, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
     MapSettings(u64, crate::inspection::Edit),
@@ -89,17 +89,35 @@ enum EconomyJob {
         choices: Vec<crate::item::search::Choice>,
     },
 }
-struct StashJob {
-    generation: u64,
-    text: String,
-    restore: bool,
+enum StashJob {
+    Search {
+        generation: u64,
+        text: String,
+        restore: bool,
+    },
+    Scroll {
+        generation: u64,
+        chord: crate::hotkeys::ScrollChord,
+    },
+}
+impl StashJob {
+    fn generation(&self) -> u64 {
+        match self {
+            Self::Search { generation, .. } | Self::Scroll { generation, .. } => *generation,
+        }
+    }
+}
+#[derive(Clone, Copy)]
+enum CaptureTarget {
+    Panel(View),
+    Similar,
 }
 struct CaptureJob {
     restore: bool,
     text: Option<String>,
     generation: u64,
     copy: bool,
-    view: View,
+    target: CaptureTarget,
 }
 struct Job {
     generation: u64,
@@ -119,6 +137,10 @@ struct Ui {
     stash: Result<Rc<stash_panel::Runtime>, String>,
     stash_worker: SyncSender<StashJob>,
     stash_pending: Cell<Option<u64>>,
+    scroll_pending: Cell<usize>,
+    scroll_dropped: Cell<u64>,
+    wheel_status: RefCell<Result<(), String>>,
+    wheel_connection: Cell<u64>,
     stash_result: RefCell<Option<Result<(), String>>>,
     menu: Result<Rc<widget_menu::Menu>, String>,
     pending_menu: RefCell<Option<(u64, MenuRoute)>>,
@@ -496,7 +518,7 @@ impl Ui {
                 self.stash_result.replace(None);
                 if self
                     .stash_worker
-                    .try_send(StashJob {
+                    .try_send(StashJob::Search {
                         generation,
                         text,
                         restore,
@@ -518,7 +540,7 @@ impl Ui {
                         generation,
                         text: Some(text),
                         copy: false,
-                        view: View::Price,
+                        target: CaptureTarget::Panel(View::Price),
                     })
                     .is_err()
                 {
@@ -813,6 +835,7 @@ impl Ui {
         let generation = self.state.borrow().generation;
         if self.stash_pending.get().is_some_and(|g| g != generation) {
             self.stash_pending.set(None);
+            self.scroll_pending.set(0);
         }
         if self.capture_pending.get().is_some_and(|g| g != generation) {
             self.capture_pending.set(None);
@@ -1425,6 +1448,19 @@ impl Ui {
     fn preferences_update(&self, update: crate::desktop::preferences::Update) {
         use crate::desktop::preferences::Update;
         match update {
+            Update::Wheel { connection, result } => {
+                if connection
+                    < self
+                        .backend_connection
+                        .get()
+                        .max(self.wheel_connection.get())
+                {
+                    return;
+                }
+                self.wheel_connection.set(connection);
+                self.preferences.wheel_capability(&result);
+                let _ = self.wheel_status.replace(result);
+            }
             Update::Backend { connection, result } => {
                 if connection < self.backend_connection.get() {
                     return;
@@ -1651,7 +1687,8 @@ impl Ui {
                 self.text.set_text("Panneau natif de validation\n\nClavier et clics restent au jeu.\nAucun prix simulé n'est affiché.");
                 self.show();
             }
-            "check" | "copy" | "inspect-check" | "inspect-copy" => {
+            "check" | "copy" | "inspect-check" | "inspect-copy" | "similar-copy"
+            | "similar-check" => {
                 if !self.state.borrow().game_active {
                     eprintln!("capture refused: PoE is not active");
                     return;
@@ -1663,10 +1700,14 @@ impl Ui {
                     generation,
                     text: None,
                     copy: command.ends_with("copy"),
-                    view: if command.starts_with("inspect-") {
-                        View::Inspection
+                    target: if command.starts_with("similar-") {
+                        CaptureTarget::Similar
                     } else {
-                        View::Price
+                        CaptureTarget::Panel(if command.starts_with("inspect-") {
+                            View::Inspection
+                        } else {
+                            View::Price
+                        })
                     },
                 }) {
                     eprintln!("capture worker busy: {e}");
@@ -2149,9 +2190,15 @@ impl Ui {
     fn event(self: &Rc<Self>, event: Event) {
         match event {
             Event::Stash(action) => self.stash_action(action),
-            Event::StashDone(generation, result) => {
+            Event::StashDone(generation, scroll, result) => {
                 if self.stash_pending.get() == Some(generation) {
-                    self.stash_pending.set(None);
+                    if scroll {
+                        self.scroll_pending
+                            .set(self.scroll_pending.get().saturating_sub(1));
+                    }
+                    if !scroll || self.scroll_pending.get() == 0 {
+                        self.stash_pending.set(None);
+                    }
                 }
                 eprintln!(
                     "stash action finished generation={generation} current={} success={}",
@@ -2160,6 +2207,26 @@ impl Ui {
                 );
                 if generation == self.state.borrow().generation {
                     self.stash_result.replace(Some(result));
+                }
+            }
+            Event::Hotkey(crate::hotkeys::Action::ScrollStash(chord)) => {
+                if self.settings.borrow().stash_scroll
+                    && self.wheel_status.borrow().is_ok()
+                    && self.state.borrow().game_active
+                    && self.capture_pending.get().is_none()
+                    && (self.stash_pending.get().is_none() || self.scroll_pending.get() > 0)
+                {
+                    let generation = self.state.borrow().generation;
+                    if self
+                        .stash_worker
+                        .try_send(StashJob::Scroll { generation, chord })
+                        .is_ok()
+                    {
+                        self.scroll_pending.set(self.scroll_pending.get() + 1);
+                        self.stash_pending.set(Some(generation));
+                    } else {
+                        self.scroll_dropped.set(self.scroll_dropped.get() + 1);
+                    }
                 }
             }
             Event::Hotkey(crate::hotkeys::Action::StashSearch(id, entry)) => {
@@ -2201,6 +2268,7 @@ impl Ui {
                 {
                     self.capture_pending.set(None);
                     self.stash_pending.set(None);
+                    self.scroll_pending.set(0);
                     self.state.borrow_mut().generation += 1;
                     self.sync_generation();
                     eprintln!("capture cancelled on game context loss");
@@ -2260,7 +2328,7 @@ impl Ui {
                 self.state.borrow_mut().fail();
                 eprintln!("tracker error={e}");
             }
-            Event::Captured(generation, view, focus, result) => {
+            Event::Captured(generation, target, focus, result) => {
                 if self.capture_pending.get() == Some(generation) {
                     self.capture_pending.set(None);
                 }
@@ -2269,6 +2337,21 @@ impl Ui {
                     eprintln!("discarded capture generation={generation}");
                     return;
                 }
+                if matches!(target, CaptureTarget::Similar) {
+                    match *result {
+                        Ok((item, _)) => self.finish_menu_route(MenuRoute::Stash(
+                            crate::stash_search::similar_filter(&item.market.name),
+                        )),
+                        Err(e) => {
+                            eprintln!("similar item capture failed: {e}");
+                            self.stash_result.replace(Some(Err(e)));
+                        }
+                    }
+                    return;
+                }
+                let CaptureTarget::Panel(view) = target else {
+                    unreachable!()
+                };
                 match *result {
                     Ok((item, elapsed)) => {
                         let filters_started = Instant::now();
@@ -2490,7 +2573,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|menu|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|menu|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|similar-copy|similar-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -2518,6 +2601,8 @@ pub fn run() -> Result<(), String> {
                 | "check"
                 | "copy"
                 | "inspect-check"
+                | "similar-copy"
+                | "similar-check"
                 | "inspect-copy"
                 | "evaluate"
                 | "prices"
@@ -2840,21 +2925,31 @@ pub fn run() -> Result<(), String> {
 
     let game_active = Arc::new(AtomicBool::new(false));
 
-    let (stash_worker, stash_jobs) = mpsc::sync_channel::<StashJob>(1);
+    let (stash_worker, stash_jobs) = mpsc::sync_channel::<StashJob>(32);
     {
         let sender = sender.clone();
         let current = current.clone();
         let active = game_active.clone();
         std::thread::spawn(move || {
             while let Ok(job) = stash_jobs.recv() {
+                let generation = job.generation();
                 let context = crate::desktop::game_input::Context {
                     active: &active,
                     generation: &current,
-                    token: job.generation,
+                    token: generation,
                 };
-                let result = clipboard::stash_search(&job.text, job.restore, &context);
+                let scroll = matches!(job, StashJob::Scroll { .. });
+                let result = match job {
+                    StashJob::Search { text, restore, .. } => {
+                        clipboard::stash_search(&text, restore, &context)
+                    }
+                    StashJob::Scroll { chord, .. } => {
+                        crate::desktop::game_input::Guard::new(&context)
+                            .and_then(|g| g.scroll(chord))
+                    }
+                };
                 if sender
-                    .send(Event::StashDone(job.generation, result))
+                    .send(Event::StashDone(generation, scroll, result))
                     .is_err()
                 {
                     break;
@@ -2877,7 +2972,14 @@ pub fn run() -> Result<(), String> {
                 let result = (if let Some(text) = job.text {
                     Ok(text)
                 } else if job.copy {
-                    clipboard::copy_from_game(&active, job.restore)
+                    clipboard::copy_from_game(
+                        &crate::desktop::game_input::Context {
+                            active: &active,
+                            generation: &current,
+                            token: job.generation,
+                        },
+                        job.restore,
+                    )
                 } else {
                     clipboard::read()
                 })
@@ -2886,7 +2988,7 @@ pub fn run() -> Result<(), String> {
                 if sender
                     .send(Event::Captured(
                         job.generation,
-                        job.view,
+                        job.target,
                         focus,
                         Box::new(result),
                     ))
@@ -2962,6 +3064,10 @@ pub fn run() -> Result<(), String> {
         stash,
         stash_worker,
         stash_pending: Cell::new(None),
+        scroll_pending: Cell::new(0),
+        scroll_dropped: Cell::new(0),
+        wheel_status: RefCell::new(Err("Initialisation XRecord en cours".into())),
+        wheel_connection: Cell::new(0),
         stash_result: RefCell::new(None),
         menu,
         pending_menu: RefCell::new(None),
@@ -3329,6 +3435,7 @@ pub fn run() -> Result<(), String> {
                             Err(e) => serde_json::json!({"available":false,"error":e}),
                         };
                         value["stash_pending"] = serde_json::json!(ui.stash_pending.get());
+                        value["stash_scroll"] = serde_json::json!({"wanted":ui.settings.borrow().stash_scroll,"backend":"XRecord on XWayland","status":*ui.wheel_status.borrow(),"queued":ui.scroll_pending.get(),"dropped":ui.scroll_dropped.get()});
                         value["inspection_stash"]=ui.inspection.stash.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.inspection.stash.allocated_width(),"height":ui.inspection.stash.allocated_height(),"mapped":ui.inspection.stash.is_mapped()})).unwrap_or_default();
                         value["stash_result"] = serde_json::json!(*ui.stash_result.borrow());
                         value["stash"] = match &ui.stash {

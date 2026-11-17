@@ -152,7 +152,7 @@ try:
     # Capture and apply the seventh native shortcut, then verify the actual grabs.
     command('settings');wait_for(lambda:state(state='Passive',rendered=True,view='Settings'),'shortcut settings passive')
     command('interact');wait_for(lambda:state(state='Interactive'),'shortcut settings interaction')
-    click(status()['preferences']['tabs'][1]);wait_for(lambda:status()['preferences']['page']==1 and len(status()['preferences']['hotkeys'])==7 and status()['preferences']['record'][6] and status()['preferences']['record'][6]['width']>5,'seventh shortcut mapped')
+    click(status()['preferences']['tabs'][1]);wait_for(lambda:status()['preferences']['page']==1 and len(status()['preferences']['hotkeys'])==8 and status()['preferences']['record'][6] and status()['preferences']['record'][6]['width']>5,'seventh shortcut mapped')
     for _ in range(24):
         p=status()['preferences'];r=p['record'][6];v=p['shortcuts_scroll'];y=r['y']+r['height']/2
         if v['y']+10<y<v['y']+v['height']-10:break

@@ -29,7 +29,8 @@ pub struct Backend {
     masks: Vec<u16>,
     bindings: Mutex<Bindings>,
     update_gate: Mutex<()>,
-    alive: AtomicBool,
+    alive: Arc<AtomicBool>,
+    wheel: Result<super::wheel::Monitor, String>,
 }
 impl Backend {
     pub fn new(hotkeys: &Hotkeys) -> Result<Self, String> {
@@ -62,7 +63,8 @@ impl Backend {
                 keys: Vec::new(),
             }),
             update_gate: Mutex::new(()),
-            alive: AtomicBool::new(true),
+            alive: Arc::new(AtomicBool::new(true)),
+            wheel: super::wheel::Monitor::new(),
         };
         backend.replace(hotkeys, || Ok(()))?;
         Ok(backend)
@@ -179,6 +181,9 @@ impl Backend {
             state.keys = keys;
             state.revision += 1;
             notify(&value, self.is_alive());
+            if let Ok(wheel) = &self.wheel {
+                wheel.enabled.store(hotkeys.stash_scroll, Ordering::Release);
+            }
             (state.revision, state.keys.len())
         };
         eprintln!("shortcuts backend=XWayland revision={revision} bindings={count} scope=X11-only replay_other_apps=true");
@@ -189,9 +194,37 @@ impl Backend {
         }
         Ok(value)
     }
-    pub fn listen(&self, active: Arc<AtomicBool>, send: impl Fn(Action)) -> Result<(), String> {
+    pub fn listen(
+        &self,
+        active: Arc<AtomicBool>,
+        send: impl Fn(Action) + Clone + Send + 'static,
+    ) -> Result<(), String> {
+        self.listen_with_wheel(active, send, |_| {})
+    }
+    pub fn listen_with_wheel(
+        &self,
+        active: Arc<AtomicBool>,
+        send: impl Fn(Action) + Clone + Send + 'static,
+        report: impl Fn(Result<(), String>) + Clone + Send + 'static,
+    ) -> Result<(), String> {
+        match &self.wheel {
+            Ok(w) => w.start(
+                active.clone(),
+                self.alive.clone(),
+                send.clone(),
+                report.clone(),
+            ),
+            Err(e) => {
+                eprintln!("wheel backend=XRecord unavailable: {e}");
+                report(Err(e.clone()));
+            }
+        }
         let result = self.listen_inner(active, send);
         self.alive.store(false, Ordering::Release);
+        report(Err("Connexion aux raccourcis XWayland interrompue".into()));
+        if let Ok(w) = &self.wheel {
+            w.enabled.store(false, Ordering::Release);
+        }
         result
     }
     fn listen_inner(&self, active: Arc<AtomicBool>, send: impl Fn(Action)) -> Result<(), String> {
@@ -283,7 +316,7 @@ fn keycode(connection: &impl Connection, symbol: u32) -> Result<u8, String> {
 #[allow(dead_code)] // Standalone entry point retained for the isolated regression probe.
 pub fn run(
     active: Arc<AtomicBool>,
-    send: impl Fn(Action),
+    send: impl Fn(Action) + Clone + Send + 'static,
     ready: impl FnOnce(),
 ) -> Result<(), String> {
     let backend = Backend::new(&Hotkeys::default())?;
@@ -292,41 +325,45 @@ pub fn run(
 }
 
 fn focused_game(connection: &impl Connection) -> bool {
+    focused_game_window(connection).is_some()
+}
+pub(super) fn focused_game_window(connection: &impl Connection) -> Option<u32> {
     let Ok(cookie) = connection.get_input_focus() else {
-        return false;
+        return None;
     };
     let Ok(reply) = cookie.reply() else {
-        return false;
+        return None;
     };
     let mut window = reply.focus;
     for _ in 0..8 {
         if window <= 1 {
-            return false;
+            return None;
         }
         let Ok(cookie) =
             connection.get_property(false, window, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 128)
         else {
-            return false;
+            return None;
         };
         let Ok(class) = cookie.reply() else {
-            return false;
+            return None;
         };
         if !class.value.is_empty() {
             return class
                 .value
                 .split(|b| *b == 0)
-                .any(|s| s == b"steam_app_238960");
+                .any(|s| s == b"steam_app_238960")
+                .then_some(window);
         }
         let Ok(cookie) = connection.query_tree(window) else {
-            return false;
+            return None;
         };
         let Ok(tree) = cookie.reply() else {
-            return false;
+            return None;
         };
         if tree.parent == window || tree.parent == tree.root {
-            return false;
+            return None;
         }
         window = tree.parent;
     }
-    false
+    None
 }

@@ -2,7 +2,7 @@
 
 Programme natif GTK3 + layer-shell, sans Electron ni WebView. Première configuration
 vérifiée : Artix x86_64, River, PoE Steam/DWProton dans XWayland, écran 2560×1600
-à facteur 1. Le code upstream reste présent et distinct dans le même dépôt.
+à facteur 1. [Démarrage rapide](docs/QUICKSTART.md). Le code upstream reste présent et distinct dans le même dépôt.
 
 ## Lancer
 
@@ -260,6 +260,21 @@ suppression au maintien d’une seconde suivent les autres widgets. Limites nati
 Le bouton **Trouver dans le coffre** de l’inspecteur utilise le nom du catalogue
 entre guillemets, selon la règle upstream.
 
+Le huitième champ de **Réglages → Raccourcis**, **Objet similaire dans le
+coffre**, est désactivé par défaut. Une combinaison configurée copie l’objet
+survolé, puis cherche son nom du catalogue entre guillemets dans le coffre déjà
+ouvert. Elle suit les mêmes contrôles de contexte et de restauration du texte.
+
+**Général → Défiler les onglets du coffre avec Ctrl + molette** est activé par
+défaut, comme upstream. Hors de la zone du coffre, Ctrl+molette envoie une flèche
+gauche ou droite au même jeu XWayland, en conservant les modificateurs encore
+maintenus. La molette d’origine continue d’arriver au jeu. L’observateur XRecord
+n’enregistre aucune touche. Si cette extension manque, le réglage est désactivé
+avec son diagnostic ; les raccourcis clavier restent indépendants. Le backend
+refuse une fenêtre ou une géométrie devenue indisponible. Le défilement et la
+recherche similaire sont validés sur le faux jeu privé ; leur effet dans le vrai
+coffre reste à vérifier manuellement.
+
 L’option **Général → Restaurer le texte du presse-papiers après une action** est
 désactivée par défaut. Elle restaure le texte précédent après une copie d’objet,
 ou après le délai de 120 ms d’une recherche coffre, s’il est disponible et si la
@@ -309,7 +324,7 @@ et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
 ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
-marchands, regroupement, profil de carte, sept raccourcis globaux, chronomètres, images et recherches coffre. **Annuler** ne
+marchands, regroupement, profil de carte, huit raccourcis globaux, chronomètres, images et recherches coffre. **Annuler** ne
 persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
 l’application, puis masque le panneau ; cela ne lance aucune recherche.
 Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
@@ -338,7 +353,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.21.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.22.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -478,3 +493,12 @@ python3 scripts/test-stash-search.py target/release/awakened-poe-trade-rs docs/s
 Le scénario crée une fenêtre GTK X11 de test dans son River privé. Les touches
 Ctrl+F, Ctrl+V et Entrée ne sont envoyées qu’à ce faux jeu. Il vérifie aussi la
 restauration du texte après une copie avancée et les annulations tardives.
+
+Tests du jalon 0.22, sur des bureaux River privés :
+
+```sh
+cargo build --locked --examples -j 3
+node scripts/compare-stash-scroll.cjs target/debug/examples/stash-scroll docs/stash-scroll-parity-0.22.json
+python3 scripts/test-stash-shortcuts.py target/release/awakened-poe-trade-rs docs/stash-shortcuts-lifecycle-0.22.json
+APT_TEST_NO_RECORD=1 python3 scripts/test-stash-shortcuts.py target/release/awakened-poe-trade-rs docs/wheel-unavailable-0.22.json
+```

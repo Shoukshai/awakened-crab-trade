@@ -5,6 +5,11 @@
 mod hotkeys;
 #[path = "../src/desktop/xwayland_shortcuts.rs"]
 mod shortcuts;
+use shortcuts as xwayland_shortcuts;
+#[path = "../src/stash_scroll.rs"]
+mod stash_scroll;
+#[path = "../src/desktop/wheel.rs"]
+mod wheel;
 use std::{
     process::Command,
     sync::{

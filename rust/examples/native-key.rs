@@ -90,10 +90,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let action = std::env::args()
         .nth(1)
-        .ok_or("usage: native-key ctrl-v|escape")?;
+        .ok_or("usage: native-key ctrl-v|escape|shift-space")?;
     let (code, mods) = match action.as_str() {
         "ctrl-v" => (47, 4),
         "escape" => (1, 0),
+        "shift-space" => (57, 1),
         _ => return Err("unsupported fixture action".into()),
     };
     let output = std::process::Command::new("xkbcli")

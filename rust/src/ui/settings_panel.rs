@@ -23,6 +23,7 @@ pub struct Panel {
     range: gtk::SpinButton,
     automatic: gtk::CheckButton,
     restore_clipboard: gtk::CheckButton,
+    stash_scroll: gtk::CheckButton,
     merchant: gtk::CheckButton,
     collapse: gtk::CheckButton,
     stock: gtk::CheckButton,
@@ -87,6 +88,9 @@ impl Panel {
         row(&general, 4, "Paiement des échanges", &bulk_currency);
         let restore_clipboard =
             gtk::CheckButton::with_label("Restaurer le texte du presse-papiers après une action");
+        let stash_scroll =
+            gtk::CheckButton::with_label("Défiler les onglets du coffre avec Ctrl + molette");
+        stash_scroll.set_sensitive(false);
         let online = gtk::CheckButton::with_label("Rechercher en ligne");
         let automatic = gtk::CheckButton::with_label("Rechercher automatiquement après la copie");
         let merchant = gtk::CheckButton::with_label("Offres disponibles auprès des marchands");
@@ -100,6 +104,7 @@ impl Panel {
             &collapse,
             &stock,
             &restore_clipboard,
+            &stash_scroll,
         ]
         .into_iter()
         .enumerate()
@@ -125,6 +130,7 @@ impl Panel {
             "Ouvrir les réglages",
             "Rechercher une cible Heist",
             "Afficher ou masquer la grille Delve",
+            "Copier et rechercher un objet similaire dans le coffre",
         ];
         let mut keys = Vec::new();
         for (i, name) in labels.into_iter().enumerate() {
@@ -213,6 +219,7 @@ impl Panel {
             range,
             automatic,
             restore_clipboard,
+            stash_scroll,
             merchant,
             collapse,
             stock,
@@ -260,6 +267,7 @@ impl Panel {
         self.range.set_text(&s.search_range.to_string());
         self.automatic.set_active(s.automatic_search);
         self.restore_clipboard.set_active(s.restore_clipboard);
+        self.stash_scroll.set_active(s.stash_scroll);
         self.merchant.set_active(s.filters.merchant_only);
         self.collapse.set_active(s.filters.collapse_listings);
         self.stock.set_active(s.filters.activate_stock_filter);
@@ -277,6 +285,7 @@ impl Panel {
             &s.hotkeys.settings,
             &s.hotkeys.catalogue,
             &s.hotkeys.delve,
+            &s.hotkeys.similar,
         ]) {
             entry.set_text(key.as_deref().unwrap_or(""));
         }
@@ -292,6 +301,7 @@ impl Panel {
         s.search_range = self.range.value();
         s.automatic_search = self.automatic.is_active();
         s.restore_clipboard = self.restore_clipboard.is_active();
+        s.stash_scroll = self.stash_scroll.is_active();
         s.filters.merchant_only = self.merchant.is_active();
         s.filters.collapse_listings = self.collapse.is_active();
         s.filters.activate_stock_filter = self.stock.is_active();
@@ -317,6 +327,7 @@ impl Panel {
             .collect();
         s.hotkeys = Hotkeys {
             stash_keys: Vec::new(),
+            stash_scroll: false,
             price: values[0].clone(),
             inspect: values[1].clone(),
             interact: values[2].clone(),
@@ -324,6 +335,7 @@ impl Panel {
             settings: values[4].clone(),
             catalogue: values[5].clone(),
             delve: values[6].clone(),
+            similar: values[7].clone(),
             stopwatch_keys: s.hotkeys.stopwatch_keys.clone(),
         };
         let (configs, keys) = self.stopwatches.read()?;
@@ -349,6 +361,13 @@ impl Panel {
     pub fn error(&self, error: &str) {
         self.busy(false);
         self.message.set_text(error);
+    }
+    pub fn wheel_capability(&self, result: &Result<(), String>) {
+        self.stash_scroll.set_sensitive(result.is_ok());
+        self.stash_scroll.set_tooltip_text(Some(match result {
+            Ok(()) => "XRecord sur XWayland ; la molette originale reste au jeu.",
+            Err(e) => e,
+        }));
     }
     pub fn arm_capture(&self, index: usize) {
         self.stash.cancel_capture();
@@ -416,7 +435,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"stash":self.stash.diagnostics(window,self.form.current_page()==Some(5)),"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..6).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"stash_scroll":{"value":self.stash_scroll.is_active(),"sensitive":self.stash_scroll.is_sensitive(),"rect":rect(self.stash_scroll.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"stash":self.stash.diagnostics(window,self.form.current_page()==Some(5)),"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..6).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

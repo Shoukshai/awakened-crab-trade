@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-poe-trade-rs
-pkgver=0.21.0
+pkgver=0.22.0
 pkgrel=1
 pkgdesc='Native Rust PoE overlay preview for River and XWayland'
 arch=('x86_64')
@@ -36,12 +36,29 @@ package() {
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     cp -a license-bundle "$pkgdir/usr/share/licenses/$pkgname/dependencies"
     install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 rust/docs/QUICKSTART.md "$pkgdir/usr/share/doc/$pkgname/QUICKSTART.md"
     install -Dm644 rust/docs/PORTING.md "$pkgdir/usr/share/doc/$pkgname/PORTING.md"
     install -Dm644 rust/docs/MACHINE.md "$pkgdir/usr/share/doc/$pkgname/MACHINE.md"
     install -Dm644 rust/docs/VALIDATION.md "$pkgdir/usr/share/doc/$pkgname/VALIDATION.md"
     install -Dm644 rust/docs/parser-measurements-0.2.json "$pkgdir/usr/share/doc/$pkgname/parser-measurements-0.2.json"
     install -Dm644 rust/docs/economy-cache-measurements-0.2.json "$pkgdir/usr/share/doc/$pkgname/economy-cache-measurements-0.2.json"
     install -Dm644 rust/docs/stat-translations-0.3.json "$pkgdir/usr/share/doc/$pkgname/stat-translations-0.3.json"
+    install -Dm644 rust/docs/stash-scroll-parity-0.22.json "$pkgdir/usr/share/doc/$pkgname/stash-scroll-parity-0.22.json"
+    install -Dm644 rust/docs/stash-shortcuts-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/stash-shortcuts-lifecycle-0.22.json"
+    install -Dm644 rust/docs/wheel-unavailable-0.22.json "$pkgdir/usr/share/doc/$pkgname/wheel-unavailable-0.22.json"
+    install -Dm644 rust/docs/stash-shortcuts-real-0.22.json "$pkgdir/usr/share/doc/$pkgname/stash-shortcuts-real-0.22.json"
+    install -Dm644 rust/docs/stash-search-parity-0.22.json "$pkgdir/usr/share/doc/$pkgname/stash-search-parity-0.22.json"
+    install -Dm644 rust/docs/stash-search-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/stash-search-lifecycle-0.22.json"
+    install -Dm644 rust/docs/widget-menu-parity-0.22.json "$pkgdir/usr/share/doc/$pkgname/widget-menu-parity-0.22.json"
+    install -Dm644 rust/docs/widget-menu-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/widget-menu-lifecycle-0.22.json"
+    install -Dm644 rust/docs/widget-order-parity-0.22.json "$pkgdir/usr/share/doc/$pkgname/widget-order-parity-0.22.json"
+    install -Dm644 rust/docs/widget-order-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/widget-order-lifecycle-0.22.json"
+    install -Dm644 rust/docs/image-strips-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/image-strips-lifecycle-0.22.json"
+    install -Dm644 rust/docs/stopwatch-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/stopwatch-lifecycle-0.22.json"
+    install -Dm644 rust/docs/settings-0.22.json "$pkgdir/usr/share/doc/$pkgname/settings-0.22.json"
+    install -Dm644 rust/docs/overlay-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/overlay-lifecycle-0.22.json"
+    install -Dm644 rust/docs/delve-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/delve-lifecycle-0.22.json"
+    install -Dm644 rust/docs/item-search-lifecycle-0.22.json "$pkgdir/usr/share/doc/$pkgname/item-search-lifecycle-0.22.json"
     install -Dm644 rust/docs/stash-search-parity-0.21.json "$pkgdir/usr/share/doc/$pkgname/stash-search-parity-0.21.json"
     install -Dm644 rust/docs/stash-search-lifecycle-0.21.json "$pkgdir/usr/share/doc/$pkgname/stash-search-lifecycle-0.21.json"
     install -Dm644 rust/docs/stash-search-real-0.21.json "$pkgdir/usr/share/doc/$pkgname/stash-search-real-0.21.json"

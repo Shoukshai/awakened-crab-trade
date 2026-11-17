@@ -8,6 +8,10 @@ pub struct Request {
     pub settings: Settings,
 }
 pub enum Update {
+    Wheel {
+        connection: u64,
+        result: Result<(), String>,
+    },
     Backend {
         connection: u64,
         result: Result<(), String>,
@@ -38,7 +42,10 @@ where
     let backend = Arc::new(Backend::new(&Hotkeys::disabled())?);
     let reader = backend.clone();
     std::thread::spawn(move || {
-        if let Err(error) = reader.listen(active, actions) {
+        let wheel_reports = reports.clone();
+        if let Err(error) = reader.listen_with_wheel(active, actions, move |result| {
+            wheel_reports(Update::Wheel { connection, result })
+        }) {
             reports(Update::Backend {
                 connection,
                 result: Err(error),

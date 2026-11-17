@@ -1,0 +1,24 @@
+{
+  "native_key_capture": true,
+  "io_failure_preserves_preferences_and_shortcuts": true,
+  "online_currencies_map_preferences": true,
+  "saved_scale_range_and_new_shortcut": true,
+  "manual_search_and_copied_stock": true,
+  "draft_cancel_and_defaults": true,
+  "validation_errors_keep_file": true,
+  "advanced_rules_preserved": true,
+  "default_bindings_restored": true,
+  "save_does_not_reopen_after_switch": true,
+  "scope": "Private River/XWayland; virtual keyboard/pointer and fake game only; all external services blocked",
+  "binary_version": "awakened-poe-trade-rs 0.22.0",
+  "source_sha256": {
+    "scripts/test-settings.py": "0880d43c8aabf5df2fd1e41900620c597272ae98415d19e8aa17d72b27b19a69",
+    "src/settings.rs": "da48813f040a588aa5784c5c59c245ea7f8966a4e8430b726e2be6ae4a5d5525",
+    "src/hotkeys.rs": "88fa8416147a7baac332a50d8d8d899e159a55d151fa0bbc061b9cbff3e8af77",
+    "src/desktop/preferences.rs": "673b131122dd7bc121f2389089dda1d6944946a408cb74800e3c0122bf90f6c7",
+    "src/desktop/xwayland_shortcuts.rs": "128905875dd53d578ecb8dddffe7e4a7aaac60626e7e326cabe9bd5cf5fca60d",
+    "src/ui.rs": "7bb9887be8a9f2e2fabaf4980891524f20c999b2bf14bb3bc6baba5da07fb5ad",
+    "src/ui/settings_panel.rs": "8b502e1f23825c3665d60a75272fbd9a230bd7ad8b02adbb1721553292d38a23",
+    "src/filters.rs": "be8c2c3f4549aa365b9147e2ebb1152f9abbd5245b308f9c4c52e8fdac254644"
+  }
+}

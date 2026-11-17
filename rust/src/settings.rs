@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub stash_scroll: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub restore_clipboard: bool,
     #[serde(
@@ -34,9 +36,13 @@ pub struct Settings {
 fn is_true(value: &bool) -> bool {
     *value
 }
+fn default_true() -> bool {
+    true
+}
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            stash_scroll: true,
             restore_clipboard: false,
             stash_searches: crate::stash_search::defaults(),
             widget_order: Vec::new(),
@@ -189,6 +195,7 @@ impl Settings {
     }
     pub fn effective_hotkeys(&self) -> crate::hotkeys::Hotkeys {
         let mut h = self.hotkeys.clone();
+        h.stash_scroll = self.stash_scroll;
         h.stash_keys = self
             .stash_searches
             .iter()

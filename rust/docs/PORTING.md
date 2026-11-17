@@ -23,7 +23,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Résolution des non-identifiés (`unidentified-resolver`) | oui | choix natif avec défilement, première variante par référence, résolution automatique si choix unique ; propriétés/texte/statut préservés ; aucune recherche avant choix | 5 773 comparaisons sur 547 bases et 1 259 identités ; sélection/automatisme/sans candidat/inspection testés sur River privé ; fixtures consultées au-dessus de PoE | icônes, variantes distinguées ; copies réelles de ces uniques non identifiés |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
-| Recherche coffre et défilement | oui | widgets multiples, filtres/réordonnement/raccourcis, recherche similaire depuis l’inspecteur, saisie XWayland contrôlée et restauration du texte | 8 192 opérations et 24 initialisations comparées ; application et annulations sur faux jeu GTK privé ; affichage natif au-dessus de PoE | application des filtres dans le vrai coffre, raccourci de copie/recherche similaire, défilement des onglets du jeu |
+| Recherche coffre et défilement | oui | widgets multiples, filtres/réordonnement/raccourcis, recherche similaire depuis l’inspecteur ou un raccourci optionnel, Ctrl+molette via XRecord, saisie XWayland contrôlée et restauration du texte | 8 192 opérations et 24 initialisations comparées ; application et annulations sur faux jeu GTK privé ; affichage natif au-dessus de PoE | application des filtres, copie/recherche similaire et défilement des onglets dans le vrai coffre |
 | Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF ; menu flottant, collage, ajout, filtrage et quatre ancrages ; surface commune et ordre mémorisé menu/images/chronomètres/coffre | Delve : 12 966 géométries et 3 840 transitions ; chronomètres : 12 296 transitions ; images : 8 192 étapes et 630 ancrages ; menu : 664 cas, 13 457 entrées et 588 positions comparées ; neuf scénarios GTK privés, menu/chronomètre et prix réels au-dessus de PoE | alignement Delve réel ; URL distantes, édition et présentation upstream complètes |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes/Chronomètres/Images ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
@@ -515,3 +515,33 @@ Les commandes sont adaptées à GTK ; aucune parité des pixels CSS n’est reve
 La recherche coffre réelle, le défilement des onglets du jeu, les autres préférences
 et services de l’inventaire, les autres backends et les validations restantes
 demeurent dans le travail à poursuivre.
+
+## Jalon 0.22 : copie similaire et défilement des onglets
+
+Le huitième raccourci global optionnel copie l’objet avant de préparer la recherche
+similaire. La cible de capture distingue les panneaux de cette action sans UI ni
+réseau. Une génération de contexte protège aussi la lecture du texte précédent :
+un aller-retour vers une autre application pendant cette lecture annule la copie
+avant même son geste Ctrl+Alt+C.
+
+`stash_scroll.rs` porte la règle de zone et de direction de `Shortcuts.ts` et le
+calcul de largeur latérale de `GameWindow.ts`. `desktop/wheel.rs` observe seulement
+les boutons XRecord ; aucun événement clavier n’est enregistré et aucune molette
+n’est consommée. Une file bornée de 32 actions transmet les flèches via le worker
+existant, après vérification de la génération, de la fenêtre et des modificateurs
+encore maintenus. Une perte de contexte invalide les actions en attente.
+
+L’option est activée par défaut et omise du JSON à sa valeur par défaut. Le
+brouillon Général et les réservations de raccourcis publient ce changement après
+une écriture réussie ; un refus conserve les anciennes actions. L’indisponibilité
+de XRecord désactive seulement cette option et expose la cause. La disparition
+de la fenêtre pendant une lecture de géométrie est ignorée sans arrêter
+l’observateur. Un redémarrage du service ne double pas les pas.
+
+Les tests privés couvrent une rafale de dix pas, les modificateurs, les bords,
+le facteur de sortie 2 avec les coordonnées X réellement observées, le refus IO,
+la recréation du jeu et l’absence de XRecord. Ce dernier serveur désactive aussi
+XTEST : il valide le raccourci clavier Wayland de test et la lecture manuelle d’un
+objet, sans revendiquer de copie synthétique sur ce serveur. Les essais réels
+évitent les flèches, recherches coffre et Entrée. L’inventaire complet reste à
+porter et à valider selon le tableau ci-dessus.

@@ -15,6 +15,7 @@ mod presets;
 mod properties;
 mod pseudo;
 mod settings;
+mod stash_scroll;
 mod stash_search;
 mod stopwatch;
 mod trade;

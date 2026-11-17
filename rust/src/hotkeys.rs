@@ -1,9 +1,23 @@
 //! Portable shortcut names from ipc/KeyToCode.ts, resolved by each desktop backend.
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TabDirection {
+    Left,
+    Right,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ScrollChord {
+    pub direction: TabDirection,
+    pub shift: bool,
+    pub alt: bool,
+    pub super_key: bool,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
+    ScrollStash(ScrollChord),
     Command(&'static str),
     StopwatchToggle(u64),
     StopwatchReset(u64),
@@ -11,7 +25,10 @@ pub enum Action {
 }
 impl Action {
     pub fn is_copy(self) -> bool {
-        matches!(self, Self::Command("copy" | "inspect-copy"))
+        matches!(
+            self,
+            Self::Command("copy" | "inspect-copy" | "similar-copy")
+        )
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -24,6 +41,8 @@ pub struct StopwatchKeys {
 #[serde(default)]
 pub struct Hotkeys {
     #[serde(skip)]
+    pub stash_scroll: bool,
+    #[serde(skip)]
     pub stash_keys: Vec<(u64, u64, String)>,
     pub price: Option<String>,
     pub inspect: Option<String>,
@@ -34,12 +53,15 @@ pub struct Hotkeys {
     pub catalogue: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delve: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub similar: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub stopwatch_keys: Vec<StopwatchKeys>,
 }
 impl Default for Hotkeys {
     fn default() -> Self {
         Self {
+            stash_scroll: false,
             stash_keys: Vec::new(),
             price: Some("Ctrl + D".into()),
             inspect: Some("Ctrl + Alt + D".into()),
@@ -48,6 +70,7 @@ impl Default for Hotkeys {
             settings: None,
             catalogue: None,
             delve: None,
+            similar: None,
             stopwatch_keys: Vec::new(),
         }
     }
@@ -226,6 +249,7 @@ fn key_name(part: &str) -> Option<(String, u32)> {
 impl Hotkeys {
     pub fn disabled() -> Self {
         Self {
+            stash_scroll: false,
             stash_keys: Vec::new(),
             price: None,
             inspect: None,
@@ -234,6 +258,7 @@ impl Hotkeys {
             settings: None,
             catalogue: None,
             delve: None,
+            similar: None,
             stopwatch_keys: Vec::new(),
         }
     }
@@ -251,6 +276,7 @@ impl Hotkeys {
             (&self.settings, Action::Command("settings")),
             (&self.catalogue, Action::Command("catalogue")),
             (&self.delve, Action::Command("delve")),
+            (&self.similar, Action::Command("similar-copy")),
         ];
         let mut ids = HashSet::new();
         for keys in &self.stopwatch_keys {
@@ -312,6 +338,7 @@ impl Hotkeys {
                 .transpose()
         };
         Ok(Self {
+            stash_scroll: self.stash_scroll,
             stash_keys: self.stash_keys.clone(),
             price: normalize(&self.price)?,
             inspect: normalize(&self.inspect)?,
@@ -320,6 +347,7 @@ impl Hotkeys {
             settings: normalize(&self.settings)?,
             catalogue: normalize(&self.catalogue)?,
             delve: normalize(&self.delve)?,
+            similar: normalize(&self.similar)?,
             stopwatch_keys: self
                 .stopwatch_keys
                 .iter()
@@ -340,6 +368,20 @@ impl Hotkeys {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn similar_search_is_optional_and_uses_the_capture_repeat_guard() {
+        let mut h = Hotkeys::default();
+        assert!(serde_json::to_value(&h).unwrap().get("similar").is_none());
+        h.similar = Some("Ctrl + K".into());
+        assert!(h
+            .bindings()
+            .unwrap()
+            .iter()
+            .any(|(_, a)| *a == Action::Command("similar-copy")));
+        assert!(Action::Command("similar-copy").is_copy());
+        h.similar = Some("Ctrl + D".into());
+        assert!(h.bindings().is_err());
+    }
     #[test]
     fn shortcut_names_roundtrip_with_every_modifier_combination() {
         let names: Vec<_> = NAMED_KEYS
@@ -390,6 +432,7 @@ mod tests {
             assert!(h.bindings().is_err(), "{key}");
         }
         h = Hotkeys {
+            stash_scroll: false,
             stash_keys: Vec::new(),
             price: None,
             inspect: None,
@@ -398,6 +441,7 @@ mod tests {
             settings: None,
             catalogue: None,
             delve: None,
+            similar: None,
             stopwatch_keys: Vec::new(),
         };
         assert!(h.bindings().unwrap().is_empty());

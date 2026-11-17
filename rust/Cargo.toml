@@ -1,6 +1,6 @@
 [package]
 name = "awakened-poe-trade-rs"
-version = "0.21.0"
+version = "0.22.0"
 edition = "2021"
 license = "MIT"
 description = "Native Rust migration of Awakened PoE Trade"
@@ -18,7 +18,7 @@ glib = "0.18"
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }
 wayland-client = "0.31"
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-x11rb = "0.13"
+x11rb = { version = "0.13", features = ["record"] }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 rustix = { version = "1", features = ["time"] }

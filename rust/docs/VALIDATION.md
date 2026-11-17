@@ -1494,3 +1494,73 @@ Application des filtres et recherche similaire dans le vrai coffre, restauration
 réelle du presse-papiers, défilement des onglets du jeu, réduction réelle, plusieurs
 sorties, grands GIF, autres compositeurs, X11 natif et Windows restent à valider
 ou à porter. L’inventaire global reste incomplet.
+
+## Jalon 0.22 : raccourci similaire et Ctrl+molette
+
+Les 132 tests Rust, le formatage et Clippy tous targets avec `-D warnings`
+passent. [stash-scroll-parity-0.22.json](stash-scroll-parity-0.22.json) compare
+6 528 cas à la règle TypeScript inchangée : zone, arrondis, bords stricts,
+décalages, signe et conditions d’activation, sans écart.
+
+[stash-shortcuts-lifecycle-0.22.json](stash-shortcuts-lifecycle-0.22.json) utilise
+un faux jeu GTK dans un River privé. La molette Wayland est observée par XRecord
+sans consommer l’événement d’origine. Le test couvre Ctrl, Maj, les deux sens,
+les boutons horizontaux, la zone exclue et une rafale de dix pas effectivement
+reçus. Le raccourci similaire copie puis cherche le nom cité, restaure le texte
+précédent et n’ouvre ni panneau ni requête réseau. Une lecture du texte précédent
+retardée de 600 ms est annulée avant le geste de copie après un changement
+d’application, même si le jeu est revenu. Un refus IO du brouillon conserve
+l’ancienne combinaison et l’ancienne option ; la nouvelle capture, la sauvegarde,
+le rebinding et le retour à la valeur par défaut passent. La fermeture/recréation
+du faux jeu conserve l’observateur, et le redémarrage du service ne double pas
+les pas.
+
+Au facteur de sortie privé 2, le client X mesuré conserve ici 2560×1600 alors que
+la sortie logique passe à 1280×800. Les points et bords utilisent la géométrie X
+et les coordonnées du pointeur réellement observées et sont comparés à l’oracle
+TypeScript. Ce test ne prouve pas l’alignement du coffre réel à un facteur 2.
+
+[wheel-unavailable-0.22.json](wheel-unavailable-0.22.json) lance le XWayland privé
+avec RECORD désactivé : cause `Unsupported extension`, option native désactivée,
+molette d’origine conservée. Ce serveur désactive aussi XTEST ; le test valide
+alors le raccourci de clavier virtuel Wayland et la lecture manuelle de la wand,
+sans revendiquer de copie synthétique ou de recherche coffre sur ce serveur.
+
+Les neuf scénarios natifs précédents passent avec la 0.22 :
+[coffre](stash-search-lifecycle-0.22.json),
+[menu](widget-menu-lifecycle-0.22.json), [ordre](widget-order-lifecycle-0.22.json),
+[images](image-strips-lifecycle-0.22.json), [chronos](stopwatch-lifecycle-0.22.json),
+[réglages](settings-0.22.json), [overlay](overlay-lifecycle-0.22.json),
+[Delve](delve-lifecycle-0.22.json) et [Heist](item-search-lifecycle-0.22.json).
+Le test Delve attend désormais huit champs de raccourcis ; l’index du champ Delve
+reste inchangé. Le nouvel essai Heist ne reproduit pas le timeout initial de
+suivi du faux jeu ; aucune correction produit n’est déduite de ce seul échec.
+Les oracles [coffre](stash-search-parity-0.22.json),
+[menu](widget-menu-parity-0.22.json) et [ordre](widget-order-parity-0.22.json)
+restent sans écart. Les hashes des sources des rapports ont été vérifiés.
+
+### Session PoE réelle après redémarrage
+
+[stash-shortcuts-real-0.22.json](stash-shortcuts-real-0.22.json) décrit le release
+exécuté sur Artix/River, eDP-1 2560×1600, facteur 1, Steam/DWProton/XWayland.
+L’utilisateur a copié sa Driftwood Wand manuellement avec Ctrl+Alt+C et confirmé
+la ligue Covens. `inspect-check` retrouve **11 DPS physiques**. `check` prépare
+les filtres et obtient **439 résultats, dix offres, 572 ms réseau**. Le panneau
+réel est rendu passivement, clavier None, jeu actif et sans focus de l’overlay.
+
+Les clics dans les contrôles natifs ouvrent les réglages, montrent l’option de
+molette disponible et activée, puis les huit champs de raccourcis dont Similaire
+vide par défaut. Annuler revient à l’inspection sans écrire le profil. Dix cycles
+d’inspection/masquage conservent le focus du jeu aux affichages passifs. Le menu
+statique ne produit aucune nouvelle frame sur 3 s : deux ticks CPU à 100 Hz,
+RSS 103 504 Kio. Masqué : un tick sur 3 s, RSS 87 504 Kio. Ces mesures sont des
+observations de repos, sans gain comparatif revendiqué. Le profil est conservé
+à l’octet et toutes les surfaces finissent masquées.
+
+Les premiers clics du pilote réel ont nécessité d’attendre la nouvelle allocation
+des contrôles après changement de vue ; aucun échec du produit n’est attribué à
+ces attentes de test. Le retour Annuler dépend de la vue d’origine et revient ici
+à l’inspection. Aucun filtre coffre, Ctrl+molette, flèche ou Entrée n’a été envoyé
+au vrai jeu. La recherche similaire et le défilement réels restent à vérifier
+manuellement ; autres compositeurs, X11 natif, plusieurs sorties et Windows
+restent non validés. Le portage complet de l’inventaire n’est pas achevé.

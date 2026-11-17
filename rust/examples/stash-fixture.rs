@@ -60,11 +60,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.add(&column);
     let submitted = Rc::new(RefCell::new(Vec::<String>::new()));
     let keys = Rc::new(RefCell::new(Vec::<u32>::new()));
+    let key_events = Rc::new(RefCell::new(Vec::<serde_json::Value>::new()));
+    let wheels = Rc::new(RefCell::new(Vec::<serde_json::Value>::new()));
+    window.add_events(gdk::EventMask::SCROLL_MASK | gdk::EventMask::SMOOTH_SCROLL_MASK);
+    {
+        let wheels = wheels.clone();
+        window.connect_scroll_event(move |_,e|{wheels.borrow_mut().push(serde_json::json!({"direction":format!("{:?}",e.direction()),"state":e.state().bits()}));glib::Propagation::Proceed});
+    }
     {
         let entry = entry.clone();
         let keys = keys.clone();
+        let key_events = key_events.clone();
         window.connect_key_press_event(move |_, e| {
             keys.borrow_mut().push(*e.keyval());
+            key_events
+                .borrow_mut()
+                .push(serde_json::json!({"key":*e.keyval(),"state":e.state().bits()}));
             if e.state()
                 .contains(gdk::ModifierType::CONTROL_MASK | gdk::ModifierType::MOD1_MASK)
                 && e.keyval() == gdk::keys::constants::c
@@ -104,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let entry = entry.clone();
         let keys = keys.clone();
-        rx.attach(None,move |line|{match line.as_str(){"input"=>{println!("{}",serde_json::json!({"submitted":*submitted.borrow(),"text":entry.text().as_str(),"keys":*keys.borrow()}));std::io::stdout().flush().unwrap();},"quit"=>{gtk::main_quit();return glib::ControlFlow::Break;},_=>panic!("unknown fixture command")};glib::ControlFlow::Continue});
+        rx.attach(None,move |line|{match line.as_str(){"input"=>{println!("{}",serde_json::json!({"submitted":*submitted.borrow(),"text":entry.text().as_str(),"keys":*keys.borrow(),"key_events":*key_events.borrow(),"wheels":*wheels.borrow()}));std::io::stdout().flush().unwrap();},"quit"=>{gtk::main_quit();return glib::ControlFlow::Break;},_=>panic!("unknown fixture command")};glib::ControlFlow::Continue});
     }
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
