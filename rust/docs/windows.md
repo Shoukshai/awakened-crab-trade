@@ -2,6 +2,9 @@
 
 Version portable x64 pour Windows 11, préparée pour PoE 1 Steam et standalone.
 
+La version [en un seul EXE](windows-portable.md) se lance directement et prépare
+automatiquement ses bibliothèques dans le cache Windows. Le ZIP reste disponible.
+
 Décompresser entièrement le ZIP dans un dossier, puis lancer
 `awakened-poe-trade-rs.exe`. Garder les DLL et les sous-dossiers à côté de l’EXE.
 Les réglages s’ouvrent au premier lancement. L’icône de notification permet de

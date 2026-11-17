@@ -1,0 +1,100 @@
+{
+  "scope": "Single EXE under private Wine; no real game input or Steam prefix.",
+  "build": {
+    "exe": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.28.0-windows-x64-portable.exe",
+    "sha256": "21be094cb0a76f696ab4a77ca5c6686517bd6931f65d026c0be459f95431db92",
+    "bytes": 30586880,
+    "payload_sha256": "abe790fbdcfd183f80498d401fdfde5da427d1f27c3ac6dbbc12faab1e1d8b78",
+    "embedded_files": 3219,
+    "imports": [
+      "KERNEL32.dll",
+      "ntdll.dll",
+      "user32.dll",
+      "api-ms-win-core-synch-l1-2-0.dll",
+      "api-ms-win-crt-stdio-l1-1-0.dll",
+      "api-ms-win-crt-runtime-l1-1-0.dll",
+      "api-ms-win-crt-locale-l1-1-0.dll",
+      "api-ms-win-crt-heap-l1-1-0.dll",
+      "api-ms-win-crt-private-l1-1-0.dll",
+      "api-ms-win-crt-string-l1-1-0.dll",
+      "api-ms-win-crt-math-l1-1-0.dll",
+      "api-ms-win-crt-environment-l1-1-0.dll",
+      "api-ms-win-crt-filesystem-l1-1-0.dll",
+      "api-ms-win-crt-convert-l1-1-0.dll"
+    ],
+    "inner_binary_sha256": "7cd3b8df93875ebeb291c5e2a221e5241c633517b99286d5896613dbd7444ef5"
+  },
+  "cold_extract_ms": 2817,
+  "extracted_file_hashes_verified": 3218,
+  "warm_extract_ms": 1015,
+  "warm_launch_does_not_rewrite_cache": true,
+  "concurrent_launches_recover_incomplete_cache": true,
+  "only_one_file_next_to_the_portable_exe": true,
+  "native_Windows_launcher_unit_tests": 4,
+  "price_checker_UI": {
+    "windowing": "Independent Win32 windows with Wine managing placement on private XWayland; windowed fake game",
+    "os_keyboard_layout": "Private Wine prefix with pinned ReactOS US layout DLL; absent from production ZIP",
+    "scope": "Windows binary on private Wine desktop, fake PoE process, synthetic offers and public-market fixtures. No real game input or real market prices.",
+    "before_veil_pixel": [
+      32,
+      40,
+      48
+    ],
+    "veil_pixel": [
+      26,
+      33,
+      39
+    ],
+    "wand_hover_ms": 154,
+    "wand": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "gem_hover_ms": 153,
+    "gem": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "currency": {
+      "copied": true,
+      "outside_close": true,
+      "offers": false
+    },
+    "unique_hover_ms": 148,
+    "unique": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "map_hover_ms": 154,
+    "map": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "viscera_hover_ms": 152,
+    "viscera": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "influence_hover_ms": 148,
+    "influence": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "clipboard_text_restored": true,
+    "passive_click_through_and_escape": true,
+    "foreign_focus_hides_and_shortcuts_are_forwarded": true,
+    "single_instance": true,
+    "binary_sha256": "21be094cb0a76f696ab4a77ca5c6686517bd6931f65d026c0be459f95431db92",
+    "settings_without_game": true
+  },
+  "validated_at": "2026-11-17T20:42:10.176187+00:00",
+  "host_unit_tests": 4,
+  "clippy": "Linux and Windows, all launcher targets, -D warnings; passed",
+  "real_Windows_game_test": "Not performed; Windows 11/Steam in-game validation remains."
+}

@@ -1,6 +1,6 @@
 {
-  "saved_at": "2026-11-17T19:14:38.108565+00:00",
-  "status": "windows_candidate_delivered_pending_real_windows_game_verification",
+  "saved_at": "2026-11-17T20:42:10.176187+00:00",
+  "status": "single_file_windows_candidate_delivered_pending_real_windows_game_verification",
   "branch": "rust-windows-price-checker",
   "linux_validated_commit": "63320b7",
   "linux_version": "0.27.0",
@@ -12,7 +12,8 @@
     "Win32 game/process detection, scoped hotkeys, guarded clipboard capture/restoration, outside close, Escape, menu/focus lifecycle, detached settings and authenticated single-instance control implemented.",
     "125 Windows core tests and complete packaged Windows UI tests passed under isolated Wine; seven item families, real synthetic offer mods, slider + numeric input, hover, veil, foreign app keys, repeated close and settings without game.",
     "Portable ZIP DLL closure audited (64 PE files); 167 Rust dependency license sets and runtime licenses included; 3180 extracted file hashes verified.",
-    "129 Linux core tests, full native UI regression, Clippy on both platforms and format checks passed."
+    "129 Linux core tests, full native UI regression, Clippy on both platforms and format checks passed.",
+    "Single-file portable EXE built with only OS DLL imports; automatic versioned cache extraction, atomic completion, concurrent launch recovery, warm-cache reuse and full checker UI validated under private Wine. Same inner checker binary as the validated ZIP."
   ],
   "incomplete": [
     "Actual PoE/Windows 11 Steam testing; standalone and mixed monitor DPI require Windows hardware."
@@ -26,7 +27,7 @@
   "saved_logs": "/home/shouk/awakened-poe-trade/rust/dist/windows-checkpoint",
   "stopped_build_pids": [],
   "next_steps": [
-    "Copy the Windows ZIP to Windows 11, extract it entirely, start the EXE, open PoE in windowed/borderless mode and check an item with Ctrl+Alt+D.",
+    "Copy the single portable EXE to Windows 11, run it directly, then check an item in PoE with Ctrl+Alt+D. No manual extraction.",
     "Verify automatic league, real public Trade offers, numeric filters, hover, repeated inside/outside clicks, Escape and app switching in the real game."
   ],
   "notes": [
@@ -39,5 +40,8 @@
   "windows_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.28.0-windows-x64.zip",
   "windows_zip_sha256": "a34881941636a517a98c28dc600b7576d758e98b43028971a1dc3ed70e36568a",
   "windows_binary_sha256": "7cd3b8df93875ebeb291c5e2a221e5241c633517b99286d5896613dbd7444ef5",
-  "validation_report": "rust/docs/windows-validation-0.28.json"
+  "validation_report": "rust/docs/windows-validation-0.28.json",
+  "windows_portable_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.28.0-windows-x64-portable.exe",
+  "windows_portable_sha256": "21be094cb0a76f696ab4a77ca5c6686517bd6931f65d026c0be459f95431db92",
+  "windows_portable_validation_report": "rust/docs/windows-portable-validation-0.28.json"
 }

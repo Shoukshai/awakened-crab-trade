@@ -1,0 +1,20 @@
+[package]
+name = "awakened-poe-trade-portable"
+version = "0.28.0"
+edition = "2021"
+license = "MIT"
+
+[workspace]
+
+[dependencies]
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+sha2 = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+panic = "abort"
+lto = true
+strip = true
+codegen-units = 1
