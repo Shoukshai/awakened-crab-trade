@@ -106,6 +106,7 @@ try:
   assert json.loads((root/'fixture.state.json').read_text())['copies']>before
   wait(lambda:status()['summary']['image_ready'],'Windows image loader')
   st=status();assert st['native_rect']==st['panel_bounds'],(st['native_rect'],st['panel_bounds'])
+  assert st['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},st['application']
   print(family,'captured',flush=True)
   if family=='wand':
    before=status();rect=before['item_filter_controls']['corruption']['rect'];o=before['origin']
@@ -151,7 +152,7 @@ try:
     gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),y))
     assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
     report['slider_fill_yellow_left_gray_right']={'yellow':yellow,'gray':gray}
-    shot('wand-slider-0.29.1.png')
+    shot('wand-slider-'+__import__('tomllib').loads((r/'Cargo.toml').read_text())['package']['version']+'.png')
     control(status()['stat_controls'][0]['min'])
     subprocess.run(['xdotool','key','--clearmodifiers','ctrl+a'],env=env,check=True)
     subprocess.run(['xdotool','type','11'],env=env,check=True)

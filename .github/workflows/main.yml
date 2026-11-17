@@ -1,60 +1,26 @@
-name: Build
+name: Native checks
 
 on:
   push:
-    branches:
-      - 'master'
-    tags-ignore:
-      - '**'
-    paths-ignore:
-      - 'docs/**'
-      - README.md
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  renderer:
-    runs-on: ubuntu-latest
+  linux:
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
-    - uses: actions/setup-node@v6
-    - run: npm ci
-      working-directory: ./renderer
-    - run: npm run lint
-      working-directory: ./renderer
-    - run: npm run build
-      working-directory: ./renderer
-    - uses: actions/upload-artifact@v7
-      with:
-        name: renderer-dist
-        path: ./renderer/dist
-        retention-days: 1
-
-  package:
-    needs: renderer
-    strategy:
-      matrix:
-        os: [windows-2022, ubuntu-22.04, macos-14]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v6
-    - uses: actions/setup-node@v6
-    - uses: actions/download-artifact@v8
-      with:
-        name: renderer-dist
-        path: ./renderer/dist
-    - run: npm ci
-      working-directory: ./main
-    - run: npm run build
-      working-directory: ./main
-    - run: npm run package "--" -p onTagOrDraft
-      working-directory: ./main
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Hash
-      if: ${{ startsWith(matrix.os, 'windows') }}
-      run: type .\main\dist\latest.yml
-    - name: Hash
-      if: ${{ startsWith(matrix.os, 'ubuntu') }}
-      run: cat ./main/dist/latest-linux.yml
-    - name: Hash
-      if: ${{ startsWith(matrix.os, 'macos') }}
-      run: cat ./main/dist/latest-mac.yml
+      - uses: actions/checkout@v6
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libgtk-layer-shell-dev libx11-dev libxtst-dev libxrandr-dev libxi-dev libxfixes-dev
+      - name: Check README character set
+        run: python3 -c "from pathlib import Path; Path('README.md').read_bytes().decode('ascii')"
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust/Cargo.toml --check
+      - name: Test native core
+        run: cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs
+      - name: Check native code
+        run: cargo clippy --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -- -D warnings

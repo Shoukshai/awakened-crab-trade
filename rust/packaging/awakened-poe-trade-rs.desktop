@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Awakened PoE Trade — Price checker (Linux preview)
+Name=Awakened Crab Trade
 Comment=Native price overlay for PoE on River/XWayland
 Exec=awakened-poe-trade-rs-launch
-Icon=awakened-poe-trade-rs
-Categories=Game;Utility;
+Icon=awakened-crab-trade
+Categories=Game;
 Terminal=false
 StartupNotify=false

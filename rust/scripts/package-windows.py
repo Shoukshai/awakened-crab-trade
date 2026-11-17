@@ -7,7 +7,7 @@ version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
 tools = root / 'dist/windows-tools'
 llvm = tools / 'llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64'
 sysroot = tools / 'sysroot/ucrt64'
-output = root / f'dist/awakened-poe-trade-rs-{version}-windows-x64'
+output = root / f'dist/awakened-crab-trade-{version}-windows-x64'
 if output.exists():
     shutil.rmtree(output)
 output.mkdir()

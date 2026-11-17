@@ -3,19 +3,14 @@ use glib::translate::*;
 use gtk::prelude::*;
 #[allow(deprecated)]
 pub fn new(sender: glib::Sender<super::Event>) -> Result<glib::Object, String> {
-    let loader = gtk::gdk_pixbuf::PixbufLoader::with_type("png").map_err(|e| e.to_string())?;
-    loader
-        .write(include_bytes!("../../../main/build/icons/128x128.png"))
-        .map_err(|e| e.to_string())?;
-    loader.close().map_err(|e| e.to_string())?;
-    let pixbuf = loader.pixbuf().ok_or("Icône du programme indisponible.")?;
+    let pixbuf = super::branding::icon()?;
     let raw = unsafe { gtk::ffi::gtk_status_icon_new_from_pixbuf(pixbuf.to_glib_none().0) };
     if raw.is_null() {
         return Err("Zone de notification indisponible.".into());
     }
     let object: glib::Object = unsafe { from_glib_full(raw as *mut glib::gobject_ffi::GObject) };
     unsafe {
-        gtk::ffi::gtk_status_icon_set_tooltip_text(raw, c"Awakened PoE Trade".as_ptr());
+        gtk::ffi::gtk_status_icon_set_tooltip_text(raw, c"Awakened Crab Trade".as_ptr());
         gtk::ffi::gtk_status_icon_set_visible(raw, 1);
     }
     let actions = sender.clone();

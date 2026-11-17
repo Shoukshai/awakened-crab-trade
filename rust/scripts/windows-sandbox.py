@@ -9,7 +9,7 @@ printf '%s\\n' "$DISPLAY" > "$XDG_RUNTIME_DIR/display"
 printf '%s\\n' "$WAYLAND_DISPLAY" > "$XDG_RUNTIME_DIR/wayland"
 riverctl rule-add -title "Path of Exile" float
 riverctl rule-add -title "APT foreign fixture" float
-riverctl rule-add -title "Awakened PoE Trade*" float
+riverctl rule-add -title "Awakened Crab Trade*" float
 riverctl focus-follows-cursor disabled
 touch "$XDG_RUNTIME_DIR/ready"
 ''');init.chmod(0o700)

@@ -65,7 +65,7 @@ fn draw(context: &gtk::cairo::Context, g: &Geometry) -> Result<(), String> {
 impl Grid {
     pub fn new() -> Result<Rc<Self>, String> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        window.set_title("Awakened PoE Trade — Grille Delve");
+        window.set_title("Awakened Crab Trade — Grille Delve");
         window.set_widget_name("apt-delve");
         let visual = GtkWindowExt::screen(&window)
             .and_then(|s| s.rgba_visual())

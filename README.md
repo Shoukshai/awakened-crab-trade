@@ -1,27 +1,27 @@
-# ![Awakener's Orb](https://web.poecdn.com/image/Art/2DItems/Currency/TransferOrb.png) Awakened PoE Trade
+# Awakened Crab Trade
 
-[![](https://user-images.githubusercontent.com/4292308/153364874-dde23599-278c-4350-8d86-dadbc4b978b3.svg)](https://somsubhra.github.io/github-release-stats/?username=SnosMe&repository=awakened-poe-trade)
-[![](https://user-images.githubusercontent.com/4292308/153364769-e4fe1e82-1bbc-46ac-8a3c-f5a98a5667cc.svg)](https://patreon.com/awakened_poe_trade)
-[![](https://user-images.githubusercontent.com/4292308/153364565-7a545d26-e617-4a33-a919-ff90d8feda3d.svg)](https://github.com/SnosMe/awakened-poe-trade/issues/22)
+<img src="rust/assets/branding/icon-256.png" alt="Awakened Crab Trade" width="128">
 
+A native Path of Exile 1 price checker for Linux and Windows, inspired by
+Awakened PoE Trade.
 
-➡ [Download for Windows & Linux](https://snosme.github.io/awakened-poe-trade/download) ⬅
+- Select item modifiers and adjust integer Min/Max filters.
+- Search Trade offers and hover over a result to see its full mods and price.
+- Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
+- Use a full-height overlay beside the inventory, with automatic league selection.
 
-## Tool showcase
+## Usage
 
-| Gem | Rare | Unique | Currency |
-|-----|------|--------|----------|
-| ![](https://i.imgur.com/LTsH2DZ.png) | ![](https://i.imgur.com/2XL5Wl8.png) | ![](https://i.imgur.com/UTV6prE.png) | ![](https://i.imgur.com/dQ9Sns6.png) |
+On Windows, run the portable EXE. In PoE, hover over an item and press
+`Ctrl+Alt+D` to open the interactive checker. `Ctrl+D` opens a passive view.
+Press `Esc` or click outside the panel to close it.
 
-### Development
+Linux currently targets River/Wayland with PoE running through XWayland.
+Build and platform details: [native app](rust/README.md),
+[Windows portable](rust/docs/windows-portable.md).
 
-See [DEVELOPING.md](./DEVELOPING.md)
+## Credits
 
-### Acknowledgments
-
-- [libuiohook](https://github.com/kwhat/libuiohook)
-- [RePoE](https://github.com/brather1ng/RePoE)
-- [poeprices.info](https://www.poeprices.info/)
-- [poe.ninja](https://poe.ninja/)
-
-![](https://i.imgur.com/MATqhv7.png)
+Based on [Awakened PoE Trade](https://github.com/SnosMe/awakened-poe-trade).
+Original [MIT license](LICENSE) retained. Market data comes from GGG Trade and
+poe.ninja; item references include PoEDB. Project icon supplied by Shoukshai.

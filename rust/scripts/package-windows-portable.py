@@ -4,7 +4,7 @@ import gzip, hashlib, json, os, pathlib, shutil, struct, subprocess, tomllib
 
 root = pathlib.Path(__file__).resolve().parents[1]
 version = tomllib.loads((root / 'portable/Cargo.toml').read_text())['package']['version']
-source = root / f'dist/awakened-poe-trade-rs-{version}-windows-x64'
+source = root / f'dist/awakened-crab-trade-{version}-windows-x64'
 destination = root / 'dist/portable-payload-root'
 if destination.exists():
     shutil.rmtree(destination)
@@ -44,7 +44,7 @@ env.update(APT_PORTABLE_PAYLOAD=str(payload), APT_PORTABLE_ID=identity,
            RUSTFLAGS='-C target-feature=+crt-static')
 subprocess.run(['cargo', 'build', '--release', '--locked', '--manifest-path', str(root / 'portable/Cargo.toml'),
                 '--target', 'x86_64-pc-windows-gnullvm'], env=env, check=True)
-exe = root / f'dist/awakened-poe-trade-rs-{version}-windows-x64-portable.exe'
+exe = root / f'dist/awakened-crab-trade-{version}-windows-x64-portable.exe'
 shutil.copy2(root / 'portable/target/x86_64-pc-windows-gnullvm/release/awakened-poe-trade-portable.exe', exe)
 imports = subprocess.check_output([str(llvm / 'bin/llvm-readobj'), '--coff-imports', str(exe)], text=True)
 import re

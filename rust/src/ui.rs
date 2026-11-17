@@ -11,6 +11,7 @@ use crate::{
     trade::{Prices, Trade},
 };
 mod backdrop;
+mod branding;
 mod economy_panel;
 mod icons;
 mod item_filters_panel;
@@ -388,6 +389,10 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
+        value["application"] = serde_json::json!({
+            "title":self.window.title().as_deref(),
+            "icon":self.window.icon().map(|icon|serde_json::json!({"width":icon.width(),"height":icon.height()})),
+        });
         value["preset_label"] = serde_json::json!(self.preset.active_text().as_deref());
         value["stat_sections"] = serde_json::json!(self.mod_box.children().into_iter().filter_map(|w|w.downcast::<gtk::Expander>().ok()).map(|e| {
             let header=e.label_widget().and_then(|w|w.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height()})));
@@ -1466,7 +1471,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--version") {
-        println!("awakened-poe-trade-rs {}", env!("CARGO_PKG_VERSION"));
+        println!("awakened-crab-trade {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
@@ -1516,6 +1521,8 @@ pub fn run() -> Result<(), String> {
     let first_launch = !crate::settings::path().exists();
     let settings = Settings::load()?;
     gtk::init().map_err(|e| e.to_string())?;
+    let app_icon = branding::icon()?;
+    gtk::Window::set_default_icon(&app_icon);
     #[cfg(target_os = "linux")]
     {
         if !gtk_layer_shell::is_supported() {
@@ -1538,7 +1545,8 @@ pub fn run() -> Result<(), String> {
     eprintln!("backend=Win32 league={:?}", settings.league);
     let control = crate::ipc::Server::bind()?;
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
-    window.set_title("Awakened PoE Trade — Rust");
+    window.set_title("Awakened Crab Trade");
+    window.set_icon(Some(&app_icon));
     window.set_widget_name("apt-native");
     window.set_decorated(false);
     window.set_size_request((480.0 * settings.scale) as i32, 0);
@@ -1566,7 +1574,7 @@ pub fn run() -> Result<(), String> {
     let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     content.set_border_width(16);
-    let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
+    let title = gtk::Label::new(Some("AWAKENED CRAB TRADE"));
     title.set_xalign(0.);
     title.set_ellipsize(gtk::pango::EllipsizeMode::End);
     title.set_max_width_chars(14);

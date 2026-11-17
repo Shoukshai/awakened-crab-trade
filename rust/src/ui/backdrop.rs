@@ -62,7 +62,7 @@ impl Backdrop {
             .into_iter()
             .map(|edge| {
                 let window = gtk::Window::new(gtk::WindowType::Toplevel);
-                window.set_title("Awakened PoE Trade — backdrop");
+                window.set_title("Awakened Crab Trade — backdrop");
                 window.set_decorated(false);
                 window.set_app_paintable(true);
                 window.set_accept_focus(false);

@@ -34,7 +34,7 @@ impl Canvas {
         closed: impl Fn() + 'static,
     ) -> Result<Rc<Self>, String> {
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        window.set_title("Awakened PoE Trade — Widgets");
+        window.set_title("Awakened Crab Trade — Widgets");
         window.set_widget_name("apt-widgets");
         let visual = GtkWindowExt::screen(&window)
             .and_then(|s| s.rgba_visual())

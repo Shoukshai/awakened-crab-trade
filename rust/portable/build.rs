@@ -24,6 +24,10 @@ fn main() {
         let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
         let resources = root.join("../packaging/windows").canonicalize().unwrap();
         println!("cargo:rerun-if-changed={}", resources.display());
+        println!(
+            "cargo:rerun-if-changed={}",
+            root.join("../assets/branding/app.ico").display()
+        );
         let object = out.join("portable-res.o");
         let compiler = env::var_os("APT_WINDOWS_WINDRES").expect("Set APT_WINDOWS_WINDRES");
         assert!(Command::new(compiler)

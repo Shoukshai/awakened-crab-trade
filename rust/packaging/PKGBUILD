@@ -1,10 +1,13 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
-pkgname=awakened-poe-trade-rs
-pkgver=0.29.1
+pkgname=awakened-crab-trade
+pkgver=0.30.0
 pkgrel=1
+provides=("awakened-poe-trade-rs=$pkgver")
+conflicts=('awakened-poe-trade-rs')
+replaces=('awakened-poe-trade-rs')
 pkgdesc='Native Rust PoE price checker for River and XWayland'
 arch=('x86_64')
-url='https://github.com/SnosMe/awakened-poe-trade'
+url='https://github.com/Shoukshai/awakened-crab-trade'
 license=('MIT')
 # Cargo already performs Rust thin-LTO. GCC LTO objects from ring cannot be
 # consumed by rust-lld; disable makepkg's additional C/C++ LTO for this package.
@@ -32,7 +35,7 @@ package() {
     install -Dm755 "$target_dir/release/awakened-poe-trade-rs" "$pkgdir/usr/bin/awakened-poe-trade-rs"
     install -Dm755 rust/packaging/awakened-poe-trade-rs-launch "$pkgdir/usr/bin/awakened-poe-trade-rs-launch"
     install -Dm644 rust/packaging/awakened-poe-trade-rs.desktop "$pkgdir/usr/share/applications/awakened-poe-trade-rs.desktop"
-    install -Dm644 main/build/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/awakened-poe-trade-rs.png"
+    install -Dm644 rust/assets/branding/icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/awakened-crab-trade.png"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     cp -a license-bundle "$pkgdir/usr/share/licenses/$pkgname/dependencies"
     install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"

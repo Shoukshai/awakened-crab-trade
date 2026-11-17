@@ -1,6 +1,6 @@
 # Windows : un seul EXE
 
-Lancer `awakened-poe-trade-rs-0.29.1-windows-x64-portable.exe` directement.
+Lancer `awakened-crab-trade-0.30.0-windows-x64-portable.exe` directement.
 Aucune extraction manuelle, installation ni élévation administrateur.
 
 Au premier lancement, les bibliothèques GTK, le programme et leurs licences sont
@@ -9,7 +9,7 @@ décompressés automatiquement dans
 réutilisent ce cache. Aucun dossier n’est créé à côté de l’EXE portable.
 
 Les préférences restent dans `%APPDATA%\awakened-poe-trade-rs\config.json`.
-L’EXE contient le même price checker que le ZIP 0.29.1. Dans PoE, survoler
+L’EXE contient le même price checker que le ZIP 0.30.0. Dans PoE, survoler
 un objet puis faire `Ctrl+Alt+D`.
 
 Pour retrouver les fichiers et les licences sans ouvrir le panneau, lancer

@@ -24,7 +24,10 @@ fn main() -> ExitCode {
                     .encode_utf16()
                     .chain(Some(0))
                     .collect();
-                let title: Vec<u16> = "Awakened PoE Trade".encode_utf16().chain(Some(0)).collect();
+                let title: Vec<u16> = "Awakened Crab Trade"
+                    .encode_utf16()
+                    .chain(Some(0))
+                    .collect();
                 unsafe {
                     windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxW(
                         std::ptr::null_mut(),

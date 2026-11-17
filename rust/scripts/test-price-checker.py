@@ -126,6 +126,7 @@ try:
         wait_for(lambda:status()['summary']['image_ready'],'item image fetched through fixture',10)
         if family not in ['influence','wand']:wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
         s0=status()
+        assert s0['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},s0['application']
         assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
         assert not posts,'copy must not automatically query Trade with automatic_search=false'
         if family=='wand':

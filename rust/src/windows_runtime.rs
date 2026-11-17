@@ -80,7 +80,7 @@ pub fn report_error(message: &str) {
             windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxW(
                 std::ptr::null_mut(),
                 crate::desktop::native::wide(message).as_ptr(),
-                crate::desktop::native::wide("Awakened PoE Trade").as_ptr(),
+                crate::desktop::native::wide("Awakened Crab Trade").as_ptr(),
                 windows_sys::Win32::UI::WindowsAndMessaging::MB_OK
                     | windows_sys::Win32::UI::WindowsAndMessaging::MB_ICONERROR,
             );
