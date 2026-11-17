@@ -353,12 +353,6 @@ impl Runtime {
         }
         self.render();
     }
-    pub fn has_configs(&self) -> bool {
-        !self.rows.borrow().is_empty()
-    }
-    pub fn visible_rendered(&self) -> bool {
-        self.canvas.visible(Owner::Stopwatch) && self.rendered.get()
-    }
     fn add_row(self: &Rc<Self>, config: Config, state: State) {
         let root = gtk::EventBox::new();
         root.set_widget_name("apt-stopwatches");

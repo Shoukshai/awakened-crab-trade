@@ -24,7 +24,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF, contrôles et ancrages ; surface commune et superposition mémorisée images/chronomètres | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres ; 8 192 étapes de survol et 630 ancrages d’images ; scénarios GTK privés et aperçu réel au-dessus de PoE | alignement dans la vraie interface Delve ; menu général, URL distantes, édition et présentation upstream complètes |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF ; menu flottant, collage, ajout, filtrage et quatre ancrages ; surface commune et ordre mémorisé menu/images/chronomètres | Delve : 12 966 géométries et 3 840 transitions ; chronomètres : 12 296 transitions ; images : 8 192 étapes et 630 ancrages ; menu : 664 cas, 13 457 entrées et 588 positions comparées ; huit scénarios GTK privés, menu/chronomètre et prix réels au-dessus de PoE | alignement Delve réel ; recherche coffre, URL distantes, édition et présentation upstream complètes |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes/Chronomètres/Images ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
@@ -440,3 +440,36 @@ restent des vues du panneau principal ; le menu général upstream et les autres
 widgets de l’inventaire restent à porter. La grille Delve reste une surface
 passive distincte, avec son exclusion existante. Les contraintes CSS exactes
 aux bords et les autres environnements restent dans la validation à compléter.
+
+## Jalon 0.20 : menu flottant des widgets
+
+`widget_menu.rs` porte le filtrage des instances, les titres/icônes et les quatre
+transformations d’ancrage de WidgetMenu/Widget upstream. `ui/widget_menu.rs`
+fournit les contrôles GTK dans la surface commune : afficher/masquer une instance,
+toujours afficher ses boutons, ajouter un chronomètre ou une bande, coller un objet
+et déplacer le menu. L’ajout de recherche coffre reste désactivé. Le menu devient
+l’entrée de Maj+Espace lorsque le panneau est masqué ; `menu` ouvre passivement.
+Son premier rendu propre précède l’autorisation d’entrée.
+
+Les réglages de menu par défaut sont omis du JSON. Les anciens ordres images/
+chronomètres reçoivent le menu implicitement au début ; un clic peut le remonter
+et persister sa position. L’écriture d’ordre seule ne désactive pas les contrôles.
+La navigation vers les réglages attend la transaction déjà en cours puis le retour
+de focus observé au jeu ; aucun appel ne force ce focus. Annuler revient au menu.
+Le catalogue Heist peut coexister avec lui ; les gestionnaires Images/Chronos et
+les vues Prix/Évaluation/Réglages le masquent.
+
+Le collage fournit directement un texte possédé au worker de capture existant,
+borné à 1 Mio côté menu, sans copie dans le jeu. Chaque session emploie un nouveau
+tampon GTK : une réponse à l’ancien tampon ne peut rouvrir les prix après
+fermeture/réouverture. Une capture en attente est aussi annulée au changement
+d’application, même si l’overlay était encore masqué. Une réponse tardive après
+retour au jeu reste rejetée.
+
+Le layout utilise la taille effectivement allouée, conserve son emprise pendant
+une session et borne le contenu défilant à la sortie. Cela garde le pointeur sur
+une surface peinte lorsque les boutons disparaissent. Les 50 boutons du profil
+maximal restent accessibles à l’échelle UI 2,5 sur une sortie privée au facteur 2.
+Icônes GTK, ajout inline et défilement sont des adaptations natives ; les oracles
+ne prouvent pas une identité des pixels CSS. Les fonctions restantes de
+l’inventaire demeurent à porter.

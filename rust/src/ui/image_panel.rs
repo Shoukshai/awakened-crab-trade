@@ -496,9 +496,6 @@ impl Runtime {
     pub fn owns_focus(&self) -> bool {
         self.canvas.visible(Owner::Image) && self.window.is_active()
     }
-    pub fn has_wanted(&self) -> bool {
-        self.rows.borrow().iter().any(|r| r.config.wanted)
-    }
     pub fn prepare_edit(&self, id: u64) {
         if let Some(r) = self.rows.borrow().iter().find(|r| r.config.id == id) {
             r.mover.set_active(false);

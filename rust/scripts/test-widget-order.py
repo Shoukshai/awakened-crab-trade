@@ -84,7 +84,8 @@ try:
     timer={'type':'stopwatch','id':1};image={'type':'image','id':1}
     def clock():return status()['stopwatches']['rows'][0]
     def band():return status()['images']['rows'][0]
-    def canvas():return status()['widget_canvas']
+    def canvas():
+        value=status()['widget_canvas'];value['order']=[k for k in value['order'] if k['type']!='menu'];return value
     def interact():
         command('stopwatches');wait_for(lambda:state(view='Stopwatches',rendered=True,state='Passive'),'manager passive')
         assert status()['game_active'] and not status()['images']['visible']

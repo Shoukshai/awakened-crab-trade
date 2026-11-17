@@ -26,6 +26,7 @@ mod stopwatch_panel;
 mod stopwatch_settings;
 mod unidentified_panel;
 mod widget_canvas;
+mod widget_menu;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -49,8 +50,10 @@ enum View {
     Catalogue,
     Stopwatches,
     Images,
+    Menu,
 }
 enum Event {
+    Menu(widget_menu::Action),
     WidgetOrder,
     Shortcut(&'static str),
     Hotkey(crate::hotkeys::Action),
@@ -60,7 +63,7 @@ enum Event {
     ImageManager(image_manager::Action),
     Windows(Snapshot),
     TrackerError(String),
-    Captured(u64, View, Box<Result<(Item, u128), String>>),
+    Captured(u64, View, bool, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
     MapSettings(u64, crate::inspection::Edit),
@@ -83,6 +86,7 @@ enum EconomyJob {
     },
 }
 struct CaptureJob {
+    text: Option<String>,
     generation: u64,
     copy: bool,
     view: View,
@@ -92,7 +96,17 @@ struct Job {
     league: String,
     query: serde_json::Value,
 }
+#[derive(Clone)]
+enum MenuRoute {
+    Open(bool),
+    Settings,
+    Catalogue,
+    Paste(String),
+}
 struct Ui {
+    menu: Result<Rc<widget_menu::Menu>, String>,
+    pending_menu: RefCell<Option<(u64, MenuRoute)>>,
+    deferred_menu: RefCell<std::collections::VecDeque<widget_menu::Action>>,
     widget_canvas: Result<Rc<widget_canvas::Canvas>, String>,
     window: gtk::Window,
     delve: Result<Rc<delve_grid::Grid>, String>,
@@ -149,6 +163,7 @@ struct Ui {
     game_active: Arc<AtomicBool>,
     worker: SyncSender<Job>,
     capture_worker: SyncSender<CaptureJob>,
+    capture_pending: Cell<Option<u64>>,
     url: RefCell<Option<String>>,
     shown: RefCell<Option<Instant>>,
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
@@ -255,6 +270,277 @@ fn dismiss_owned_popup(window: &gtk::Window) {
     }
 }
 impl Ui {
+    fn refresh_menu(&self) {
+        let Ok(menu) = &self.menu else {
+            return;
+        };
+        use crate::widget_menu::{Entry, Target};
+        let s = self.settings.borrow();
+        let mut entries = vec![
+            Entry {
+                target: Target::Settings,
+                id: 1,
+                title: "{icon=fa-cog}".into(),
+                wanted: self.view.get() == View::Settings && self.window.is_visible(),
+                skip: false,
+            },
+            Entry {
+                target: Target::Catalogue,
+                id: 2,
+                title: "{icon=fa-search}".into(),
+                wanted: self.view.get() == View::Catalogue && self.window.is_visible(),
+                skip: false,
+            },
+        ];
+        entries.extend(s.stopwatches.iter().map(|c| Entry {
+            target: Target::Stopwatch(c.id),
+            id: c.id,
+            title: c.title.clone(),
+            wanted: c.wanted,
+            skip: false,
+        }));
+        entries.extend(s.image_strips.iter().map(|c| Entry {
+            target: Target::Image(c.id),
+            id: c.id,
+            title: c.title.clone(),
+            wanted: c.wanted,
+            skip: false,
+        }));
+        menu.reconcile(&s.widget_menu, &entries, s.scale);
+        let state = self.state.borrow();
+        let d = self.desktop.borrow();
+        let interactive = state.state == State::Interactive;
+        // The extra native managers have their own controls. They are not
+        // upstream widgets; keep the floating menu out of these editor panes.
+        let visible = d.game_present()
+            && !d.other_active()
+            && ((self.view.get() == View::Menu
+                && matches!(
+                    state.state,
+                    State::Preparing | State::Passive | State::Interactive
+                ))
+                || (interactive && self.view.get() == View::Catalogue));
+        menu.set_context(visible, interactive, state.generation);
+    }
+    fn start_menu(&self, activate: bool) {
+        if self.menu.is_err() {
+            eprintln!("menu unavailable");
+            return;
+        }
+        if self.view.get() == View::Menu && self.state.borrow().state != State::Hidden {
+            if activate {
+                self.command("interact");
+            }
+            return;
+        }
+        self.view.set(View::Menu);
+        let Some(token) = self.state.borrow_mut().show() else {
+            return;
+        };
+        self.sync_generation();
+        if activate {
+            self.pending_interaction.set(Some(token));
+        }
+        if let Ok(r) = &self.stopwatches {
+            r.resume();
+        }
+        if let Ok(r) = &self.images {
+            r.resume();
+        }
+        self.refresh_delve();
+        eprintln!(
+            "overlay state=Preparing view=Menu generation={token} activation_requested=false"
+        );
+    }
+    fn route_menu(&self, route: MenuRoute) {
+        if self.desktop.borrow().other_active() || !self.desktop.borrow().game_present() {
+            return;
+        }
+        self.hide(HideReason::Button);
+        if self.state.borrow().game_active {
+            self.finish_menu_route(route);
+        } else {
+            self.pending_menu
+                .replace(Some((self.state.borrow().generation, route)));
+        }
+    }
+    fn finish_menu_route(&self, route: MenuRoute) {
+        if self.preferences_pending.get() {
+            self.pending_menu
+                .replace(Some((self.state.borrow().generation, route)));
+            return;
+        }
+        match route {
+            MenuRoute::Open(activate) => self.start_menu(activate),
+            MenuRoute::Settings | MenuRoute::Catalogue => {
+                if matches!(route, MenuRoute::Settings) {
+                    self.open_settings();
+                } else {
+                    self.open_catalogue();
+                }
+                if self.state.borrow().state == State::Preparing {
+                    self.pending_interaction
+                        .set(Some(self.state.borrow().generation));
+                }
+            }
+            MenuRoute::Paste(text) => {
+                let generation = self.state.borrow().generation;
+                if self
+                    .capture_worker
+                    .try_send(CaptureJob {
+                        generation,
+                        text: Some(text),
+                        copy: false,
+                        view: View::Price,
+                    })
+                    .is_err()
+                {
+                    eprintln!("menu paste refused: capture worker busy");
+                } else {
+                    self.capture_pending.set(Some(generation));
+                }
+            }
+        }
+    }
+    fn drain_menu(&self) {
+        while !self.preferences_pending.get() {
+            let action = self.deferred_menu.borrow_mut().pop_front();
+            let Some(action) = action else {
+                break;
+            };
+            self.menu_action(action);
+        }
+    }
+    fn drain_menu_route(&self) {
+        if !self.preferences_pending.get() && self.state.borrow().game_active {
+            let pending = self.pending_menu.borrow_mut().take();
+            if let Some((token, route)) = pending {
+                if token == self.state.borrow().generation {
+                    self.finish_menu_route(route);
+                }
+            }
+        }
+    }
+    fn menu_action(&self, action: widget_menu::Action) {
+        use widget_menu::Action;
+        let Ok(menu) = &self.menu else {
+            return;
+        };
+        if let Action::Painted(epoch) = action {
+            if self.view.get() == View::Menu
+                && epoch == self.state.borrow().generation
+                && self.state.borrow().state == State::Preparing
+            {
+                self.state.borrow_mut().painted();
+                eprintln!("overlay state=Passive view=Menu first_frame=painted activation_requested=false");
+                if self.pending_interaction.take() == Some(epoch) {
+                    self.command("interact");
+                }
+            }
+            return;
+        }
+        let epoch = match &action {
+            Action::Escape(e)
+            | Action::Toggle(e, _)
+            | Action::Add(e, _)
+            | Action::Configure(e, _)
+            | Action::Paste(e, _) => *e,
+            Action::Painted(_) => unreachable!(),
+        };
+        if !menu.accepts(epoch) {
+            return;
+        }
+        if matches!(action, Action::Escape(_)) {
+            self.hide(HideReason::Escape);
+            return;
+        }
+        if self.preferences_pending.get() {
+            let mut queue = self.deferred_menu.borrow_mut();
+            if queue.len() < 32 {
+                queue.push_back(action);
+            }
+            return;
+        }
+        use crate::{widget_menu::Target, widget_order::Key};
+        match action {
+            Action::Toggle(_, Target::Settings) => self.route_menu(MenuRoute::Settings),
+            Action::Toggle(_, Target::Catalogue) => {
+                if self.view.get() == View::Catalogue && self.window.is_visible() {
+                    self.route_menu(MenuRoute::Open(true));
+                } else {
+                    self.route_menu(MenuRoute::Catalogue);
+                }
+            }
+            Action::Toggle(_, Target::Stopwatch(id)) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
+                    c.wanted = !c.wanted;
+                    if c.wanted {
+                        if let Ok(canvas) = &self.widget_canvas {
+                            canvas.raise(Key::Stopwatch(id));
+                        }
+                        if let Ok(r) = &self.stopwatches {
+                            r.resume();
+                        }
+                    }
+                    self.commit_widgets(s);
+                }
+            }
+            Action::Toggle(_, Target::Image(id)) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
+                    c.wanted = !c.wanted;
+                    if c.wanted {
+                        if let Ok(canvas) = &self.widget_canvas {
+                            canvas.raise(Key::Image(id));
+                        }
+                        if let Ok(r) = &self.images {
+                            r.resume();
+                        }
+                    }
+                    self.commit_widgets(s);
+                }
+            }
+            Action::Add(_, images) => {
+                let mut s = self.settings.borrow().clone();
+                if images {
+                    if s.image_strips.len() >= crate::image_strip::MAX_STRIPS {
+                        return;
+                    }
+                    let id = s.image_strips.iter().map(|c| c.id).max().unwrap_or(0) + 1;
+                    s.image_strips.push(crate::image_strip::Config::new(
+                        id,
+                        glib::random_double(),
+                        glib::random_double(),
+                    ));
+                    if let Ok(r) = &self.images {
+                        r.resume();
+                    }
+                } else {
+                    if s.stopwatches.len() >= crate::stopwatch::MAX_INSTANCES {
+                        return;
+                    }
+                    let id = s.stopwatches.iter().map(|c| c.id).max().unwrap_or(0) + 1;
+                    s.stopwatches.push(crate::stopwatch::Config::new(
+                        id,
+                        glib::random_double(),
+                        glib::random_double(),
+                    ));
+                    if let Ok(r) = &self.stopwatches {
+                        r.resume();
+                    }
+                }
+                self.commit_widgets(s);
+            }
+            Action::Configure(_, config) => {
+                let mut s = self.settings.borrow().clone();
+                s.widget_menu = config;
+                self.commit_widgets(s);
+            }
+            Action::Paste(_, text) => self.route_menu(MenuRoute::Paste(text)),
+            _ => (),
+        }
+    }
     fn defer_focus_check(self: &Rc<Self>) {
         let Some(token) = self.state.borrow_mut().focus_lost() else {
             return;
@@ -265,9 +551,14 @@ impl Ui {
         glib::timeout_add_local_once(Duration::from_millis(30), move || {
             if let Some(ui) = weak.upgrade() {
                 let active = ui.window.is_active()
+                    || ui.menu.as_ref().is_ok_and(|m| m.owns_focus())
                     || ui.stopwatches.as_ref().is_ok_and(|r| r.owns_focus())
                     || ui.images.as_ref().is_ok_and(|r| r.owns_focus());
-                let popup = owned_popup(&ui.window).is_some();
+                let popup = owned_popup(&ui.window).is_some()
+                    || ui
+                        .widget_canvas
+                        .as_ref()
+                        .is_ok_and(|c| owned_popup(&c.window).is_some());
                 let hide = ui
                     .state
                     .borrow()
@@ -280,6 +571,7 @@ impl Ui {
         });
     }
     fn refresh_delve(&self) {
+        self.refresh_menu();
         if let Ok(grid) = &self.delve {
             let desktop = self.desktop.borrow();
             grid.update(
@@ -350,6 +642,10 @@ impl Ui {
         }
     }
     fn sync_generation(&self) {
+        let generation = self.state.borrow().generation;
+        if self.capture_pending.get().is_some_and(|g| g != generation) {
+            self.capture_pending.set(None);
+        }
         self.current
             .store(self.state.borrow().generation, Ordering::Release);
     }
@@ -358,6 +654,8 @@ impl Ui {
         self.pending_interaction.set(None);
         self.pending_image_edit.set(None);
         self.pending_stopwatch_edit.set(None);
+        self.pending_menu.borrow_mut().take();
+        self.deferred_menu.borrow_mut().clear();
         if matches!(reason, HideReason::Explicit | HideReason::Quit) {
             if let Ok(r) = &self.stopwatches {
                 r.dismiss();
@@ -551,6 +849,11 @@ impl Ui {
                 self.commit_widgets(s);
             }
             image_manager::Action::Wanted(id, wanted) => {
+                if wanted {
+                    if let Ok(c) = &self.widget_canvas {
+                        c.raise(crate::widget_order::Key::Image(id));
+                    }
+                }
                 let mut s = self.settings.borrow().clone();
                 if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
                     c.wanted = wanted;
@@ -659,6 +962,9 @@ impl Ui {
             return;
         }
         if let Err(e) = candidate.validate() {
+            if let Ok(m) = &self.menu {
+                m.error(&e);
+            }
             self.stopwatch_manager.message(&e);
             return;
         }
@@ -667,10 +973,15 @@ impl Ui {
         self.widget_transaction.set(true);
         let order_only = {
             let old = self.settings.borrow();
-            candidate.stopwatches == old.stopwatches && candidate.image_strips == old.image_strips
+            candidate.stopwatches == old.stopwatches
+                && candidate.image_strips == old.image_strips
+                && candidate.widget_menu == old.widget_menu
         };
         self.order_transaction.set(order_only);
         if !order_only {
+            if let Ok(m) = &self.menu {
+                m.set_busy(true);
+            }
             self.stopwatch_manager.busy(true);
             self.image_manager.busy(true);
             if let Ok(r) = &self.images {
@@ -700,6 +1011,10 @@ impl Ui {
                     .message(&format!("Modifications non enregistrées : {e}"));
                 return;
             }
+            if let Ok(m) = &self.menu {
+                m.set_busy(false);
+            }
+            self.refresh_menu();
             self.stopwatch_manager.busy(false);
             self.image_manager.busy(false);
             self.image_manager.message(&e.to_string());
@@ -756,6 +1071,11 @@ impl Ui {
                 self.commit_widgets(s);
             }
             Action::Wanted(id, wanted) => {
+                if wanted {
+                    if let Ok(c) = &self.widget_canvas {
+                        c.raise(crate::widget_order::Key::Stopwatch(id));
+                    }
+                }
                 let mut s = self.settings.borrow().clone();
                 if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
                     c.wanted = wanted;
@@ -846,6 +1166,10 @@ impl Ui {
         self.preferences.images.cancel_import();
         let view = self.preferences_return.get();
         self.view.set(view);
+        if view == View::Menu {
+            self.route_menu(MenuRoute::Open(true));
+            return;
+        }
         if view == View::Images {
             self.open_images();
             return;
@@ -934,6 +1258,9 @@ impl Ui {
                 self.preferences_pending.set(false);
                 self.stack.set_sensitive(true);
                 eprintln!("settings transaction rejected epoch={epoch} error={error}");
+                if let Ok(m) = &self.menu {
+                    m.error(&format!("Modifications non enregistrées : {error}"));
+                }
                 if let Ok(c) = &self.widget_canvas {
                     let s = self.settings.borrow();
                     c.rollback(&s.widget_order, &s.widget_keys());
@@ -946,6 +1273,10 @@ impl Ui {
                         .message(&format!("Modifications non enregistrées : {error}"));
                     return;
                 }
+                if let Ok(m) = &self.menu {
+                    m.set_busy(false);
+                }
+                self.refresh_menu();
                 if self.widget_transaction.replace(false) {
                     self.image_manager.busy(false);
                     self.image_manager
@@ -988,6 +1319,9 @@ impl Ui {
                     Err("Réglages enregistrés, mais la connexion aux raccourcis est perdue.".into())
                 });
                 self.settings.replace(settings.clone());
+                if let Ok(m) = &self.menu {
+                    m.error("");
+                }
                 if let Ok(c) = &self.widget_canvas {
                     c.configure(&settings.widget_order, &settings.widget_keys());
                     c.ack(&settings.widget_order);
@@ -997,6 +1331,10 @@ impl Ui {
                     eprintln!("widgets order saved epoch={epoch} activation_requested=false");
                     return;
                 }
+                if let Ok(m) = &self.menu {
+                    m.set_busy(false);
+                }
+                self.refresh_menu();
                 if let Ok(r) = &self.images {
                     r.set_busy(false);
                     r.reconcile(&settings.image_strips, settings.scale);
@@ -1128,6 +1466,7 @@ impl Ui {
                 let generation = self.state.borrow().generation;
                 if let Err(e) = self.capture_worker.try_send(CaptureJob {
                     generation,
+                    text: None,
                     copy: command.ends_with("copy"),
                     view: if command.starts_with("inspect-") {
                         View::Inspection
@@ -1136,31 +1475,14 @@ impl Ui {
                     },
                 }) {
                     eprintln!("capture worker busy: {e}");
+                } else {
+                    self.capture_pending.set(Some(generation));
                 }
             }
             "interact" => {
                 if self.state.borrow().state == State::Hidden && self.state.borrow().game_active {
-                    if self
-                        .stopwatches
-                        .as_ref()
-                        .is_ok_and(|r| r.visible_rendered())
-                    {
-                        self.state.borrow_mut().auxiliary_painted();
-                    } else if self.stopwatches.as_ref().is_ok_and(|r| r.has_configs()) {
-                        self.open_stopwatches();
-                        if self.state.borrow().state == State::Preparing {
-                            self.pending_interaction
-                                .set(Some(self.state.borrow().generation));
-                        }
-                        return;
-                    } else if self.images.as_ref().is_ok_and(|r| r.has_wanted()) {
-                        self.open_images();
-                        if self.state.borrow().state == State::Preparing {
-                            self.pending_interaction
-                                .set(Some(self.state.borrow().generation));
-                        }
-                        return;
-                    }
+                    self.start_menu(true);
+                    return;
                 }
                 if self.state.borrow_mut().interact() {
                     self.hide_delve(crate::delve::Reason::Interactive);
@@ -1180,6 +1502,7 @@ impl Ui {
             }
             "delve" => self.toggle_delve(),
             "delve-hide" => self.hide_delve(crate::delve::Reason::Explicit),
+            "menu" => self.route_menu(MenuRoute::Open(false)),
             "settings" => self.open_settings(),
             "catalogue" => self.open_catalogue(),
             "stopwatches" => self.open_stopwatches(),
@@ -1630,6 +1953,7 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::Menu(action) => self.menu_action(action),
             Event::WidgetOrder => self.save_widget_order(),
             Event::Shortcut(command) => self.command(command),
             Event::Hotkey(crate::hotkeys::Action::Command(command)) => self.command(command),
@@ -1654,10 +1978,17 @@ impl Ui {
             Event::Preferences(update) => {
                 self.preferences_update(*update);
                 self.save_widget_order();
+                self.drain_menu();
+                self.drain_menu_route();
             }
             Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
             Event::Windows(s) => {
                 let active = s.game_active();
+                if !active && self.capture_pending.take().is_some() {
+                    self.state.borrow_mut().generation += 1;
+                    self.sync_generation();
+                    eprintln!("capture cancelled on game context loss");
+                }
                 if self.state.borrow().game_active != active {
                     eprintln!(
                         "game active={active} present={} other_active={}",
@@ -1675,6 +2006,7 @@ impl Ui {
                     self.pending_stopwatch_edit.set(None);
                     self.pending_image_edit.set(None);
                     self.pending_interaction.set(None);
+                    self.pending_menu.borrow_mut().take();
                 }
                 self.game_active.store(active, Ordering::Release);
                 self.desktop.replace(s);
@@ -1683,6 +2015,12 @@ impl Ui {
                     self.hide(reason);
                 }
                 if active {
+                    let pending = self.pending_menu.borrow_mut().take();
+                    if let Some((token, route)) = pending {
+                        if token == self.state.borrow().generation {
+                            self.finish_menu_route(route);
+                        }
+                    }
                     if let Some((token, id)) = self.pending_image_edit.get() {
                         if token == self.state.borrow().generation {
                             self.pending_image_edit.set(None);
@@ -1706,7 +2044,10 @@ impl Ui {
                 self.state.borrow_mut().fail();
                 eprintln!("tracker error={e}");
             }
-            Event::Captured(generation, view, result) => {
+            Event::Captured(generation, view, focus, result) => {
+                if self.capture_pending.get() == Some(generation) {
+                    self.capture_pending.set(None);
+                }
                 if generation != self.state.borrow().generation || !self.state.borrow().game_active
                 {
                     eprintln!("discarded capture generation={generation}");
@@ -1724,8 +2065,14 @@ impl Ui {
                             self.stat_rows.borrow().len(),
                             filters_started.elapsed().as_millis()
                         );
-                        if self.show() && view == View::Price {
-                            self.price_after_copy();
+                        if self.show() {
+                            if focus {
+                                self.pending_interaction
+                                    .set(Some(self.state.borrow().generation));
+                            }
+                            if view == View::Price {
+                                self.price_after_copy();
+                            }
                         }
                     }
                     Err(e) => {
@@ -1740,7 +2087,10 @@ impl Ui {
                         self.title.set_text("Impossible de lire l'objet");
                         self.text.set_text(&e);
                         eprintln!("capture error={e}");
-                        self.show();
+                        if self.show() && focus {
+                            self.pending_interaction
+                                .set(Some(self.state.borrow().generation));
+                        }
                     }
                 }
             }
@@ -1924,7 +2274,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|menu|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1965,6 +2315,7 @@ pub fn run() -> Result<(), String> {
                 | "delve-hide"
                 | "stopwatches"
                 | "images"
+                | "menu"
         )
     }) {
         UnixDatagram::unbound()
@@ -2092,6 +2443,12 @@ pub fn run() -> Result<(), String> {
         let _ = manager_sender.send(Event::ImageManager(action));
     });
     image_manager.configure(&settings.image_strips);
+    let menu_sender = sender.clone();
+    let menu = widget_canvas.as_ref().map_err(Clone::clone).and_then(|c| {
+        widget_menu::Menu::new(c.clone(), move |action| {
+            let _ = menu_sender.send(Event::Menu(action));
+        })
+    });
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     content.set_border_width(20);
     let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
@@ -2228,6 +2585,8 @@ pub fn run() -> Result<(), String> {
     let header = gtk::Box::new(gtk::Orientation::Vertical, 6);
     header.pack_start(&title, false, false, 0);
     let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let menu_open = gtk::Button::with_label("Menu");
+    menu_open.set_sensitive(menu.is_ok());
     let image_open = gtk::Button::with_label("Images");
     image_open.set_sensitive(images.is_ok());
     let preferences_open = gtk::Button::with_label("Réglages");
@@ -2239,6 +2598,7 @@ pub fn run() -> Result<(), String> {
     delve_open.set_tooltip_text(Some(
         "Ferme ce panneau et affiche une grille passive ; configurez son raccourci dans Réglages.",
     ));
+    heading.pack_start(&menu_open, false, false, 0);
     heading.pack_start(&image_open, false, false, 0);
     heading.pack_start(&stopwatch_open, false, false, 0);
     heading.pack_start(&delve_open, false, false, 0);
@@ -2263,7 +2623,10 @@ pub fn run() -> Result<(), String> {
                     continue;
                 }
                 let started = Instant::now();
-                let result = (if job.copy {
+                let focus = job.text.is_some();
+                let result = (if let Some(text) = job.text {
+                    Ok(text)
+                } else if job.copy {
                     clipboard::copy_from_game(&active)
                 } else {
                     clipboard::read()
@@ -2271,7 +2634,12 @@ pub fn run() -> Result<(), String> {
                 .and_then(|text| Item::parse(&text))
                 .map(|item| (item, started.elapsed().as_millis()));
                 if sender
-                    .send(Event::Captured(job.generation, job.view, Box::new(result)))
+                    .send(Event::Captured(
+                        job.generation,
+                        job.view,
+                        focus,
+                        Box::new(result),
+                    ))
                     .is_err()
                 {
                     break;
@@ -2341,6 +2709,9 @@ pub fn run() -> Result<(), String> {
     }
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
+        menu,
+        pending_menu: RefCell::new(None),
+        deferred_menu: RefCell::new(std::collections::VecDeque::new()),
         widget_canvas,
         window: window.clone(),
         delve,
@@ -2397,6 +2768,7 @@ pub fn run() -> Result<(), String> {
         game_active,
         worker,
         capture_worker,
+        capture_pending: Cell::new(None),
         url: RefCell::new(None),
         shown: RefCell::new(None),
         result: RefCell::new(None),
@@ -2405,6 +2777,8 @@ pub fn run() -> Result<(), String> {
     {
         let owner = ui.clone();
         preferences_open.connect_clicked(move |_| owner.open_settings());
+        let owner = ui.clone();
+        menu_open.connect_clicked(move |_| owner.route_menu(MenuRoute::Open(true)));
         let owner = ui.clone();
         stopwatch_open.connect_clicked(move |_| owner.open_stopwatches());
         let owner = ui.clone();
@@ -2674,6 +3048,12 @@ pub fn run() -> Result<(), String> {
                             Err(error) => serde_json::json!({"available":false,"error":error}),
                         };
                         value["delve_button"]=serde_json::json!(delve_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":delve_open.allocated_width(),"height":delve_open.allocated_height()})));
+                        value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
+                        value["widget_menu"] = match &ui.menu {
+                            Ok(m) => m.diagnostics(),
+                            Err(e) => serde_json::json!({"error":e}),
+                        };
+                        value["menu_button"]=serde_json::json!(menu_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":menu_open.allocated_width(),"height":menu_open.allocated_height()})));
                         value["widget_canvas"] = match &ui.widget_canvas {
                             Ok(c) => c.diagnostics(),
                             Err(e) => serde_json::json!({"available":false,"error":e}),

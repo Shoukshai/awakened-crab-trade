@@ -1351,3 +1351,70 @@ GIF, la réduction réelle, plusieurs sorties, les autres compositeurs, X11 nati
 et Windows restent à porter ou à valider. La fermeture de la surface commune
 est déléguée à l’action globale ; sa demande de fermeture par un compositeur
 n’a pas été provoquée sur le vrai jeu.
+
+## Jalon 0.20 : menu natif et captures tardives
+
+### Automatisation
+
+**125 tests unitaires réussis**, formatage et Clippy toutes cibles avec
+`-D warnings` passent. [widget-menu-parity-0.20.json](widget-menu-parity-0.20.json)
+compare les fonctions TypeScript upstream inchangées : **664 cas, 13 457 entrées
+et 588 transformations de coin**, sans écart. La portée couvre filtrage, libellés,
+espaces JavaScript et coordonnées, pas les pixels CSS ni les dessins d’icônes.
+L’oracle d’ordre conserve **32 768 opérations sans écart**
+([rapport](widget-order-parity-0.20.json)), avec migration des anciens ordres
+vérifiée séparément par les tests Rust.
+
+[widget-menu-lifecycle-0.20.json](widget-menu-lifecycle-0.20.json) utilise un River
+privé, faux jeu et réseau bloqué : premier rendu passif, traversée des clics,
+interaction explicite, premier clic vers les réglages, filtrage, ajout des deux
+types d’instances, ordre, déplacement/ancrage et refus réel d’écriture avec
+rollback. Un Ctrl+V natif ouvre les prix après leur premier rendu, sans copie au
+jeu ni HTTP lorsque l’automatique est désactivé. Trois allers-retours réglages/menu
+et le catalogue gardent un focus appartenant à l’application. Retirer des boutons
+conserve l’emprise peinte du menu.
+
+Un fournisseur de presse-papiers retarde sa réponse de 600 ms et confirme la
+demande reçue. Le test ferme/réouvre le menu avant la réponse GTK : l’ancien
+tampon ne peuple pas le nouveau. Une seconde séquence lance la capture du worker,
+change d’application puis revient avant sa réponse : aucun panneau ne se rouvre.
+Le clavier virtuel de test utilise une keymap XKB complète et exige `xkbcli` ;
+lui et le fournisseur retardé refusent tout runtime/socket hors bureau privé.
+Ils ne sont pas utilisés sur le jeu réel.
+
+Le redémarrage conserve le profil et commence masqué. Les sorties privées couvrent
+1920×1080, puis 2560×1600 aux facteurs 2 et 1. Le menu reste dans la sortie logique
+1280×800 au facteur 2, avec **32 chronomètres, 16 bandes et deux boutons intégrés**
+à l’échelle UI **2,5** ; le dernier bouton est atteint par défilement et réellement
+cliqué. Changement d’application, retour sans activation, arrêt des frames masquées
+et absence de GTK critical sont aussi vérifiés.
+
+Les sept scénarios de régression passent sur les mêmes sources :
+[ordre](widget-order-lifecycle-0.20.json), [images](image-strips-lifecycle-0.20.json),
+[chronomètres](stopwatch-lifecycle-0.20.json), [réglages](settings-0.20.json),
+[cycle de vie](overlay-lifecycle-0.20.json), [Delve](delve-lifecycle-0.20.json) et
+[Heist](item-search-lifecycle-0.20.json). Les empreintes de sources sont incluses.
+
+### Vrai jeu
+
+[widget-menu-real-0.20.json](widget-menu-real-0.20.json) décrit le release sur
+Artix/River/XWayland, 2560×1600 au facteur 1. Maj+Espace affiche le menu ; le jeu
+garde le focus jusqu’à l’entrée volontaire du pointeur. Délai observé **47,7 ms**,
+incluant injection du raccourci et interrogation IPC ; ce n’est pas une mesure
+isolée du rendu. Les contrôles natifs enregistrent puis restaurent Toujours
+afficher, ajoutent un chronomètre et permettent réglages/annulation. Captures
+inspectées. Le chronomètre est retiré et la bande de référence masquée par les
+contrôles natifs ; le profil initial est retrouvé intégralement.
+
+Sur trois secondes à 100 ticks/s : menu statique **0 tick CPU**, **87 076 Kio RSS**,
+aucune nouvelle frame ; masqué **1 tick CPU**, **75 104 Kio RSS**, aucune nouvelle
+frame. Mesures courtes, sans comparaison Electron ni garantie universelle.
+Copie réelle avant/après : Driftwood Wand, **11 DPS physiques**. Trade Covens :
+**470 résultats, 10 offres, 621 ms réseau**, affichage passif. PoE et River restent
+ouverts ; le service finit masqué. L’utilisateur confirme aussi le masquage lors
+d’un changement volontaire d’application.
+
+Collage, déplacements, refus IO et changements de sortie sont testés sur le bureau
+privé. Aucun réglage de l’écran réel n’est modifié. Réduction réelle, plusieurs
+sorties, alignement Delve réel, grands GIF, X11 natif, Windows et autres
+compositeurs restent non validés. L’inventaire de portage reste incomplet.

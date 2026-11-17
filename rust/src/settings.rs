@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub widget_order: Vec<crate::widget_order::Key>,
+    #[serde(skip_serializing_if = "crate::widget_menu::Config::is_default")]
+    pub widget_menu: crate::widget_menu::Config,
     pub league: String,
     pub filters: Filters,
     pub scale: f64,
@@ -29,6 +31,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             widget_order: Vec::new(),
+            widget_menu: crate::widget_menu::Config::default(),
             league: "Standard".into(),
             filters: Filters::default(),
             scale: 1.0,
@@ -62,17 +65,21 @@ impl Settings {
         Ok(settings)
     }
     pub fn widget_keys(&self) -> Vec<crate::widget_order::Key> {
-        self.stopwatches
-            .iter()
-            .map(|c| crate::widget_order::Key::Stopwatch(c.id))
+        std::iter::once(crate::widget_order::Key::Menu)
             .chain(
-                self.image_strips
+                self.stopwatches
                     .iter()
-                    .map(|c| crate::widget_order::Key::Image(c.id)),
+                    .map(|c| crate::widget_order::Key::Stopwatch(c.id))
+                    .chain(
+                        self.image_strips
+                            .iter()
+                            .map(|c| crate::widget_order::Key::Image(c.id)),
+                    ),
             )
             .collect()
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.widget_menu.validate()?;
         let keys = self.widget_keys();
         let mut order_ids = std::collections::HashSet::new();
         if self

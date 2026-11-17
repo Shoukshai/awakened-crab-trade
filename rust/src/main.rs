@@ -19,6 +19,7 @@ mod stopwatch;
 mod trade;
 #[cfg(target_os = "linux")]
 mod ui;
+mod widget_menu;
 mod widget_order;
 
 #[cfg(target_os = "linux")]

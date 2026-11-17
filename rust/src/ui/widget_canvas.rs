@@ -11,13 +11,14 @@ use std::{
 pub enum Owner {
     Stopwatch = 0,
     Image = 1,
+    Menu = 2,
 }
 pub struct Canvas {
     pub window: gtk::Window,
     pub layout: gtk::Layout,
     pub overlay: gtk::Overlay,
-    visible: Cell<[bool; 2]>,
-    regions: RefCell<[gtk::cairo::Region; 2]>,
+    visible: Cell<[bool; 3]>,
+    regions: RefCell<[gtk::cairo::Region; 3]>,
     applied_region: RefCell<gtk::cairo::Region>,
     roots: RefCell<HashMap<Key, gtk::EventBox>>,
     known: RefCell<Vec<Key>>,
@@ -72,8 +73,12 @@ impl Canvas {
             window,
             layout,
             overlay,
-            visible: Cell::new([false; 2]),
-            regions: RefCell::new([gtk::cairo::Region::create(), gtk::cairo::Region::create()]),
+            visible: Cell::new([false; 3]),
+            regions: RefCell::new([
+                gtk::cairo::Region::create(),
+                gtk::cairo::Region::create(),
+                gtk::cairo::Region::create(),
+            ]),
             applied_region: RefCell::new(gtk::cairo::Region::create()),
             roots: RefCell::new(HashMap::new()),
             known: RefCell::new(Vec::new()),
@@ -188,7 +193,7 @@ impl Canvas {
     pub fn order(&self) -> Vec<Key> {
         self.order.borrow().clone()
     }
-    fn raise(&self, key: Key) {
+    pub fn raise(&self, key: Key) {
         if widget_order::raise(&mut self.order.borrow_mut(), key) {
             self.dirty.set(true);
             self.restack();

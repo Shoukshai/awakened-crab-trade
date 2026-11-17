@@ -1,0 +1,39 @@
+{
+  "scope": "Real Artix/River/XWayland PoE, 2560x1600 scale 1. Existing game copy/interaction shortcuts and guarded clicks inside rendered native controls only. Clipboard paste, dragging, file IO failure, delayed clipboard and output/scale changes are tested on the private desktop.",
+  "initial_actual_wand_dps": 11,
+  "shortcut_to_interactive_observation_ms": 47.7,
+  "observation_includes_input_injection_and_ipc_polling": true,
+  "menu_first_paint_keeps_game_focus_before_pointer_entry": true,
+  "visible_static_menu": {
+    "cpu_ticks_3s": 0,
+    "rss_kib": 87076,
+    "no_new_frames_3s": true
+  },
+  "native_always_show_saved_and_restored": true,
+  "native_menu_adds_independent_timer": true,
+  "native_settings_cancel_returns_to_menu": true,
+  "original_preferences_restored": true,
+  "hidden": {
+    "cpu_ticks_3s": 1,
+    "rss_kib": 75104,
+    "no_new_frames_3s": true
+  },
+  "clock_ticks_per_second": 100,
+  "actual_wand_trade": {
+    "cached": false,
+    "first_offer": {
+      "bulk": null,
+      "currency": "alch",
+      "unit_price": 1.0
+    },
+    "kind": "Item",
+    "listings": 10,
+    "network_ms": 621,
+    "total": 470
+  },
+  "final_actual_wand_dps": 11,
+  "final_state": "Hidden",
+  "poe_and_river_kept_open": true,
+  "live_pid": 2803,
+  "binary_sha256": "5686c2652039286b74b307626238c27cb4b4a8bac368dd97027262756e02ec1d"
+}

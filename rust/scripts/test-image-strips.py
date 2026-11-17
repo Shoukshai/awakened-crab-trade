@@ -172,7 +172,7 @@ try:
     focus_game();assert not gallery()['visible'] and gallery()['preview'] is None
     report['foreign_application_hides_preview_and_no_return_activation']=True
     subprocess.run(['xdotool','key','--clearmodifiers','shift+space'],env=env,check=True)
-    wait_for(lambda:state(state='Interactive',view='Images') and gallery()['rendered'] and gallery()['keyboard_mode']=='OnDemand','explicit shortcut restores images after a new first frame')
+    wait_for(lambda:state(state='Interactive',view='Menu') and gallery()['rendered'] and gallery()['keyboard_mode']=='OnDemand','explicit shortcut restores images after a new first frame')
     report['explicit_interact_shortcut_reopens_wanted_images_after_paint']=True
     # Persisted sources and image order survive a real process restart.
     saved_bytes=configpath.read_bytes();previous_pid=daemon.pid;command('quit');assert daemon.wait(timeout=4)==0
@@ -180,7 +180,7 @@ try:
     wait_for(lambda:(runtime/'awakened-poe-trade-rs.sock').exists(),'restarted socket')
     wait_for(lambda:state(state='Hidden',game_active=True) and 'Ok' in status()['shortcut_backend']['status'],'restart remains hidden')
     assert not gallery()['visible'] and gallery()['keyboard_mode']=='None' and configpath.read_bytes()==saved_bytes
-    command('interact');wait_for(lambda:state(state='Interactive',view='Images') and gallery()['rendered'] and row(1)['cards'][0]['loaded'] and row(1)['cards'][1]['loaded'],'saved images loaded after restart')
+    command('interact');wait_for(lambda:state(state='Interactive',view='Menu') and gallery()['rendered'] and row(1)['cards'][0]['loaded'] and row(1)['cards'][1]['loaded'],'saved images loaded after restart')
     assert [c['id'] for c in row(1)['cards']]==[2,1]
     report['restart_keeps_image_order_and_sources_but_starts_hidden']=True
     # Explicit hide revokes all input, and a foreign application never reopens it.

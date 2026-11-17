@@ -196,9 +196,11 @@ try:
     report['native_instance_editor_capture_conflict_rollback_rebind']=True
     command('hide');focus_game();time.sleep(.2)
     assert not clocks()['visible'] and clocks()['keyboard_mode']=='None' and not clocks()['scheduled_tick']
-    # Hidden zero/paused widgets open the manager only on explicit interaction, after its first frame.
-    command('interact');wait_for(lambda:state(state='Interactive',view='Stopwatches',rendered=True),'manager deferred interaction')
-    report['explicit_hidden_manager_interaction_after_paint']=True
+    # Explicit hidden interaction opens the floating menu after its own frame.
+    command('interact');wait_for(lambda:state(state='Interactive',view='Menu',rendered=True) and status()['widget_menu']['rendered'],'menu deferred interaction')
+    report['explicit_hidden_menu_interaction_after_paint']=True
+    command('hide');focus_game();command('stopwatches');wait_for(lambda:state(state='Passive',view='Stopwatches',rendered=True),'manager opened explicitly')
+    command('interact');wait_for(lambda:state(state='Interactive'),'manager interaction')
     # Transfer between the manager and widget canvas without dismissing either.
     hover(1);click(row(1)['controls']['toggle'],True);time.sleep(.1)
     assert status()['state']=='Interactive' and status()['visible'] and clocks()['focused']

@@ -19,6 +19,7 @@ Le programme démarre masqué. Dans PoE, survoler un objet. Raccourcis par défa
 - **Ctrl+Alt+D** : copie avancée et évaluation locale de l’objet ou de la carte.
 - **Maj+Espace** : autoriser les clics après le premier rendu ; cliquer dans le
   panneau pour utiliser ses contrôles. Le compositeur garde la décision de focus.
+  Si le panneau est masqué, ouvrir le menu des widgets.
 - **Ctrl+Maj+D** : fermer tant que le clavier est encore dans PoE.
 - **Échap** ou **Fermer** : fermer lorsque le panneau possède le clavier.
 
@@ -184,7 +185,7 @@ instance au brouillon. Enregistrer applique ces champs et les raccourcis ensembl
 un conflit ou un refus d’écriture conserve l’ancien profil. Limite native : 32
 instances. La disposition des commandes est adaptée à GTK. Cliquer une partie
 visible d’un chronomètre ou d’une bande d’images la place devant les autres ; cet
-ordre est mémorisé entre deux lancements. Le menu général reste à porter.
+ordre est mémorisé entre deux lancements.
 
 Les chronomètres et les bandes d’images partagent une seule surface transparente.
 Les chronomètres gardent une seule échéance
@@ -203,8 +204,8 @@ l’agrandit dans la sortie ; quitter la vignette ferme l’aperçu. **Déplacer
 six poignées d’ancrage, en haut et en bas. **Supprimer** demande un maintien d’une
 seconde, annulé au relâchement ou à la sortie. Une autre application masque bandes,
 aperçu et entrées ; le retour au jeu ne les réactive pas. Une action explicite
-**Maj+Espace** peut rouvrir le gestionnaire si une bande est demandée et aucun
-chronomètre n’est configuré. Les vues Prix, Évaluation et Réglages les masquent.
+**Maj+Espace** ouvre le menu et restaure les bandes demandées après son premier
+rendu. Les vues Prix, Évaluation et Réglages les masquent.
 
 **Réglages → Images** permet d’ajouter des bandes, changer leur nom, position et
 ancrage, importer des fichiers locaux et réordonner les images avec les flèches.
@@ -221,6 +222,24 @@ une référence des mécaniques de la ligue actuelle. L’ordre de superposition
 entre chronomètres et images est mémorisé ; la disposition exacte des commandes
 upstream reste à porter.
 
+**Menu** : lorsque le panneau est masqué, **Maj+Espace** ouvre le menu flottant
+des widgets. Les boutons proposent les réglages, les cibles Heist et les instances
+masquées ; **Configurer → Toujours afficher** conserve aussi les boutons des
+instances déjà affichées. Cliquer une instance l’affiche et la place devant les
+autres. Le bouton **+** ajoute un chronomètre ou une bande d’images ; la recherche
+coffre est désactivée car elle reste à porter. Le champ de collage accepte le
+texte d’un objet et prépare ses prix selon le réglage de recherche automatique,
+sans envoyer de raccourci de copie au jeu. Limite du collage : 1 Mio.
+
+Au survol, **Déplacer** expose les quatre ancrages de coin. Position, ancrage et
+option d’affichage sont mémorisés ; les valeurs par défaut sont 5 % depuis le
+coin supérieur gauche. Le menu partage la surface et l’ordre des chronomètres
+et images. Son contenu défile si nécessaire. Les icônes et la présentation sont
+adaptées à GTK. Le menu peut coexister avec les cibles Heist ; les gestionnaires
+Images/Chronos et les vues Prix/Évaluation/Réglages le masquent. Un changement
+d’application le ferme, et le retour au jeu ne le rouvre pas. **Échap**, **Fermer**
+ou `hide` ferment les surfaces selon le contexte d’interaction.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -232,6 +251,7 @@ Commandes utiles depuis un outil qui garde PoE actif :
 
 ```sh
 ./target/release/awakened-poe-trade-rs status
+./target/release/awakened-poe-trade-rs menu # menu passif, sans activation
 ./target/release/awakened-poe-trade-rs stopwatches
 ./target/release/awakened-poe-trade-rs league Covens
 ./target/release/awakened-poe-trade-rs check  # après Ctrl+Alt+C manuel
@@ -290,7 +310,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.19.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.20.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -404,5 +424,17 @@ Validation de l’ordre des widgets :
 ```sh
 cargo build --locked --example widget-order
 node scripts/compare-widget-order.cjs target/debug/examples/widget-order docs/widget-order-parity-0.19.json
-python3 scripts/test-widget-order.py target/release/awakened-poe-trade-rs docs/widget-order-lifecycle-0.19.json
+python3 scripts/test-widget-order.py target/release/awakened-poe-trade-rs docs/widget-order-lifecycle-0.20.json
 ```
+
+Validation du menu sur le bureau privé :
+
+```sh
+cargo build --locked --examples
+node scripts/compare-widget-menu.cjs target/debug/examples/widget-menu docs/widget-menu-parity-0.20.json
+python3 scripts/test-widget-menu.py target/release/awakened-poe-trade-rs docs/widget-menu-lifecycle-0.20.json
+```
+
+Ce scénario exige aussi `xkbcli`, grim et Pillow. Les outils de clavier virtuel
+et de presse-papiers retardé refusent le bureau réel : ils vérifient le runtime
+privé et son nom de socket. Ils ne font pas partie du backend de production.
