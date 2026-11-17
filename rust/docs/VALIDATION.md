@@ -1156,7 +1156,9 @@ les variations d’horloge murale ; ce n’est pas une équivalence de bureau.
 GTK dans un River headless privé avec faux PoE et réseau bloqué : deux instances,
 raccourcis ciblés, remise à zéro, pause, clic traversant passif, contrôles au
 survol, déplacement central visible et persisté, suppression annulée au relâchement
-puis confirmée après maintien d’une seconde. Il vérifie aussi l’ajout au gestionnaire,
+puis confirmée après maintien d’une seconde. Sortir du bouton de suppression en
+gardant le bouton de souris enfoncé dans le widget annule également l’action.
+Il vérifie aussi l’ajout au gestionnaire,
 la capture clavier par instance, le refus d’un doublon global, un vrai refus
 d’écriture du profil et l’application du nouveau raccourci sans redémarrage.
 

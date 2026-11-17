@@ -1,6 +1,7 @@
 {
   "per_instance_shortcuts_reset_pause_and_pass_through": true,
   "native_controls_and_hidden_main_interaction": true,
+  "leaving_delete_button_while_held_cancels": true,
   "native_hold_cancellation_and_drag_persistence": true,
   "foreign_app_hides_and_return_is_passive_no_hidden_ticks": true,
   "native_manager_add_and_exclusive_views": true,
@@ -48,9 +49,9 @@
   "scope": "Private River/XWayland with fake game only",
   "binary_version": "awakened-poe-trade-rs 0.17.0",
   "source_sha256": {
-    "scripts/test-stopwatch.py": "36f54adaa1b4654fd4b04a2c6487adf5d94272b4bb4e769e407b1994908fe091",
+    "scripts/test-stopwatch.py": "9132614819aed68104f72cdaac643bc55122034f89b36be303e6a82ac86d446a",
     "src/stopwatch.rs": "231d9dfc3b324e585bf2ae75e46b51babbe523af5995e00bacb2d24c41914385",
-    "src/ui/stopwatch_panel.rs": "32e227d83e464d1b4d2118e2768308986ab0851ab6aa11181deb315385466214",
+    "src/ui/stopwatch_panel.rs": "25c542a2d32ad3d617d10252aa6878b2f28af96895bb8278f7667956412b5da2",
     "src/ui.rs": "c01f230a1daeb4ddafecb2d8fe3a02f0e346ce61effce81b534a861f669a2409"
   }
 }

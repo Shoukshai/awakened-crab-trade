@@ -113,7 +113,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             p.motion_absolute(timestamp(), x, y, args[2].parse()?, args[3].parse()?);
             p.frame();
             q.roundtrip(&mut s)?;
-            std::thread::sleep(std::time::Duration::from_millis(80));
+            let delay: u64 = args.get(7).map(|s| s.parse()).transpose()?.unwrap_or(80);
+            if delay > 2000 {
+                return Err("drag hold limited to two seconds".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(delay));
         }
         p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released);
         p.frame();

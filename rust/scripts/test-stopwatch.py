@@ -107,6 +107,11 @@ try:
     hover(1);r=row(1)['controls']['remove'];
     subprocess.run([str(target/'debug/examples/pointer'),str(r['x']+r['width']//2),str(r['y']+r['height']//2),'2560','1600','--hold','150'],env=env,check=True)
     time.sleep(1.1);assert len(clocks()['rows'])==2 and not status()['preferences_pending']
+    # Leaving just the delete button (while still holding inside the widget) cancels.
+    hover(1);r=row(1)['controls']['remove'];body=row(1)['rect']
+    subprocess.run([str(target/'debug/examples/pointer'),str(r['x']+r['width']//2),str(r['y']+r['height']//2),'2560','1600','--drag-to',str(body['x']+20),str(body['y']+body['height']-10),'1150'],env=env,check=True)
+    assert len(clocks()['rows'])==2 and not status()['preferences_pending']
+    report['leaving_delete_button_while_held_cancels']=True
     hover(1);click(row(1)['controls']['move'],True)
     r=row(1)['rect'];x=round(row(1)['x']/100*2560);y=round(row(1)['y']/100*1600)
     subprocess.run([str(target/'debug/examples/pointer'),str(x),str(y),'2560','1600','--drag-to','1450','900'],env=env,check=True)

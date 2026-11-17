@@ -527,6 +527,15 @@ impl Runtime {
             }
             glib::Propagation::Proceed
         });
+        let weak = Rc::downgrade(self);
+        remove.connect_leave_notify_event(move |_, e| {
+            if e.detail() != gdk::NotifyType::Inferior {
+                if let Some(r) = weak.upgrade() {
+                    r.cancel_hold(id);
+                }
+            }
+            glib::Propagation::Proceed
+        });
         self.layout.put(&root, 0, 0);
         root.show_all();
         for child in toolbar.children() {
