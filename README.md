@@ -5,6 +5,8 @@
 A native Path of Exile 1 price checker for Linux and Windows, inspired by
 Awakened PoE Trade.
 
+**[Download the latest release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)**
+
 - Select item modifiers and adjust integer Min/Max filters.
 - Search Trade offers and hover over a result to see its full mods and price.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
