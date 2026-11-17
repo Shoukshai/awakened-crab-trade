@@ -1,0 +1,1171 @@
+{"name":"Angler's Plait","refName":"Angler's Plait","namespace":"UNIQUE","category":"Ring","unique":{"base":"Unset Ring"}}
+{"name":"Auxium","refName":"Auxium","namespace":"UNIQUE","category":"Belt","unique":{"base":"Chain Belt"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvQXV4aXVtIiwidyI6MiwiaCI6MSwic2NhbGUiOjF9XQ/acf784e82e/Auxium.png"}
+{"name":"Blightwell","refName":"Blightwell","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Clutching Talisman"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9UYWludGVkU3ByaW5ncyIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/a95bad91d3/TaintedSprings.png"}
+{"name":"Bloodboil","refName":"Bloodboil","namespace":"UNIQUE","category":"Ring","unique":{"base":"Coral Ring"},"tradeDisc":"legacy"}
+{"name":"Bloodgrip","refName":"Bloodgrip","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Coral Amulet"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9CbG9vZEFtdWxldCIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/546826e52b/BloodAmulet.png"}
+{"name":"Demigod's Bounty","refName":"Demigod's Bounty","namespace":"UNIQUE","category":"Belt","unique":{"base":"Golden Obi"}}
+{"name":"Demigod's Eye","refName":"Demigod's Eye","namespace":"UNIQUE","category":"Ring","unique":{"base":"Golden Hoop"}}
+{"name":"Demigod's Presence","refName":"Demigod's Presence","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Gold Amulet"}}
+{"name":"Honoured Alliance","refName":"Honoured Alliance","namespace":"UNIQUE","category":"Ring","unique":{"base":"Coral Ring"}}
+{"name":"Kaom's Way","refName":"Kaom's Way","namespace":"UNIQUE","category":"Ring","unique":{"base":"Coral Ring"}}
+{"name":"Karui Charge","refName":"Karui Charge","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Jade Amulet"}}
+{"name":"Khatal's Geyser","refName":"Khatal's Geyser","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Lapis Amulet"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9UaGVCYWRtaXh0dXJlIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/1b6050d24c/TheBadmixture.png"}
+{"name":"Khatal's Weeping","refName":"Khatal's Weeping","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Lapis Amulet"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9TYW5ndWluZVN0b25lIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/77a9e6cf31/SanguineStone.png"}
+{"name":"Natural Hierarchy","refName":"Natural Hierarchy","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Rotfeather Talisman"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9UYWxpc21hblVuaXF1ZTIiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/3783a100bf/TalismanUnique2.png"}
+{"name":"Ngamahu Tiki","refName":"Ngamahu Tiki","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Coral Amulet"}}
+{"name":"Rigwald's Curse","refName":"Rigwald's Curse","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Wereclaw Talisman"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQW11bGV0cy9VbmlxdWVEaXJlQ2xhd1RhbGlzbWFuIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/e8cd3f0898/UniqueDireClawTalisman.png"}
+{"name":"Saresh's Darkness","refName":"Saresh's Darkness","namespace":"UNIQUE","category":"Belt","unique":{"base":"Chain Belt"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvVGhlQml0aW5nQnJhaWQiLCJ3IjoyLCJoIjoxLCJzY2FsZSI6MX1d/3f35ce2e40/TheBitingBraid.png"}
+{"name":"Solerai's Radiance","refName":"Solerai's Radiance","namespace":"UNIQUE","category":"Belt","unique":{"base":"Chain Belt"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvU29sYXJ0d2luZSIsInciOjIsImgiOjEsInNjYWxlIjoxfV0/e0e73c78ec/Solartwine.png"}
+{"name":"Talisman of the Victor","refName":"Talisman of the Victor","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Jet Amulet"}}
+{"name":"The Effigon","refName":"The Effigon","namespace":"UNIQUE","category":"Amulet","unique":{"base":"Gold Amulet"}}
+{"name":"The Flow Untethered","refName":"The Flow Untethered","namespace":"UNIQUE","category":"Belt","unique":{"base":"Cloth Belt"}}
+{"name":"The Nomad","refName":"The Nomad","namespace":"UNIQUE","category":"Belt","unique":{"base":"Studded Belt"}}
+{"name":"The Tactician","refName":"The Tactician","namespace":"UNIQUE","category":"Belt","unique":{"base":"Studded Belt"}}
+{"name":"Timetwist","refName":"Timetwist","namespace":"UNIQUE","category":"Ring","unique":{"base":"Moonstone Ring"}}
+{"name":"Unwilling Embrace","refName":"Unwilling Embrace","namespace":"UNIQUE","category":"Ring","unique":{"base":"Bone Ring"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvVW53aWxsaW5nRW1icmFjZSIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/b0c9028f20/UnwillingEmbrace.png"}
+{"name":"Voidheart","refName":"Voidheart","namespace":"UNIQUE","category":"Ring","unique":{"base":"Iron Ring"}}
+{"name":"Allelopathy","refName":"Allelopathy","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Sorcerer Gloves"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9HbG92ZXMvRW1iYWxtZXJzR2xvdmVzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/62148488f8/EmbalmersGloves.png"}
+{"name":"Apep's Slumber","refName":"Apep's Slumber","namespace":"UNIQUE","category":"Shield","unique":{"base":"Ancient Spirit Shield"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9TaGllbGRzL0FwZXBzU2x1bWJlciIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/334298da3d/ApepsSlumber.png"}
+{"name":"Architect's Hand","refName":"Architect's Hand","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Strapped Mitts"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9HbG92ZXMvQXJjaGl0ZWN0c0hhbmQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8f303b6f98/ArchitectsHand.png"}
+{"name":"Asenath's Chant","refName":"Asenath's Chant","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Iron Circlet"}}
+{"name":"Asphyxia's Wrath","refName":"Asphyxia's Wrath","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Two-Point Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9Bc3BoeXhpYXNXcmF0aCIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/e33bd46903/AsphyxiasWrath.png"}
+{"name":"Atziri's Mirror","refName":"Atziri's Mirror","namespace":"UNIQUE","category":"Shield","unique":{"base":"Golden Buckler"}}
+{"name":"Blackgleam","refName":"Blackgleam","namespace":"UNIQUE","unique":{"base":"Cured Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9RdWl2ZXJVbmlxdWUxIiwidyI6MiwiaCI6Mywic2NhbGUiOjF9XQ/797ce777ed/QuiverUnique1.png"}
+{"name":"Blackgleam","refName":"Blackgleam","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Fire Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9RdWl2ZXJVbmlxdWUxIiwidyI6MiwiaCI6Mywic2NhbGUiOjF9XQ/797ce777ed/QuiverUnique1.png"}
+{"name":"Briskwrap","refName":"Briskwrap","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Strapped Leather"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9Ccmlza3dyYXAiLCJ3IjoyLCJoIjozLCJzY2FsZSI6MX1d/4a3c7d71e6/Briskwrap.png"}
+{"name":"Broadstroke","refName":"Broadstroke","namespace":"UNIQUE","unique":{"base":"Heavy Quiver"}}
+{"name":"Cragfall","refName":"Cragfall","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Serrated Arrow Quiver"}}
+{"name":"Crystal Vault","refName":"Crystal Vault","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Latticed Ringmail"}}
+{"name":"Dance of the Offered","refName":"Dance of the Offered","namespace":"UNIQUE","category":"Boots","unique":{"base":"Shackled Boots"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9EYW5jZU9mVGhlT2ZmZXJlZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/ca6a0319e6/DanceOfTheOffered.png"}
+{"name":"Deidbellow","refName":"Deidbellow","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Gilded Sallet"}}
+{"name":"Demigod's Beacon","refName":"Demigod's Beacon","namespace":"UNIQUE","category":"Shield","unique":{"base":"Golden Flame"}}
+{"name":"Demigod's Dominance","refName":"Demigod's Dominance","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Golden Mantle"}}
+{"name":"Demigod's Immortality","refName":"Demigod's Immortality","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Golden Visage"}}
+{"name":"Demigod's Stride","refName":"Demigod's Stride","namespace":"UNIQUE","category":"Boots","unique":{"base":"Golden Caligae"}}
+{"name":"Demigod's Touch","refName":"Demigod's Touch","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Golden Bracers"}}
+{"name":"Demigod's Triumph","refName":"Demigod's Triumph","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Golden Wreath"}}
+{"name":"Deshret's Vise","refName":"Deshret's Vise","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Steel Gauntlets"},"tradeDisc":"legacy"}
+{"name":"Doedre's Malevolence","refName":"Doedre's Malevolence","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Velvet Gloves"}}
+{"name":"Doryani's Delusion","refName":"Doryani's Delusion","namespace":"UNIQUE","category":"Boots","unique":{"base":"Slink Boots"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Eb3JpeWFuaXNSZWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/10255d4b05/DoriyanisRed.png"}
+{"name":"Doryani's Delusion","refName":"Doryani's Delusion","namespace":"UNIQUE","category":"Boots","unique":{"base":"Sorcerer Boots"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Eb3JpeWFuaXNSZWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/10255d4b05/DoriyanisRed.png"}
+{"name":"Doryani's Delusion","refName":"Doryani's Delusion","namespace":"UNIQUE","category":"Boots","unique":{"base":"Titan Greaves"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Eb3JpeWFuaXNSZWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/10255d4b05/DoriyanisRed.png"}
+{"name":"Duskblight","refName":"Duskblight","namespace":"UNIQUE","category":"Boots","unique":{"base":"Ironscale Boots"}}
+{"name":"Duskblight","refName":"Duskblight","namespace":"UNIQUE","category":"Boots","unique":{"base":"Leatherscale Boots"},"tradeDisc":"legacy"}
+{"name":"Dusktoe","refName":"Dusktoe","namespace":"UNIQUE","category":"Boots","unique":{"base":"Leatherscale Boots"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Cb290c1N0ckRleFVuaXF1ZTMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/39b842cf85/BootsStrDexUnique3.png"}
+{"name":"El'Abin's Visage","refName":"El'Abin's Visage","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Fencer Helm"}}
+{"name":"Esh's Mirror","refName":"Esh's Mirror","namespace":"UNIQUE","category":"Shield","unique":{"base":"Thorium Spirit Shield"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9TaGllbGRzL0VzaHNNaXJyb3IiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/983cf91bf4/EshsMirror.png"}
+{"name":"Ezomyte Hold","refName":"Ezomyte Hold","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Iron Hat"}}
+{"name":"Fox's Fortune","refName":"Fox's Fortune","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Wild Leather"}}
+{"name":"Frostferno","refName":"Frostferno","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Leather Hood"}}
+{"name":"Geofri's Legacy","refName":"Geofri's Legacy","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Great Crown"}}
+{"name":"Glitterdisc","refName":"Glitterdisc","namespace":"UNIQUE","category":"Shield","unique":{"base":"Burnished Spiked Shield"}}
+{"name":"Greedtrap","refName":"Greedtrap","namespace":"UNIQUE","category":"Boots","unique":{"base":"Velvet Slippers"}}
+{"name":"Hellbringer","refName":"Hellbringer","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Conjurer Gloves"},"tradeDisc":"legacy"}
+{"name":"Hide of the Vendigo","refName":"Hide of the Vendigo","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Exquisite Leather"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9WZW5kaWdvUGVsdCIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/d5980482d2/VendigoPelt.png"}
+{"name":"Hrimburn","refName":"Hrimburn","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Goathide Gloves"}}
+{"name":"Hyrri's Demise","refName":"Hyrri's Demise","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Sharktooth Arrow Quiver"}}
+{"name":"Infernal Mantle","refName":"Infernal Mantle","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Occultist's Vestment"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9JbmZlcm5hbG1hbnRsZSIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/ea1b86d7f9/Infernalmantle.png"}
+{"name":"Iron Heart","refName":"Iron Heart","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Crusader Plate"},"tradeDisc":"legacy"}
+{"name":"Kaltensoul","refName":"Kaltensoul","namespace":"UNIQUE","category":"Shield","unique":{"base":"Painted Buckler"}}
+{"name":"Kongming's Stratagem","refName":"Kongming's Stratagem","namespace":"UNIQUE","category":"Shield","unique":{"base":"Ivory Spirit Shield"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9TaGllbGRzL0tvbmdtaW5nc1N0cmF0YWdlbSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/b7f1e57399/KongmingsStratagem.png"}
+{"name":"Malachai's Awakening","refName":"Malachai's Awakening","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Iron Mask"}}
+{"name":"Maloney's Nightfall","refName":"Maloney's Nightfall","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Blunt Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9NYWxvbmV5c05pZ2h0ZmFsbCIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/aad4bc5b10/MaloneysNightfall.png"}
+{"name":"Manastorm","refName":"Manastorm","namespace":"UNIQUE","category":"Shield","unique":{"base":"Fossilised Spirit Shield"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9TaGllbGRzL01hbmFzdG9ybSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/d816fe3053/Manastorm.png"}
+{"name":"Mantle of Dreams","refName":"Mantle of Dreams","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Twilight Regalia"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9VbmxlYXNoQm9keUFybW91ciIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/9e2c53680b/UnleashBodyArmour.png"}
+{"name":"Martyr's Crown","refName":"Martyr's Crown","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Vine Circlet"}}
+{"name":"Mask of the Spirit Drinker","refName":"Mask of the Spirit Drinker","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Crusader Helmet"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL01hc2tvZnRoZVNwaXJpdERyaW5rZXIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7a9bcf5886/MaskoftheSpiritDrinker.png"}
+{"name":"Ordered Fate","refName":"Ordered Fate","namespace":"UNIQUE","category":"Shield","unique":{"base":"Walnut Spirit Shield"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9TaGllbGRzL09yZGVyZWRGYXRlIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/15a52d773f/OrderedFate.png"}
+{"name":"Rearguard","refName":"Rearguard","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Broadhead Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9SZWFyZ3VhcmQiLCJ3IjoyLCJoIjozLCJzY2FsZSI6MX1d/9b285161a6/Rearguard.png"}
+{"name":"Remnant of Empires","refName":"Remnant of Empires","namespace":"UNIQUE","category":"Shield","unique":{"base":"Goathide Buckler"}}
+{"name":"Replica Allelopathy","refName":"Replica Allelopathy","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Sorcerer Gloves"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9HbG92ZXMvRW1iYWxtZXJzR2xvdmVzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/62148488f8/EmbalmersGloves.png"}
+{"name":"Replica Forbidden Shako","refName":"Replica Forbidden Shako","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Great Crown"}}
+{"name":"Rotting Legion","refName":"Rotting Legion","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Loricated Ringmail"}}
+{"name":"Saemus' Gift","refName":"Saemus' Gift","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Spike-Point Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9TZWFtdXNHaWZ0IiwidyI6MiwiaCI6Mywic2NhbGUiOjF9XQ/7da61eeb8e/SeamusGift.png"}
+{"name":"Scorpion's Call","refName":"Scorpion's Call","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Broadhead Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9CbG9vZFNhbmRRdWl2ZXIiLCJ3IjoyLCJoIjozLCJzY2FsZSI6MX1d/57b1387b43/BloodSandQuiver.png"}
+{"name":"Shavronne's Gambit","refName":"Shavronne's Gambit","namespace":"UNIQUE","category":"Boots","unique":{"base":"Scholar Boots"}}
+{"name":"Slivers of Providence","refName":"Slivers of Providence","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Serrated Arrow Quiver"}}
+{"name":"Sunspite","refName":"Sunspite","namespace":"UNIQUE","category":"Boots","unique":{"base":"Clasped Boots"}}
+{"name":"The Formless Flame","refName":"The Formless Flame","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Siege Helmet"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL0Zvcm1sZXNzSW5GbGFtZXMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/baa0d0009b/FormlessInFlames.png"}
+{"name":"The Fracturing Spinner","refName":"The Fracturing Spinner","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Blunt Arrow Quiver"}}
+{"name":"The Infinite Pursuit","refName":"The Infinite Pursuit","namespace":"UNIQUE","category":"Boots","unique":{"base":"Goliath Greaves"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Ud29Ub25lZEJvb3RzQUxUMyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/ce68366000/TwoTonedBootsALT3.png"}
+{"name":"The Oak","refName":"The Oak","namespace":"UNIQUE","category":"Shield","unique":{"base":"Plank Kite Shield"}}
+{"name":"The Peregrine","refName":"The Peregrine","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Visored Sallet"}}
+{"name":"The Signal Fire","refName":"The Signal Fire","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Blazing Arrow Quiver"}}
+{"name":"The Signal Fire","refName":"The Signal Fire","namespace":"UNIQUE","unique":{"base":"Cured Quiver"},"tradeDisc":"legacy"}
+{"name":"The Signal Fire","refName":"The Signal Fire","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Fire Arrow Quiver"},"tradeDisc":"legacy"}
+{"name":"The Snowblind Grace","refName":"The Snowblind Grace","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Coronal Leather"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9UaGVTbm93YmxpbmRHcmFjZSIsInciOjIsImgiOjMsInNjYWxlIjoxfV0/1f9378f004/TheSnowblindGrace.png"}
+{"name":"The Tempest's Binding","refName":"The Tempest's Binding","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Callous Mask"}}
+{"name":"The Unshattered Will","refName":"The Unshattered Will","namespace":"UNIQUE","category":"Shield","unique":{"base":"Archon Kite Shield"}}
+{"name":"Thirst for Horrors","refName":"Thirst for Horrors","namespace":"UNIQUE","category":"Shield","unique":{"base":"War Buckler"}}
+{"name":"Titucus Span","refName":"Titucus Span","namespace":"UNIQUE","category":"Shield","unique":{"base":"Reinforced Tower Shield"},"tradeDisc":"legacy"}
+{"name":"Veil of Flesh","refName":"Veil of Flesh","namespace":"UNIQUE","category":"Helmet","unique":{"base":"Callous Mask"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL1BhcmFzaXRpY1R3aW4iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/03292faea5/ParasiticTwin.png"}
+{"name":"Viper's Scales","refName":"Viper's Scales","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Full Scale Armour"}}
+{"name":"Voidfletcher","refName":"Voidfletcher","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Penetrating Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9FbGRhclF1aXZlciIsInciOjIsImgiOjMsInNjYWxlIjoxLCJyZWxpYyI6MH1d/34f7859b94/EldarQuiver.png"}
+{"name":"Voidfletcher","refName":"Voidfletcher","namespace":"UNIQUE","category":"Quiver","unique":{"base":"Primal Arrow Quiver"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUXVpdmVycy9FbGRhclF1aXZlciIsInciOjIsImgiOjMsInNjYWxlIjoxLCJyZWxpYyI6MH1d/34f7859b94/EldarQuiver.png"}
+{"name":"Wall of Brambles","refName":"Wall of Brambles","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Plate Vest"}}
+{"name":"Whakatutuki o Matua","refName":"Whakatutuki o Matua","namespace":"UNIQUE","category":"Shield","unique":{"base":"Tarnished Spirit Shield"}}
+{"name":"Wildwrap","refName":"Wildwrap","namespace":"UNIQUE","category":"Body Armour","unique":{"base":"Strapped Leather"}}
+{"name":"Windshriek","refName":"Windshriek","namespace":"UNIQUE","category":"Boots","unique":{"base":"Reinforced Greaves"}}
+{"name":"Worldcarver","refName":"Worldcarver","namespace":"UNIQUE","category":"Gloves","unique":{"base":"Dragonscale Gauntlets"}}
+{"name":"Birth of the Three","refName":"Birth of the Three","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"Blessing of God","refName":"Blessing of God","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"Soul Quenched","refName":"Soul Quenched","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Bargain","refName":"The Bargain","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Cartographer","refName":"The Cartographer","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Cheater","refName":"The Cheater","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Landing","refName":"The Landing","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Master","refName":"The Master","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Obscured","refName":"The Obscured","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Puzzle","refName":"The Puzzle","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Sustenance","refName":"The Sustenance","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"The Valley of Steel Boxes","refName":"The Valley of Steel Boxes","namespace":"DIVINATION_CARD","category":"Divination Card"}
+{"name":"Omen of Resurgence","refName":"Omen of Resurgence","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Omen of Bequeathal","refName":"Omen of Bequeathal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Omen of Revenge","refName":"Omen of Revenge","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Omen of Acceleration","refName":"Omen of Acceleration","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Feral Astrolabe","refName":"Feral Astrolabe","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Immortal Astrolabe","refName":"Immortal Astrolabe","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Royal Astrolabe","refName":"Royal Astrolabe","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Simple Rope Net","refName":"Simple Rope Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Thaumaturgical Net","refName":"Thaumaturgical Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Necromancy Net","refName":"Necromancy Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Reinforced Rope Net","refName":"Reinforced Rope Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Strong Rope Net","refName":"Strong Rope Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Simple Iron Net","refName":"Simple Iron Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Reinforced Iron Net","refName":"Reinforced Iron Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Strong Iron Net","refName":"Strong Iron Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Simple Steel Net","refName":"Simple Steel Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Reinforced Steel Net","refName":"Reinforced Steel Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Strong Steel Net","refName":"Strong Steel Net","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Awakened Sextant","refName":"Awakened Sextant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Elevated Sextant","refName":"Elevated Sextant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Facetor's Lens","refName":"Facetor's Lens","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Threaded Delirium Orb","refName":"Threaded Delirium Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Albino Crab Claw","refName":"Albino Crab Claw","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Splinter of Chayula","refName":"Splinter of Chayula","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Splinter of Tul","refName":"Splinter of Tul","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Splinter of Xoph","refName":"Splinter of Xoph","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Splinter of Esh","refName":"Splinter of Esh","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Splinter of Uul-Netol","refName":"Splinter of Uul-Netol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blessing of Chayula","refName":"Blessing of Chayula","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blessing of Tul","refName":"Blessing of Tul","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blessing of Xoph","refName":"Blessing of Xoph","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blessing of Esh","refName":"Blessing of Esh","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blessing of Uul-Netol","refName":"Blessing of Uul-Netol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Remnant of Corruption","refName":"Remnant of Corruption","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Broken Mirror of Kalandra","refName":"Broken Mirror of Kalandra","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Essence of Trickery","refName":"Essence of Trickery","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Oil Extractor","refName":"Oil Extractor","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Augmentation Implant","refName":"Augmentation Implant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Exalted Implant","refName":"Exalted Implant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Unstable Implant","refName":"Unstable Implant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Regal Implant","refName":"Regal Implant","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Time-light Scroll","refName":"Time-light Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Deregulation Scroll","refName":"Deregulation Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Fragmentation Scroll","refName":"Fragmentation Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Specularity Scroll","refName":"Specularity Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Haemocombustion Scroll","refName":"Haemocombustion Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Electroshock Scroll","refName":"Electroshock Scroll","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Scroll Fragment","refName":"Scroll Fragment","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Imprint","refName":"Imprint","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Abyssal Incubator","refName":"Abyssal Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Geomancer's Incubator","refName":"Geomancer's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Celestial Armoursmith's Incubator","refName":"Celestial Armoursmith's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Feral Incubator","refName":"Feral Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blighted Incubator","refName":"Blighted Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Obscured Incubator","refName":"Obscured Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ornate Incubator","refName":"Ornate Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Fine Incubator","refName":"Fine Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Maddening Incubator","refName":"Maddening Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Diviner's Incubator","refName":"Diviner's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Infused Incubator","refName":"Infused Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Whispering Incubator","refName":"Whispering Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Sacred Incubator","refName":"Sacred Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Honoured Incubator","refName":"Honoured Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Miraged Incubator","refName":"Miraged Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Fossilised Incubator","refName":"Fossilised Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Fragmented Incubator","refName":"Fragmented Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Gemcutter's Incubator","refName":"Gemcutter's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Thaumaturge's Incubator","refName":"Thaumaturge's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Mysterious Incubator","refName":"Mysterious Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Foreboding Incubator","refName":"Foreboding Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Enchanted Incubator","refName":"Enchanted Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Eldritch Incubator","refName":"Eldritch Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Cartographer's Incubator","refName":"Cartographer's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Challenging Incubator","refName":"Challenging Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Kalguuran Incubator","refName":"Kalguuran Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Skittering Incubator","refName":"Skittering Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Primal Incubator","refName":"Primal Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Celestial Jeweller's Incubator","refName":"Celestial Jeweller's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Time-Lost Incubator","refName":"Time-Lost Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Otherworldly Incubator","refName":"Otherworldly Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Singular Incubator","refName":"Singular Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Celestial Blacksmith's Incubator","refName":"Celestial Blacksmith's Incubator","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Bestiary Orb","refName":"Bestiary Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Filled Coffin","refName":"Filled Coffin","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Charged Compass","refName":"Charged Compass","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Empty Coffin","refName":"Empty Coffin","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Cartographer's Chisel","refName":"Cartographer's Chisel","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Maven's Chisel of Threads","refName":"Maven's Chisel of Threads","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvTWF2ZW5DaGlzZWwzIiwic2NhbGUiOjF9XQ/a7a9ac8f01/MavenChisel3.png"}
+{"name":"Perandus Coin","refName":"Perandus Coin","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Alteration Shard","refName":"Alteration Shard","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxNYWdpY1NoYXJkIiwic2NhbGUiOjF9XQ/39480d8d0d/CurrencyRerollMagicShard.png"}
+{"name":"Orb of Horizons","refName":"Orb of Horizons","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Horizon Shard","refName":"Horizon Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ancient Shard","refName":"Ancient Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Unshaping Orb","refName":"Unshaping Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Master Cartographer's Seal","refName":"Master Cartographer's Seal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Apprentice Cartographer's Seal","refName":"Apprentice Cartographer's Seal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Journeyman Cartographer's Seal","refName":"Journeyman Cartographer's Seal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Uncarved Gemstone","refName":"Uncarved Gemstone","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Veiled Scarab","refName":"Veiled Scarab","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Frayed Thread","refName":"Frayed Thread","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Engineer's Orb","refName":"Engineer's Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Infused Engineer's Orb","refName":"Infused Engineer's Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Engineer's Shard","refName":"Engineer's Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Harbinger's Orb","refName":"Harbinger's Orb","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Harbinger's Shard","refName":"Harbinger's Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Transmutation Shard","refName":"Transmutation Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Binding Shard","refName":"Binding Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Alchemy Shard","refName":"Alchemy Shard","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Soul Core of Instability","refName":"Soul Core of Instability","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU291bGNvcmVzL1NvdWxDb3JlR2VuZXJpYyIsInNjYWxlIjoxfV0/df392887b5/SoulCoreGeneric.png"}
+{"name":"Soul Core of Intellect","refName":"Soul Core of Intellect","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU291bGNvcmVzL1NvdWxDb3JlR2VuZXJpY0ludGVsbGlnZW5jZSIsInNjYWxlIjoxfV0/34f9cc2429/SoulCoreGenericIntelligence.png"}
+{"name":"Soul Core of Finesse","refName":"Soul Core of Finesse","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU291bGNvcmVzL1NvdWxDb3JlR2VuZXJpY0RleHRlcml0eSIsInNjYWxlIjoxfV0/2729235e41/SoulCoreGenericDexterity.png"}
+{"name":"Soul Core of Might","refName":"Soul Core of Might","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU291bGNvcmVzL1NvdWxDb3JlR2VuZXJpY1N0cmVuZ3RoIiwic2NhbGUiOjF9XQ/ec0c904c58/SoulCoreGenericStrength.png"}
+{"name":"Gold","refName":"Gold","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Afarud Enshrouding Crystal","refName":"Afarud Enshrouding Crystal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blighted Scouting Report","refName":"Blighted Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Otherworldly Scouting Report","refName":"Otherworldly Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Vaal Scouting Report","refName":"Vaal Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Delirious Scouting Report","refName":"Delirious Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Explorer's Scouting Report","refName":"Explorer's Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Influenced Scouting Report","refName":"Influenced Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Operative's Scouting Report","refName":"Operative's Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Comprehensive Scouting Report","refName":"Comprehensive Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Singular Scouting Report","refName":"Singular Scouting Report","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Cryptic Astrolabe","refName":"Cryptic Astrolabe","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Lesser Broken Circle Artifact","refName":"Lesser Broken Circle Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Greater Broken Circle Artifact","refName":"Greater Broken Circle Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Grand Broken Circle Artifact","refName":"Grand Broken Circle Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Exceptional Broken Circle Artifact","refName":"Exceptional Broken Circle Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Lesser Black Scythe Artifact","refName":"Lesser Black Scythe Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Greater Black Scythe Artifact","refName":"Greater Black Scythe Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Grand Black Scythe Artifact","refName":"Grand Black Scythe Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Exceptional Black Scythe Artifact","refName":"Exceptional Black Scythe Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Lesser Order Artifact","refName":"Lesser Order Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Greater Order Artifact","refName":"Greater Order Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Grand Order Artifact","refName":"Grand Order Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Exceptional Order Artifact","refName":"Exceptional Order Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Lesser Sun Artifact","refName":"Lesser Sun Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Greater Sun Artifact","refName":"Greater Sun Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Grand Sun Artifact","refName":"Grand Sun Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Exceptional Sun Artifact","refName":"Exceptional Sun Artifact","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Urn of Farud","refName":"Urn of Farud","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ogham Candelabra","refName":"Ogham Candelabra","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Tusked Hominid Skull","refName":"Tusked Hominid Skull","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Celestial Stone","refName":"Celestial Stone","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Urn of the Original Ashes","refName":"Urn of the Original Ashes","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Heart Coil","refName":"Heart Coil","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Enigmatic Assembly A4","refName":"Enigmatic Assembly A4","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Enigmatic Assembly B2","refName":"Enigmatic Assembly B2","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Enigmatic Assembly C5","refName":"Enigmatic Assembly C5","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Enigmatic Assembly D1","refName":"Enigmatic Assembly D1","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Mirror of Teklatipitzi","refName":"Mirror of Teklatipitzi","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Box of Tripyxis","refName":"Box of Tripyxis","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Bust of Emperor Caspiro","refName":"Bust of Emperor Caspiro","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Hetzapal Idol","refName":"Golden Hetzapal Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Flask of Welakath","refName":"Flask of Welakath","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Forbidden Lamp","refName":"Forbidden Lamp","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"The Goddess of Water","refName":"The Goddess of Water","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"The Golden Ibis","refName":"The Golden Ibis","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Impossible Crystal","refName":"Impossible Crystal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Living Ice","refName":"Living Ice","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Seal of Lunaris","refName":"Seal of Lunaris","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Matatl Idol","refName":"Golden Matatl Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Incense of Keth","refName":"Incense of Keth","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"The Sea Pearl Heirloom","refName":"The Sea Pearl Heirloom","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Seal of Solaris","refName":"Seal of Solaris","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Napuatzi Idol","refName":"Golden Napuatzi Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Essence Burner","refName":"Essence Burner","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ancient Seal","refName":"Ancient Seal","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Blood of Innocence","refName":"Blood of Innocence","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Dekhara's Resolve","refName":"Dekhara's Resolve","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Orbala's Fifth Adventure","refName":"Orbala's Fifth Adventure","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Staff of the First Sin Eater","refName":"Staff of the First Sin Eater","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Sword of the Inverse Relic","refName":"Sword of the Inverse Relic","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Crest of Ezomyr","refName":"Crest of Ezomyr","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Slave Idol","refName":"Golden Slave Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Xoplotli Idol","refName":"Golden Xoplotli Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ceremonial Goblet","refName":"Ceremonial Goblet","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Crested Golden Idol","refName":"Crested Golden Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Ceremonial Mask","refName":"Golden Ceremonial Mask","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Prayer Idol","refName":"Golden Prayer Idol","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Grotesque","refName":"Golden Grotesque","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Golden Sacrificial Glyph","refName":"Golden Sacrificial Glyph","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Ez Myrae Tome","refName":"Ez Myrae Tome","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Hand of Arimor","refName":"Hand of Arimor","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Abberathine Horns","refName":"Abberathine Horns","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Admiral Proclar's Pipe","refName":"Admiral Proclar's Pipe","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Alchemical Chalice","refName":"Alchemical Chalice","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Allflame Ember of the Multitude","refName":"Allflame Ember of the Multitude","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Allflame Ember of the Cloister","refName":"Allflame Ember of the Cloister","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"Royal Visage","refName":"Royal Visage","namespace":"ITEM","category":"Currency","exchangeable":true,"icon":"https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9VYmVyVmFhbENvbXBsZXRlIiwic2NhbGUiOjF9XQ/994d9e2821/UberVaalComplete.png"}
+{"name":"Allflame Ember of the Divine","refName":"Allflame Ember of the Divine","namespace":"ITEM","category":"Currency","exchangeable":true}
+{"name":"10021","refName":"10021","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"10211","refName":"10211","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"11215","refName":"11215","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"11490","refName":"11490","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"11533","refName":"11533","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"11724","refName":"11724","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"1215","refName":"1215","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"12635","refName":"12635","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"14879","refName":"14879","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"15108","refName":"15108","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"15595","refName":"15595","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"16355","refName":"16355","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"16982","refName":"16982","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"17533","refName":"17533","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"17684","refName":"17684","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"18545","refName":"18545","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"18547","refName":"18547","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"19420","refName":"19420","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"19776","refName":"19776","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"19828","refName":"19828","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"19999","refName":"19999","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"20216","refName":"20216","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"20343","refName":"20343","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"2144","refName":"2144","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"22278","refName":"22278","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"22593","refName":"22593","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"2279","refName":"2279","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"23253","refName":"23253","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"24414","refName":"24414","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"24497","refName":"24497","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"25202","refName":"25202","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"25302","refName":"25302","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"2545","refName":"2545","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"25747","refName":"25747","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"26156","refName":"26156","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"26468","refName":"26468","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"26732","refName":"26732","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"27716","refName":"27716","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"27782","refName":"27782","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"27821","refName":"27821","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"28018","refName":"28018","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"28402","refName":"28402","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"29382","refName":"29382","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"30639","refName":"30639","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"31349","refName":"31349","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"31509","refName":"31509","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"3182","refName":"3182","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"32613","refName":"32613","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"33025","refName":"33025","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"33220","refName":"33220","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"3421","refName":"3421","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"34425","refName":"34425","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"34447","refName":"34447","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"34760","refName":"34760","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"34832","refName":"34832","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"34997","refName":"34997","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"35076","refName":"35076","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"35162","refName":"35162","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"35484","refName":"35484","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"36207","refName":"36207","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"36357","refName":"36357","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"36556","refName":"36556","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"36866","refName":"36866","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"36946","refName":"36946","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"3756","refName":"3756","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"3775","refName":"3775","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"38080","refName":"38080","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"3883","refName":"3883","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"38855","refName":"38855","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"39459","refName":"39459","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"4003","refName":"4003","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"40753","refName":"40753","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"41363","refName":"41363","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"41751","refName":"41751","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"41763","refName":"41763","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"42115","refName":"42115","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"42556","refName":"42556","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"42558","refName":"42558","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"42968","refName":"42968","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"43016","refName":"43016","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"43432","refName":"43432","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"43561","refName":"43561","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"44170","refName":"44170","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"44259","refName":"44259","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"44313","refName":"44313","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"44762","refName":"44762","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"45792","refName":"45792","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"4651","refName":"4651","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"46524","refName":"46524","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"46612","refName":"46612","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"47088","refName":"47088","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"4755","refName":"4755","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"47634","refName":"47634","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"47897","refName":"47897","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"48831","refName":"48831","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"49159","refName":"49159","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"49687","refName":"49687","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"49777","refName":"49777","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"5132","refName":"5132","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"51403","refName":"51403","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"51878","refName":"51878","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"52736","refName":"52736","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"53075","refName":"53075","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"53116","refName":"53116","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"53902","refName":"53902","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"53973","refName":"53973","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"54446","refName":"54446","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"54575","refName":"54575","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"54757","refName":"54757","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"5647","refName":"5647","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"57536","refName":"57536","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"57690","refName":"57690","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"57831","refName":"57831","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"57839","refName":"57839","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"58981","refName":"58981","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"59084","refName":"59084","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"59460","refName":"59460","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"60607","refName":"60607","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"60634","refName":"60634","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"60732","refName":"60732","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"6074","refName":"6074","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"62685","refName":"62685","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"63065","refName":"63065","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"64256","refName":"64256","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"64414","refName":"64414","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"64812","refName":"64812","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"6755","refName":"6755","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"737","refName":"737","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"7465","refName":"7465","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"8544","refName":"8544","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"8823","refName":"8823","namespace":"ITEM","category":"Currency","exchangeable":true,"tradeDisc":"scrying_orb"}
+{"name":"Dreadmaidens' Sacrament","refName":"Dreadmaidens' Sacrament","namespace":"UNIQUE","unique":{"base":"Basalt Flask"},"icon":"https://web.poecdn.com/gen/image/WzksMTQseyJmIjoiMkRJdGVtcy9GbGFza3MvVGhvcm5icmV3IiwidyI6MSwiaCI6Miwic2NhbGUiOjEsImxldmVsIjoxfV0/80590a90b8/Thornbrew.png"}
+{"name":"Arcane Link","refName":"Arcane Link","namespace":"GEM","category":"Gem","gem":{"maxLevel":20},"icon":"https://web.poecdn.com/gen/image/WzMwLDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9BcmNhbmVMaW5rR2VtIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/8541da2384/ArcaneLinkGem.png"}
+{"name":"Quickstep","refName":"Quickstep","namespace":"GEM","category":"Gem","gem":{"maxLevel":20}}
+{"name":"Mycelium Core","refName":"Mycelium Core","namespace":"ITEM"}
+{"name":"Anatomical Knowledge","refName":"Anatomical Knowledge","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Ancient Waystones","refName":"Ancient Waystones","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Apparitions","refName":"Apparitions","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Assassin's Haste","refName":"Assassin's Haste","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Blood Sacrifice","refName":"Blood Sacrifice","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Brawn","refName":"Brawn","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Brittle Barrier","refName":"Brittle Barrier","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Fortified Legion","refName":"Fortified Legion","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Cheap Construction","refName":"Cheap Construction","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Clear Mind","refName":"Clear Mind","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Coated Shrapnel","refName":"Coated Shrapnel","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Cold Steel","refName":"Cold Steel","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Collateral Damage","refName":"Collateral Damage","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Combustibles","refName":"Combustibles","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Conqueror's Efficiency","refName":"Conqueror's Efficiency","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Conqueror's Longevity","refName":"Conqueror's Longevity","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Conqueror's Potency","refName":"Conqueror's Potency","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Corrupted Energy","refName":"Corrupted Energy","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Divine Inferno","refName":"Divine Inferno","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Eldritch Knowledge","refName":"Eldritch Knowledge","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Endless Misery","refName":"Endless Misery","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Fight for Survival","refName":"Fight for Survival","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Fireborn","refName":"Fireborn","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"First Snow","refName":"First Snow","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Fragile Bloom","refName":"Fragile Bloom","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"From Dust","refName":"From Dust","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Frozen Trail","refName":"Frozen Trail","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Growing Agony","refName":"Growing Agony","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Hair Trigger","refName":"Hair Trigger","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Hazardous Research","refName":"Hazardous Research","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Hotheaded","refName":"Hotheaded","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Hungry Abyss","refName":"Hungry Abyss","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Inevitability","refName":"Inevitability","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Izaro's Turmoil","refName":"Izaro's Turmoil","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Lord of Steel","refName":"Lord of Steel","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Malicious Intent","refName":"Malicious Intent","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Mantra of Flames","refName":"Mantra of Flames","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Martial Artistry","refName":"Martial Artistry","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Might and Influence","refName":"Might and Influence","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Might in All Forms","refName":"Might in All Forms","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Mutated Growth","refName":"Mutated Growth","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Omen on the Winds","refName":"Omen on the Winds","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Overwhelming Odds","refName":"Overwhelming Odds","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Pitch Darkness","refName":"Pitch Darkness","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Poacher's Aim","refName":"Poacher's Aim","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Pugilist","refName":"Pugilist","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Putrid Seed","refName":"Putrid Seed","namespace":"UNIQUE","unique":{"base":"Mycelium Core"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvSmV3ZWxzL0JsaWdodGNvcmVKZXdlbCIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/67cdd4119c/BlightcoreJewel.png"}
+{"name":"Rapid Expansion","refName":"Rapid Expansion","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Replica Blood Sacrifice","refName":"Replica Blood Sacrifice","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Replica Cheap Construction","refName":"Replica Cheap Construction","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Replica Conqueror's Efficiency","refName":"Replica Conqueror's Efficiency","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Replica Fragile Bloom","refName":"Replica Fragile Bloom","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Replica Hotheaded","refName":"Replica Hotheaded","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Replica Pure Talent","refName":"Replica Pure Talent","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Replica Unstable Payload","refName":"Replica Unstable Payload","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Ring of Blades","refName":"Ring of Blades","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Rolling Flames","refName":"Rolling Flames","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Sacrificial Harvest","refName":"Sacrificial Harvest","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Shattered Chains","refName":"Shattered Chains","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Soul's Wick","refName":"Soul's Wick","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Spire of Stone","refName":"Spire of Stone","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Spirited Response","refName":"Spirited Response","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Spirit Guards","refName":"Spirit Guards","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Spreading Rot","refName":"Spreading Rot","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Static Electricity","refName":"Static Electricity","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Steel Spirit","refName":"Steel Spirit","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Sudden Ignition","refName":"Sudden Ignition","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Survival Instincts","refName":"Survival Instincts","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Survival Secrets","refName":"Survival Secrets","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Survival Skills","refName":"Survival Skills","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"The Long Winter","refName":"The Long Winter","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"The Vigil","refName":"The Vigil","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Unstable Payload","refName":"Unstable Payload","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Vaal Sentencing","refName":"Vaal Sentencing","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Violent Dead","refName":"Violent Dead","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Volley Fire","refName":"Volley Fire","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Warlord's Reach","refName":"Warlord's Reach","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Warrior's Tale","refName":"Warrior's Tale","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Weight of Sin","refName":"Weight of Sin","namespace":"UNIQUE","unique":{"base":"Viridian Jewel"}}
+{"name":"Weight of the Empire","refName":"Weight of the Empire","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Wildfire","refName":"Wildfire","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Winter Burial","refName":"Winter Burial","namespace":"UNIQUE","unique":{"base":"Crimson Jewel"}}
+{"name":"Winter's Bounty","refName":"Winter's Bounty","namespace":"UNIQUE","unique":{"base":"Cobalt Jewel"}}
+{"name":"Cursed Poppet","refName":"Cursed Poppet","namespace":"ITEM","category":"Map","icon":"https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9BdWd1cnlCb3NzRnJhZ21lbnQiLCJzY2FsZSI6MX1d/e712f203bf/AuguryBossFragment.png"}
+{"name":"Chayula's Breachstone","refName":"Chayula's Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Chayula's Flawless Breachstone","refName":"Chayula's Flawless Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Tul's Breachstone","refName":"Tul's Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Tul's Flawless Breachstone","refName":"Tul's Flawless Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Xoph's Breachstone","refName":"Xoph's Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Xoph's Flawless Breachstone","refName":"Xoph's Flawless Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Esh's Breachstone","refName":"Esh's Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Esh's Flawless Breachstone","refName":"Esh's Flawless Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Uul-Netol's Breachstone","refName":"Uul-Netol's Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Uul-Netol's Flawless Breachstone","refName":"Uul-Netol's Flawless Breachstone","namespace":"ITEM","category":"Map"}
+{"name":"Unrelenting Timeless Eternal Emblem","refName":"Unrelenting Timeless Eternal Emblem","namespace":"ITEM","category":"Map"}
+{"name":"Unrelenting Timeless Karui Emblem","refName":"Unrelenting Timeless Karui Emblem","namespace":"ITEM","category":"Map"}
+{"name":"Unrelenting Timeless Maraketh Emblem","refName":"Unrelenting Timeless Maraketh Emblem","namespace":"ITEM","category":"Map"}
+{"name":"Unrelenting Timeless Templar Emblem","refName":"Unrelenting Timeless Templar Emblem","namespace":"ITEM","category":"Map"}
+{"name":"Unrelenting Timeless Vaal Emblem","refName":"Unrelenting Timeless Vaal Emblem","namespace":"ITEM","category":"Map"}
+{"name":"Eber's Key","refName":"Eber's Key","namespace":"ITEM","category":"Map"}
+{"name":"Yriel's Key","refName":"Yriel's Key","namespace":"ITEM","category":"Map"}
+{"name":"Inya's Key","refName":"Inya's Key","namespace":"ITEM","category":"Map"}
+{"name":"Volkuur's Key","refName":"Volkuur's Key","namespace":"ITEM","category":"Map"}
+{"name":"Maven's Invitation: The Atlas","refName":"Maven's Invitation: The Atlas","namespace":"ITEM","category":"Map"}
+{"name":"Blood-filled Vessel","refName":"Blood-filled Vessel","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Abyss Scarab","refName":"Rusted Abyss Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Abyss Scarab","refName":"Polished Abyss Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Abyss Scarab","refName":"Gilded Abyss Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Abyss Scarab","refName":"Winged Abyss Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Bestiary Scarab","refName":"Rusted Bestiary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Bestiary Scarab","refName":"Polished Bestiary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Bestiary Scarab","refName":"Gilded Bestiary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Bestiary Scarab","refName":"Winged Bestiary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Farric Lure","refName":"Farric Lure","namespace":"ITEM","category":"Map"}
+{"name":"Saqawine Lure","refName":"Saqawine Lure","namespace":"ITEM","category":"Map"}
+{"name":"Fenumal Lure","refName":"Fenumal Lure","namespace":"ITEM","category":"Map"}
+{"name":"Craicic Lure","refName":"Craicic Lure","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Blight Scarab","refName":"Rusted Blight Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Blight Scarab","refName":"Polished Blight Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Blight Scarab","refName":"Gilded Blight Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Blight Scarab","refName":"Winged Blight Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Breach Scarab","refName":"Rusted Breach Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Breach Scarab","refName":"Polished Breach Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Breach Scarab","refName":"Gilded Breach Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Breach Scarab","refName":"Winged Breach Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Divination Scarab","refName":"Rusted Divination Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Divination Scarab","refName":"Polished Divination Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Divination Scarab","refName":"Gilded Divination Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Divination Scarab","refName":"Winged Divination Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Elder Scarab","refName":"Rusted Elder Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Elder Scarab","refName":"Polished Elder Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Elder Scarab","refName":"Gilded Elder Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Elder Scarab","refName":"Winged Elder Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Harbinger Scarab","refName":"Rusted Harbinger Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Harbinger Scarab","refName":"Polished Harbinger Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Harbinger Scarab","refName":"Gilded Harbinger Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Harbinger Scarab","refName":"Winged Harbinger Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Harbinger Scarab","refName":"Harbinger Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Harbinger Scarab of Obelisks","refName":"Harbinger Scarab of Obelisks","namespace":"ITEM","category":"Map"}
+{"name":"Harbinger Scarab of Regency","refName":"Harbinger Scarab of Regency","namespace":"ITEM","category":"Map"}
+{"name":"Harbinger Scarab of Warhoards","refName":"Harbinger Scarab of Warhoards","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Legion Scarab","refName":"Rusted Legion Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Legion Scarab","refName":"Polished Legion Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Legion Scarab","refName":"Gilded Legion Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Legion Scarab","refName":"Winged Legion Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Cartography Scarab","refName":"Rusted Cartography Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Cartography Scarab","refName":"Polished Cartography Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Cartography Scarab","refName":"Gilded Cartography Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Cartography Scarab","refName":"Winged Cartography Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Ultimatum Scarab","refName":"Rusted Ultimatum Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Ultimatum Scarab","refName":"Polished Ultimatum Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Ultimatum Scarab","refName":"Gilded Ultimatum Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Ultimatum Scarab","refName":"Winged Ultimatum Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Expedition Scarab","refName":"Rusted Expedition Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Expedition Scarab","refName":"Polished Expedition Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Expedition Scarab","refName":"Gilded Expedition Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Expedition Scarab","refName":"Winged Expedition Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Shaper Scarab","refName":"Rusted Shaper Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Shaper Scarab","refName":"Polished Shaper Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Shaper Scarab","refName":"Gilded Shaper Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Shaper Scarab","refName":"Winged Shaper Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Ambush Scarab","refName":"Rusted Ambush Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Ambush Scarab","refName":"Polished Ambush Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Ambush Scarab","refName":"Gilded Ambush Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Ambush Scarab","refName":"Winged Ambush Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Sulphite Scarab","refName":"Rusted Sulphite Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Sulphite Scarab","refName":"Polished Sulphite Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Sulphite Scarab","refName":"Gilded Sulphite Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Sulphite Scarab","refName":"Winged Sulphite Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Torment Scarab","refName":"Rusted Torment Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Torment Scarab","refName":"Polished Torment Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Torment Scarab","refName":"Gilded Torment Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Torment Scarab","refName":"Winged Torment Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Rusted Reliquary Scarab","refName":"Rusted Reliquary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Polished Reliquary Scarab","refName":"Polished Reliquary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Gilded Reliquary Scarab","refName":"Gilded Reliquary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Winged Reliquary Scarab","refName":"Winged Reliquary Scarab","namespace":"ITEM","category":"Map"}
+{"name":"Abyss Thread","refName":"Abyss Thread","namespace":"ITEM","category":"Map"}
+{"name":"Bestiary Thread","refName":"Bestiary Thread","namespace":"ITEM","category":"Map"}
+{"name":"Betrayal Thread","refName":"Betrayal Thread","namespace":"ITEM","category":"Map"}
+{"name":"Blight Thread","refName":"Blight Thread","namespace":"ITEM","category":"Map"}
+{"name":"Breach Thread","refName":"Breach Thread","namespace":"ITEM","category":"Map"}
+{"name":"Expedition Thread","refName":"Expedition Thread","namespace":"ITEM","category":"Map"}
+{"name":"Incursion Thread","refName":"Incursion Thread","namespace":"ITEM","category":"Map"}
+{"name":"Legion Thread","refName":"Legion Thread","namespace":"ITEM","category":"Map"}
+{"name":"Ritual Thread","refName":"Ritual Thread","namespace":"ITEM","category":"Map"}
+{"name":"Ultimatum Thread","refName":"Ultimatum Thread","namespace":"ITEM","category":"Map"}
+{"name":"10687","refName":"10687","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"12937","refName":"12937","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"1371","refName":"1371","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"21257","refName":"21257","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"2336","refName":"2336","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"25370","refName":"25370","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"43308","refName":"43308","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"43927","refName":"43927","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"4592","refName":"4592","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"47614","refName":"47614","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"53637","refName":"53637","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"54239","refName":"54239","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"58250","refName":"58250","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"7088","refName":"7088","namespace":"ITEM","category":"Map","tradeDisc":"blighted"}
+{"name":"AbyssalTemplar","refName":"AbyssalTemplar","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarSmite","refName":"AurasMinionsTemplarSmite","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarSmiteNoble","refName":"AurasMinionsTemplarSmiteNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarSmiteRuckusNoble","refName":"AurasMinionsTemplarSmiteRuckusNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarSpectres","refName":"AurasMinionsTemplarSpectres","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarSpectresNoble","refName":"AurasMinionsTemplarSpectresNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarStaff","refName":"AurasMinionsTemplarStaff","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"AurasMinionsTemplarStaffNoble","refName":"AurasMinionsTemplarStaffNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchChaosHit","refName":"ChaosMinionWitchChaosHit","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchChaosHitNoble","refName":"ChaosMinionWitchChaosHitNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchDot","refName":"ChaosMinionWitchDot","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchDotNoble","refName":"ChaosMinionWitchDotNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchInstability","refName":"ChaosMinionWitchInstability","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ChaosMinionWitchInstabilityNoble","refName":"ChaosMinionWitchInstabilityNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Crit1HShadowPhysSpell","refName":"Crit1HShadowPhysSpell","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Crit1HShadowPhysSpellNoble","refName":"Crit1HShadowPhysSpellNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Crit1HShadowPoison","refName":"Crit1HShadowPoison","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Crit1HShadowPoisonNoble","refName":"Crit1HShadowPoisonNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"DivingDuelist","refName":"DivingDuelist","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"DivingDuelistNoble","refName":"DivingDuelistNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"EleBowRangerClones","refName":"EleBowRangerClones","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"EleBowRangerClonesNoble","refName":"EleBowRangerClonesNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"EleBowRangerFire","refName":"EleBowRangerFire","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"EleBowRangerFireNoble","refName":"EleBowRangerFireNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"EleBowRangerLightning","refName":"EleBowRangerLightning","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ElementalWitchCold","refName":"ElementalWitchCold","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ElementalWitchColdNoble","refName":"ElementalWitchColdNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ElementalWitchFire","refName":"ElementalWitchFire","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ElementalWitchLightning","refName":"ElementalWitchLightning","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"ElementalWitchLightningNoble","refName":"ElementalWitchLightningNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Infused Beachhead","refName":"Infused Beachhead","namespace":"UNIQUE","category":"Map","unique":{"base":"Map"},"tradeDisc":"map"}
+{"name":"MeleeAOEMarauderFireSlam","refName":"MeleeAOEMarauderFireSlam","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEMarauderFireSlamNoble","refName":"MeleeAOEMarauderFireSlamNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEMarauderNonSlam","refName":"MeleeAOEMarauderNonSlam","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEMarauderNonSlamNoble","refName":"MeleeAOEMarauderNonSlamNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEMarauderPhysSlam","refName":"MeleeAOEMarauderPhysSlam","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEMarauderPhysSlamNoble","refName":"MeleeAOEMarauderPhysSlamNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEStrikeDuelistCyclone","refName":"MeleeAOEStrikeDuelistCyclone","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEStrikeDuelistCycloneNoble","refName":"MeleeAOEStrikeDuelistCycloneNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEStrikeDuelistRangeStrikes","refName":"MeleeAOEStrikeDuelistRangeStrikes","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeAOEStrikeDuelistRangeStrikesNoble","refName":"MeleeAOEStrikeDuelistRangeStrikesNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeStrikesMaraduerPhys","refName":"MeleeStrikesMaraduerPhys","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeStrikesMaraduerPhysNoble","refName":"MeleeStrikesMaraduerPhysNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MeleeStrikesMarauderFire","refName":"MeleeStrikesMarauderFire","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MiscScionPhysDot","refName":"MiscScionPhysDot","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MiscScionPhysDotNoble","refName":"MiscScionPhysDotNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MiscScionWandAttacks","refName":"MiscScionWandAttacks","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"MiscScionWandAttacksNoble","refName":"MiscScionWandAttacksNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"NonEleBowRangerChaos","refName":"NonEleBowRangerChaos","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"NonEleBowRangerChaosNoble","refName":"NonEleBowRangerChaosNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"NonEleBowRangerPhys","refName":"NonEleBowRangerPhys","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"NonEleBowRangerPhysNoble","refName":"NonEleBowRangerPhysNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysConvertTemplarCold","refName":"PhysConvertTemplarCold","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysConvertTemplarFire","refName":"PhysConvertTemplarFire","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysConvertTemplarLightning","refName":"PhysConvertTemplarLightning","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysConvertTemplarLightningNoble","refName":"PhysConvertTemplarLightningNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysicalDuelistBleed","refName":"PhysicalDuelistBleed","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysicalDuelistBleedNoble","refName":"PhysicalDuelistBleedNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysicalDuelistShields","refName":"PhysicalDuelistShields","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysicalDuelistShieldsNoble","refName":"PhysicalDuelistShieldsNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"PhysicalDuelistSteel","refName":"PhysicalDuelistSteel","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"The Beachhead","refName":"The Beachhead","namespace":"UNIQUE","category":"Map","unique":{"base":"Map"},"tradeDisc":"map"}
+{"name":"The Perandus Manor","refName":"The Perandus Manor","namespace":"UNIQUE","category":"Map","unique":{"base":"Map"},"tradeDisc":"map"}
+{"name":"The Perandus Manor","refName":"The Perandus Manor","namespace":"UNIQUE","category":"Map","unique":{"base":"Valdo Map"}}
+{"name":"The Tower of Ordeals","refName":"The Tower of Ordeals","namespace":"UNIQUE","category":"Map","unique":{"base":"Map"},"tradeDisc":"map"}
+{"name":"TrapsMinesShadowAttack","refName":"TrapsMinesShadowAttack","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"TrapsMinesShadowAttackNoble","refName":"TrapsMinesShadowAttackNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"TrapsMinesShadowCold","refName":"TrapsMinesShadowCold","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"TrapsMinesShadowLightning","refName":"TrapsMinesShadowLightning","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"TrapsMinesShadowLightningNoble","refName":"TrapsMinesShadowLightningNoble","namespace":"ITEM","category":"Map","tradeDisc":"mercenary_warrant"}
+{"name":"Untainted Paradise","refName":"Untainted Paradise","namespace":"UNIQUE","category":"Map","unique":{"base":"Map"},"tradeDisc":"map"}
+{"name":"Energy Blade","refName":"Energy Blade","namespace":"ITEM","icon":"https://web.poecdn.com/gen/image/WzMwLDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdG9ybUJsYWRlR2VtIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/aa45718a55/StormBladeGem.png"}
+{"name":"Agnerod","refName":"Agnerod","namespace":"UNIQUE","category":"Staff","unique":{"base":"Imperial Staff"},"tradeDisc":"legacy"}
+{"name":"Amplification Rod","refName":"Amplification Rod","namespace":"UNIQUE","category":"Wand","unique":{"base":"Spiraled Wand"}}
+{"name":"Apep's Rage","refName":"Apep's Rage","namespace":"UNIQUE","category":"Wand","unique":{"base":"Opal Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9BcGVwc1JhZ2UiLCJ3IjoxLCJoIjozLCJzY2FsZSI6MX1d/074c66dadc/ApepsRage.png"}
+{"name":"Ashcaller","refName":"Ashcaller","namespace":"UNIQUE","category":"Wand","unique":{"base":"Carved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9Bc2h3YWtlciIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/a36e60acf6/Ashwaker.png"}
+{"name":"Ashcaller","refName":"Ashcaller","namespace":"UNIQUE","category":"Wand","unique":{"base":"Quartz Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9Bc2h3YWtlciIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/a36e60acf6/Ashwaker.png"}
+{"name":"Ashes of the Sun","refName":"Ashes of the Sun","namespace":"UNIQUE","category":"One-Handed Mace","unique":{"base":"Driftwood Club"}}
+{"name":"Bane of the Apostate","refName":"Bane of the Apostate","namespace":"UNIQUE","category":"Warstaff","unique":{"base":"Judgement Staff"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9TdGF2ZXMvQm9uZmlyZXNDZW5zdXJlIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/0e4ebc3f2b/BonfiresCensure.png"}
+{"name":"Blood of Summer","refName":"Blood of Summer","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Rusted Sword"}}
+{"name":"The Broken Elegy","refName":"The Broken Elegy","namespace":"UNIQUE","category":"Warstaff","unique":{"base":"Foul Staff"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9TdGF2ZXMvQnJva2VuRWxlZ3kiLCJ3IjoyLCJoIjo0LCJzY2FsZSI6MX1d/862f5999ca/BrokenElegy.png"}
+{"name":"Chaber Cairn","refName":"Chaber Cairn","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Great Mallet"}}
+{"name":"Chitus' Needle","refName":"Chitus' Needle","namespace":"UNIQUE","unique":{"base":"Elegant Foil"}}
+{"name":"Corona Solaris","refName":"Corona Solaris","namespace":"UNIQUE","category":"Wand","unique":{"base":"Crystal Wand"}}
+{"name":"Corpse Rose","refName":"Corpse Rose","namespace":"UNIQUE","category":"Wand","unique":{"base":"Imbued Wand"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9GbG9yZXNTYW5ndWluYWlyZSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/6635a018db/FloresSanguinaire.png"}
+{"name":"Death's Opus","refName":"Death's Opus","namespace":"UNIQUE","category":"Bow","unique":{"base":"Death Bow"}}
+{"name":"Demigod's Authority","refName":"Demigod's Authority","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Golden Blade"}}
+{"name":"Doomfletch's Prism","refName":"Doomfletch's Prism","namespace":"UNIQUE","category":"Bow","unique":{"base":"Royal Bow"}}
+{"name":"Dreadbeak","refName":"Dreadbeak","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Rusted Sword"}}
+{"name":"Dreadsurge","refName":"Dreadsurge","namespace":"UNIQUE","category":"One-Handed Axe","unique":{"base":"Cleaver"}}
+{"name":"Dying Breath","refName":"Dying Breath","namespace":"UNIQUE","category":"Warstaff","unique":{"base":"Coiled Staff"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9TdGF2ZXMvRHlpbmdCcmVhdGgiLCJ3IjoyLCJoIjo0LCJzY2FsZSI6MX1d/3b7be0c935/DyingBreath.png"}
+{"name":"Eclipse Solaris","refName":"Eclipse Solaris","namespace":"UNIQUE","category":"Wand","unique":{"base":"Engraved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kVW5pcXVlMSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/e1734b812d/WandUnique1.png"}
+{"name":"Eclipse Solaris","refName":"Eclipse Solaris","namespace":"UNIQUE","category":"Wand","unique":{"base":"Crystal Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kVW5pcXVlMSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/e1734b812d/WandUnique1.png"}
+{"name":"Essentia Sanguis","refName":"Essentia Sanguis","namespace":"UNIQUE","category":"Claw","unique":{"base":"Eye Gouger"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9DbGF3cy9DbGF3NVVuaXF1ZTIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8041876a9e/Claw5Unique2.png"}
+{"name":"Fleshrender","refName":"Fleshrender","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Exquisite Blade"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Ud29IYW5kU3dvcmRzL1J1c3RiaXRlIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/0ec64acdcc/Rustbite.png"}
+{"name":"Fragment of Eternity","refName":"Fragment of Eternity","namespace":"UNIQUE","category":"Dagger","unique":{"base":"Glass Shank"}}
+{"name":"Geofri's Devotion","refName":"Geofri's Devotion","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Brass Maul"}}
+{"name":"Hand of Thought and Motion","refName":"Hand of Thought and Motion","namespace":"UNIQUE","category":"Claw","unique":{"base":"Blinder"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9DbGF3cy9UaG91Z2h0TW90aW9uMSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/cc443b5108/ThoughtMotion1.png"}
+{"name":"Hrimnor's Dirge","refName":"Hrimnor's Dirge","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Sledgehammer"}}
+{"name":"Izaro's Dilemma","refName":"Izaro's Dilemma","namespace":"UNIQUE","category":"Claw","unique":{"base":"Imperial Claw"}}
+{"name":"Midnight Bargain","refName":"Midnight Bargain","namespace":"UNIQUE","category":"Wand","unique":{"base":"Engraved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kVW5pcXVlMyIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/1db4fb5dbf/WandUnique3.png"}
+{"name":"Mirebough","refName":"Mirebough","namespace":"UNIQUE","category":"Staff","unique":{"base":"Gnarled Branch"}}
+{"name":"Moonsorrow","refName":"Moonsorrow","namespace":"UNIQUE","category":"Wand","unique":{"base":"Imbued Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kVW5pcXVlMiIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/7a5458ab50/WandUnique2.png"}
+{"name":"Obliteration","refName":"Obliteration","namespace":"UNIQUE","category":"Wand","unique":{"base":"Demon's Horn"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9NYWxlZGljdCIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/2ddc131782/Maledict.png"}
+{"name":"Obliteration","refName":"Obliteration","namespace":"UNIQUE","category":"Wand","unique":{"base":"Imbued Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9NYWxlZGljdCIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/2ddc131782/Maledict.png"}
+{"name":"Panquetzaliztli","refName":"Panquetzaliztli","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Jagged Maul"}}
+{"name":"Pillar of the Caged God","refName":"Pillar of the Caged God","namespace":"UNIQUE","category":"Staff","unique":{"base":"Long Staff"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9TdGF2ZXMvUGlsbGFyb2Z0aGVDYWdlZEdvZCIsInciOjIsImgiOjQsInNjYWxlIjoxfV0/0451281624/PillaroftheCagedGod.png"}
+{"name":"Piscator's Vigil","refName":"Piscator's Vigil","namespace":"UNIQUE","category":"Wand","unique":{"base":"Imbued Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9QaXNjYXRvcnNWaWdpbCIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/332f80f7ac/PiscatorsVigil.png"}
+{"name":"Piscator's Vigil","refName":"Piscator's Vigil","namespace":"UNIQUE","category":"Wand","unique":{"base":"Tornado Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9QaXNjYXRvcnNWaWdpbCIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/332f80f7ac/PiscatorsVigil.png"}
+{"name":"Queen's Escape","refName":"Queen's Escape","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Ornate Sword"}}
+{"name":"Realm Ender","refName":"Realm Ender","namespace":"UNIQUE","category":"Warstaff","unique":{"base":"Iron Staff"}}
+{"name":"Reefbane","refName":"Reefbane","namespace":"UNIQUE","unique":{"base":"Fishing Rod"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9GaXNoaW5nUm9kcy9SZWVmYmFuZSIsInciOjEsImgiOjQsInNjYWxlIjoxfV0/fb59feb3cd/Reefbane.png"}
+{"name":"Relic of the Cycle","refName":"Relic of the Cycle","namespace":"UNIQUE","category":"Bow","unique":{"base":"Crude Bow"}}
+{"name":"Relic of the Pact","refName":"Relic of the Pact","namespace":"UNIQUE","category":"Wand","unique":{"base":"Spiraled Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9JcG9jaG90bFdhbmQiLCJ3IjoxLCJoIjozLCJzY2FsZSI6MX1d/015c140e10/IpochotlWand.png"}
+{"name":"Replica Midnight Bargain","refName":"Replica Midnight Bargain","namespace":"UNIQUE","category":"Wand","unique":{"base":"Engraved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kVW5pcXVlMyIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/1db4fb5dbf/WandUnique3.png"}
+{"name":"Replica Soul Taker","refName":"Replica Soul Taker","namespace":"UNIQUE","category":"One-Handed Axe","unique":{"base":"Siege Axe"}}
+{"name":"Replica Tulfall","refName":"Replica Tulfall","namespace":"UNIQUE","category":"Wand","unique":{"base":"Tornado Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9UdWxib3JuVXBncmFkZWQiLCJ3IjoxLCJoIjozLCJzY2FsZSI6MX1d/575d6058a2/TulbornUpgraded.png"}
+{"name":"Replica Twyzel","refName":"Replica Twyzel","namespace":"UNIQUE","category":"Wand","unique":{"base":"Sage Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kMVVuaXF1ZSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/086aeb214c/Wand1Unique.png"}
+{"name":"Rust of Winter","refName":"Rust of Winter","namespace":"UNIQUE","category":"One-Handed Axe","unique":{"base":"Rusted Hatchet"}}
+{"name":"Sanguine Gambol","refName":"Sanguine Gambol","namespace":"UNIQUE","category":"Dagger","unique":{"base":"Skinning Knife"}}
+{"name":"Scar of Fate","refName":"Scar of Fate","namespace":"UNIQUE","category":"Claw","unique":{"base":"Nailed Fist"}}
+{"name":"Serle's Masterwork","refName":"Serle's Masterwork","namespace":"UNIQUE","category":"One-Handed Mace","unique":{"base":"Phantom Mace"}}
+{"name":"Silverbough","refName":"Silverbough","namespace":"UNIQUE","category":"Bow","unique":{"base":"Crude Bow"}}
+{"name":"Skysunder","refName":"Skysunder","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Exquisite Blade"}}
+{"name":"Song of the Sirens","refName":"Song of the Sirens","namespace":"UNIQUE","unique":{"base":"Fishing Rod"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9GaXNoaW5nUm9kcy9VbmlxdWVGaXNoaW5nUm9kMSIsInciOjEsImgiOjQsInNjYWxlIjoxfV0/4e9d67b927/UniqueFishingRod1.png"}
+{"name":"Spine of the First Claimant","refName":"Spine of the First Claimant","namespace":"UNIQUE","category":"Sceptre","unique":{"base":"Iron Sceptre"}}
+{"name":"Splinter of the Moon","refName":"Splinter of the Moon","namespace":"UNIQUE","category":"Wand","unique":{"base":"Driftwood Wand"}}
+{"name":"Storm Prison","refName":"Storm Prison","namespace":"UNIQUE","category":"Wand","unique":{"base":"Carved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9TdG9ybVByaXNvbiIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/0fc4811c94/StormPrison.png"}
+{"name":"Story of the Vaal","refName":"Story of the Vaal","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Variscite Blade"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9PbmVIYW5kU3dvcmRzL1N0b3J5T2ZUaGVWYWFsIiwidyI6MSwiaCI6Mywic2NhbGUiOjF9XQ/b83d2c0b68/StoryOfTheVaal.png"}
+{"name":"The Bane of Hope","refName":"The Bane of Hope","namespace":"UNIQUE","category":"Bow","unique":{"base":"Maraketh Bow"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Cb3dzL0FuaW1vc2l0eSIsInciOjIsImgiOjQsInNjYWxlIjoxfV0/6627396a77/Animosity.png"}
+{"name":"The Cauteriser","refName":"The Cauteriser","namespace":"UNIQUE","category":"Two-Handed Axe","unique":{"base":"Woodsplitter"}}
+{"name":"The Covetous Dark","refName":"The Covetous Dark","namespace":"UNIQUE","category":"Claw","unique":{"base":"Eye Gouger"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9DbGF3cy9FeWV0aGllZl9UaWVyMDAiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/72bd202fa4/Eyethief_Tier00.png"}
+{"name":"The Dancing Duo","refName":"The Dancing Duo","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Reaver Sword"}}
+{"name":"The Desecrated Chalice","refName":"The Desecrated Chalice","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Coronal Maul"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Ud29IYW5kTWFjZXMvRGVzZWNyYXRlZEdyYWlsIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/3baa6deb44/DesecratedGrail.png"}
+{"name":"The Enmity Divine","refName":"The Enmity Divine","namespace":"UNIQUE","category":"Staff","unique":{"base":"Imperial Staff"}}
+{"name":"The Flame of Hope","refName":"The Flame of Hope","namespace":"UNIQUE","category":"Bow","unique":{"base":"Maraketh Bow"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Cb3dzL1Jlc2VudG1lbnQiLCJ3IjoyLCJoIjo0LCJzY2FsZSI6MX1d/54933b3794/Resentment.png"}
+{"name":"The Geomantic Gyre","refName":"The Geomantic Gyre","namespace":"UNIQUE","category":"Staff","unique":{"base":"Highborn Staff"}}
+{"name":"The Goddess Unleashed","refName":"The Goddess Unleashed","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Eternal Sword"}}
+{"name":"The Gryphon","refName":"The Gryphon","namespace":"UNIQUE","category":"One-Handed Axe","unique":{"base":"Jade Hatchet"}}
+{"name":"The Poet's Pen","refName":"The Poet's Pen","namespace":"UNIQUE","category":"Wand","unique":{"base":"Carved Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9Qb2V0c1BlbiIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/f6f0645739/PoetsPen.png"}
+{"name":"The Redblade","refName":"The Redblade","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Gladius"}}
+{"name":"The Rippling Thoughts","refName":"The Rippling Thoughts","namespace":"UNIQUE","category":"One-Handed Sword","unique":{"base":"Legion Sword"}}
+{"name":"The Sacred Chalice","refName":"The Sacred Chalice","namespace":"UNIQUE","category":"Two-Handed Mace","unique":{"base":"Coronal Maul"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Ud29IYW5kTWFjZXMvU2FjcmFtZW50YWxHcmFpbCIsInciOjIsImgiOjQsInNjYWxlIjoxfV0/ef0cbffdc4/SacramentalGrail.png"}
+{"name":"The Sands of Time","refName":"The Sands of Time","namespace":"UNIQUE","category":"Sceptre","unique":{"base":"Tyrant's Sekhem"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9TY2VwdGVycy9TdG9wcGVkSG91cmdsYXNzIiwidyI6MiwiaCI6Mywic2NhbGUiOjF9XQ/03fb1df17d/StoppedHourglass.png"}
+{"name":"The Searing Touch","refName":"The Searing Touch","namespace":"UNIQUE","category":"Staff","unique":{"base":"Long Staff"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9TdGF2ZXMvU3RhZmY0dW5pcXVlIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/5c7ddd5550/Staff4unique.png"}
+{"name":"The Stormwall","refName":"The Stormwall","namespace":"UNIQUE","category":"Staff","unique":{"base":"Royal Staff"}}
+{"name":"The Sword of Ages","refName":"The Sword of Ages","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Exquisite Blade"},"icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Ud29IYW5kU3dvcmRzL1N1cHBvcnRlcjJIV2VhcG9uIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/0269b2f817/Supporter2HWeapon.png"}
+{"name":"The Tempest","refName":"The Tempest","namespace":"UNIQUE","category":"Bow","unique":{"base":"Long Bow"}}
+{"name":"Thunder of the Dawn","refName":"Thunder of the Dawn","namespace":"UNIQUE","category":"Two-Handed Sword","unique":{"base":"Corroded Blade"}}
+{"name":"Tipua Kaikohuru","refName":"Tipua Kaikohuru","namespace":"UNIQUE","unique":{"base":"Whalebone Rapier"},"tradeDisc":"legacy"}
+{"name":"Tulborn","refName":"Tulborn","namespace":"UNIQUE","category":"Wand","unique":{"base":"Spiraled Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9UdWxib3JuIiwidyI6MSwiaCI6Mywic2NhbGUiOjF9XQ/7c7cf3e1f2/Tulborn.png"}
+{"name":"Tulfall","refName":"Tulfall","namespace":"UNIQUE","category":"Wand","unique":{"base":"Tornado Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9UdWxib3JuVXBncmFkZWQiLCJ3IjoxLCJoIjozLCJzY2FsZSI6MX1d/575d6058a2/TulbornUpgraded.png"}
+{"name":"Twyzel","refName":"Twyzel","namespace":"UNIQUE","category":"Wand","unique":{"base":"Sage Wand"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kMVVuaXF1ZSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/086aeb214c/Wand1Unique.png"}
+{"name":"Uul-Netol's Kiss","refName":"Uul-Netol's Kiss","namespace":"UNIQUE","category":"Two-Handed Axe","unique":{"base":"Labrys"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Ud29IYW5kQXhlcy9VdWxOZXRvbHNLaXNzIiwidyI6MiwiaCI6NCwic2NhbGUiOjF9XQ/300d5ffe23/UulNetolsKiss.png"}
+{"name":"Vestige of Divinity","refName":"Vestige of Divinity","namespace":"UNIQUE","category":"Staff","unique":{"base":"Gnarled Branch"}}
+{"name":"Wings of Entropy","refName":"Wings of Entropy","namespace":"UNIQUE","category":"Two-Handed Axe","unique":{"base":"Sundering Axe"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9PbmVIYW5kQXhlcy9FbnRyb3B5d2luZ3MiLCJ3IjoyLCJoIjo0LCJzY2FsZSI6MX1d/86e128789a/Entropywings.png"}
+{"name":"Xoph's Inception","refName":"Xoph's Inception","namespace":"UNIQUE","category":"Bow","unique":{"base":"Bone Bow"},"tradeDisc":"legacy","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9Ud29IYW5kV2VhcG9ucy9Cb3dzL0Jsb29kUGVyaWdyZWUiLCJ3IjoyLCJoIjo0LCJzY2FsZSI6MX1d/7856c171f7/BloodPerigree.png"}
+{"name":"Ambush Leaguestone","refName":"Ambush Leaguestone","namespace":"ITEM"}
+{"name":"Anarchy Leaguestone","refName":"Anarchy Leaguestone","namespace":"ITEM"}
+{"name":"Beyond Leaguestone","refName":"Beyond Leaguestone","namespace":"ITEM"}
+{"name":"Bloodlines Leaguestone","refName":"Bloodlines Leaguestone","namespace":"ITEM"}
+{"name":"Breach Leaguestone","refName":"Breach Leaguestone","namespace":"ITEM"}
+{"name":"Domination Leaguestone","refName":"Domination Leaguestone","namespace":"ITEM"}
+{"name":"Essence Leaguestone","refName":"Essence Leaguestone","namespace":"ITEM"}
+{"name":"Invasion Leaguestone","refName":"Invasion Leaguestone","namespace":"ITEM"}
+{"name":"Nemesis Leaguestone","refName":"Nemesis Leaguestone","namespace":"ITEM"}
+{"name":"Onslaught Leaguestone","refName":"Onslaught Leaguestone","namespace":"ITEM"}
+{"name":"Prophecy Leaguestone","refName":"Prophecy Leaguestone","namespace":"ITEM"}
+{"name":"Rampage Leaguestone","refName":"Rampage Leaguestone","namespace":"ITEM"}
+{"name":"Talisman Leaguestone","refName":"Talisman Leaguestone","namespace":"ITEM"}
+{"name":"Tempest Leaguestone","refName":"Tempest Leaguestone","namespace":"ITEM"}
+{"name":"Torment Leaguestone","refName":"Torment Leaguestone","namespace":"ITEM"}
+{"name":"Warbands Leaguestone","refName":"Warbands Leaguestone","namespace":"ITEM"}
+{"name":"The Great White Beast","refName":"The Great White Beast","namespace":"CAPTURED_BEAST"}
+{"name":"The Great White Bones","refName":"The Great White Bones","namespace":"CAPTURED_BEAST"}
+{"name":"Tyrannursus Maximus","refName":"Tyrannursus Maximus","namespace":"CAPTURED_BEAST"}
+{"name":"Primal Beast","refName":"Primal Beast","namespace":"CAPTURED_BEAST"}
+{"name":"Infected Beast","refName":"Infected Beast","namespace":"CAPTURED_BEAST"}
+{"name":"Risen Infested Beast","refName":"Risen Infested Beast","namespace":"CAPTURED_BEAST"}
+{"name":"Junglemare","refName":"Junglemare","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Chieftain","refName":"Mutated Chieftain","namespace":"CAPTURED_BEAST"}
+{"name":"Crazed Chieftain","refName":"Crazed Chieftain","namespace":"CAPTURED_BEAST"}
+{"name":"Aboriginal Chieftain","refName":"Aboriginal Chieftain","namespace":"CAPTURED_BEAST"}
+{"name":"Hollowskull, the Willing Host","refName":"Hollowskull, the Willing Host","namespace":"CAPTURED_BEAST"}
+{"name":"Simi, the Nature Touched","refName":"Simi, the Nature Touched","namespace":"CAPTURED_BEAST"}
+{"name":"Boulderback","refName":"Boulderback","namespace":"CAPTURED_BEAST"}
+{"name":"Rooster Demon","refName":"Rooster Demon","namespace":"CAPTURED_BEAST"}
+{"name":"Eyepecker","refName":"Eyepecker","namespace":"CAPTURED_BEAST"}
+{"name":"Infected Ambusher","refName":"Infected Ambusher","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Ursa","refName":"Mutated Ursa","namespace":"CAPTURED_BEAST"}
+{"name":"Q'uru","refName":"Q'uru","namespace":"CAPTURED_BEAST"}
+{"name":"Rabid Maw","refName":"Rabid Maw","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Maw","refName":"Mutated Maw","namespace":"CAPTURED_BEAST"}
+{"name":"Spinesnap","refName":"Spinesnap","namespace":"CAPTURED_BEAST"}
+{"name":"Bestial Maw","refName":"Bestial Maw","namespace":"CAPTURED_BEAST"}
+{"name":"Blue Frog","refName":"Blue Frog","namespace":"CAPTURED_BEAST"}
+{"name":"Common Frog","refName":"Common Frog","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Croaker","refName":"Mutated Croaker","namespace":"CAPTURED_BEAST"}
+{"name":"Putrid Chimeral","refName":"Putrid Chimeral","namespace":"CAPTURED_BEAST"}
+{"name":"Twisted Chimeral","refName":"Twisted Chimeral","namespace":"CAPTURED_BEAST"}
+{"name":"Genesis Paradisae","refName":"Genesis Paradisae","namespace":"CAPTURED_BEAST"}
+{"name":"Paradisae Venenum","refName":"Paradisae Venenum","namespace":"CAPTURED_BEAST"}
+{"name":"Alpha Paradisae","refName":"Alpha Paradisae","namespace":"CAPTURED_BEAST"}
+{"name":"The Basilisk","refName":"The Basilisk","namespace":"CAPTURED_BEAST"}
+{"name":"Wild Chimeral","refName":"Wild Chimeral","namespace":"CAPTURED_BEAST"}
+{"name":"Konu, Maker of Wind","refName":"Konu, Maker of Wind","namespace":"CAPTURED_BEAST"}
+{"name":"The Faun","refName":"The Faun","namespace":"CAPTURED_BEAST"}
+{"name":"Elder-Blessed Goatman","refName":"Elder-Blessed Goatman","namespace":"CAPTURED_BEAST"}
+{"name":"Guardian of the Mound","refName":"Guardian of the Mound","namespace":"CAPTURED_BEAST"}
+{"name":"Ungulath","refName":"Ungulath","namespace":"CAPTURED_BEAST"}
+{"name":"Sheaq, Maker of Floods","refName":"Sheaq, Maker of Floods","namespace":"CAPTURED_BEAST"}
+{"name":"The Burning Menace","refName":"The Burning Menace","namespace":"CAPTURED_BEAST"}
+{"name":"Elder-Blessed Hellion","refName":"Elder-Blessed Hellion","namespace":"CAPTURED_BEAST"}
+{"name":"Bladetooth","refName":"Bladetooth","namespace":"CAPTURED_BEAST"}
+{"name":"Raihara, Tukohama's Loyal","refName":"Raihara, Tukohama's Loyal","namespace":"CAPTURED_BEAST"}
+{"name":"Carrion Minion","refName":"Carrion Minion","namespace":"CAPTURED_BEAST"}
+{"name":"Mother of the Swarm","refName":"Mother of the Swarm","namespace":"CAPTURED_BEAST"}
+{"name":"The Sunburst Queen","refName":"The Sunburst Queen","namespace":"CAPTURED_BEAST"}
+{"name":"Rabid Broodqueen","refName":"Rabid Broodqueen","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Broodqueen","refName":"Mutated Broodqueen","namespace":"CAPTURED_BEAST"}
+{"name":"Rabid Minion","refName":"Rabid Minion","namespace":"CAPTURED_BEAST"}
+{"name":"Nightmarish Carrion","refName":"Nightmarish Carrion","namespace":"CAPTURED_BEAST"}
+{"name":"Inti of the Blood Moon","refName":"Inti of the Blood Moon","namespace":"CAPTURED_BEAST"}
+{"name":"Elder-Blessed Retch","refName":"Elder-Blessed Retch","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Flamebeast","refName":"Mutated Flamebeast","namespace":"CAPTURED_BEAST"}
+{"name":"Crazed Flamebeast","refName":"Crazed Flamebeast","namespace":"CAPTURED_BEAST"}
+{"name":"Dire Wolf","refName":"Dire Wolf","namespace":"CAPTURED_BEAST"}
+{"name":"Spirit of Aidan","refName":"Spirit of Aidan","namespace":"CAPTURED_BEAST"}
+{"name":"Spirit of Nadia","refName":"Spirit of Nadia","namespace":"CAPTURED_BEAST"}
+{"name":"Aidan the Frenzied","refName":"Aidan the Frenzied","namespace":"CAPTURED_BEAST"}
+{"name":"Blood Stasis ","refName":"Blood Stasis ","namespace":"CAPTURED_BEAST"}
+{"name":"Blood Morpher","refName":"Blood Morpher","namespace":"CAPTURED_BEAST"}
+{"name":"Nadia the Soothing","refName":"Nadia the Soothing","namespace":"CAPTURED_BEAST"}
+{"name":"Primitive Ape","refName":"Primitive Ape","namespace":"CAPTURED_BEAST"}
+{"name":"Echo of the Verdant","refName":"Echo of the Verdant","namespace":"CAPTURED_BEAST"}
+{"name":"Brinecrack","refName":"Brinecrack","namespace":"CAPTURED_BEAST"}
+{"name":"The Encephalophage","refName":"The Encephalophage","namespace":"CAPTURED_BEAST"}
+{"name":"Poisonous Parasite","refName":"Poisonous Parasite","namespace":"CAPTURED_BEAST"}
+{"name":"Steelchaw","refName":"Steelchaw","namespace":"CAPTURED_BEAST"}
+{"name":"Lola, the Fierce","refName":"Lola, the Fierce","namespace":"CAPTURED_BEAST"}
+{"name":"Rocco, the Bloodthirsty","refName":"Rocco, the Bloodthirsty","namespace":"CAPTURED_BEAST"}
+{"name":"Rabid Rhoa","refName":"Rabid Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Rhoa","refName":"Mutated Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Ventarus","refName":"Ventarus","namespace":"CAPTURED_BEAST"}
+{"name":"Albino Rhoa","refName":"Albino Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Oozeback Bloom","refName":"Oozeback Bloom","namespace":"CAPTURED_BEAST"}
+{"name":"The Cadaver Bull","refName":"The Cadaver Bull","namespace":"CAPTURED_BEAST"}
+{"name":"Elder-Blessed Rhoa","refName":"Elder-Blessed Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Zombie Rhoa","refName":"Zombie Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Primordial Rhoa","refName":"Primordial Rhoa","namespace":"CAPTURED_BEAST"}
+{"name":"Mystic Devourer","refName":"Mystic Devourer","namespace":"CAPTURED_BEAST"}
+{"name":"Tunnelworm","refName":"Tunnelworm","namespace":"CAPTURED_BEAST"}
+{"name":"Kamaq, Soilmaker","refName":"Kamaq, Soilmaker","namespace":"CAPTURED_BEAST"}
+{"name":"The Conqueror Wurm","refName":"The Conqueror Wurm","namespace":"CAPTURED_BEAST"}
+{"name":"Ancient Devourer","refName":"Ancient Devourer","namespace":"CAPTURED_BEAST"}
+{"name":"Quetzerxi","refName":"Quetzerxi","namespace":"CAPTURED_BEAST"}
+{"name":"Mother of the Hive","refName":"Mother of the Hive","namespace":"CAPTURED_BEAST"}
+{"name":"Scrabbling Spitter","refName":"Scrabbling Spitter","namespace":"CAPTURED_BEAST"}
+{"name":"Crustacean Pelter","refName":"Crustacean Pelter","namespace":"CAPTURED_BEAST"}
+{"name":"The Dweller of the Deep","refName":"The Dweller of the Deep","namespace":"CAPTURED_BEAST"}
+{"name":"Infested Sniper","refName":"Infested Sniper","namespace":"CAPTURED_BEAST"}
+{"name":"Fossil Eater","refName":"Fossil Eater","namespace":"CAPTURED_BEAST"}
+{"name":"Tamipin","refName":"Tamipin","namespace":"CAPTURED_BEAST"}
+{"name":"Tamulus","refName":"Tamulus","namespace":"CAPTURED_BEAST"}
+{"name":"Fated Siren","refName":"Fated Siren","namespace":"CAPTURED_BEAST"}
+{"name":"Ambrosia, Daughter of Merveil","refName":"Ambrosia, Daughter of Merveil","namespace":"CAPTURED_BEAST"}
+{"name":"The Duchess","refName":"The Duchess","namespace":"CAPTURED_BEAST"}
+{"name":"Rima, Deep Temptress","refName":"Rima, Deep Temptress","namespace":"CAPTURED_BEAST"}
+{"name":"Amarissa, Daughter of Merveil","refName":"Amarissa, Daughter of Merveil","namespace":"CAPTURED_BEAST"}
+{"name":"Brood Princess","refName":"Brood Princess","namespace":"CAPTURED_BEAST"}
+{"name":"Fused Crawler","refName":"Fused Crawler","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Winterclaw","refName":"Mutated Winterclaw","namespace":"CAPTURED_BEAST"}
+{"name":"Scrabbling Menace","refName":"Scrabbling Menace","namespace":"CAPTURED_BEAST"}
+{"name":"Cave Crustacean","refName":"Cave Crustacean","namespace":"CAPTURED_BEAST"}
+{"name":"Invading Crustacean","refName":"Invading Crustacean","namespace":"CAPTURED_BEAST"}
+{"name":"Shield Crab","refName":"Shield Crab","namespace":"CAPTURED_BEAST"}
+{"name":"Bleached Crustacean","refName":"Bleached Crustacean","namespace":"CAPTURED_BEAST"}
+{"name":"Shivershell","refName":"Shivershell","namespace":"CAPTURED_BEAST"}
+{"name":"Infested Crustacean","refName":"Infested Crustacean","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Adder","refName":"Mutated Adder","namespace":"CAPTURED_BEAST"}
+{"name":"Infected Adder","refName":"Infected Adder","namespace":"CAPTURED_BEAST"}
+{"name":"Putrid Serpent","refName":"Putrid Serpent","namespace":"CAPTURED_BEAST"}
+{"name":"Elder-Blessed Cobra","refName":"Elder-Blessed Cobra","namespace":"CAPTURED_BEAST"}
+{"name":"Thornrunner","refName":"Thornrunner","namespace":"CAPTURED_BEAST"}
+{"name":"Maze Slitherer","refName":"Maze Slitherer","namespace":"CAPTURED_BEAST"}
+{"name":"Foreseen Spawn","refName":"Foreseen Spawn","namespace":"CAPTURED_BEAST"}
+{"name":"Fathom Screamer","refName":"Fathom Screamer","namespace":"CAPTURED_BEAST"}
+{"name":"Siren's Spawn","refName":"Siren's Spawn","namespace":"CAPTURED_BEAST"}
+{"name":"Slimy Bloodsucker","refName":"Slimy Bloodsucker","namespace":"CAPTURED_BEAST"}
+{"name":"Unstable Larva","refName":"Unstable Larva","namespace":"CAPTURED_BEAST"}
+{"name":"Diseased Arachnid","refName":"Diseased Arachnid","namespace":"CAPTURED_BEAST"}
+{"name":"Maligaro's Muse","refName":"Maligaro's Muse","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Arachnid","refName":"Mutated Arachnid","namespace":"CAPTURED_BEAST"}
+{"name":"Putrid Weaver","refName":"Putrid Weaver","namespace":"CAPTURED_BEAST"}
+{"name":"Sickly Spinner","refName":"Sickly Spinner","namespace":"CAPTURED_BEAST"}
+{"name":"Pewterfang","refName":"Pewterfang","namespace":"CAPTURED_BEAST"}
+{"name":"Cintiq, the Inescapable","refName":"Cintiq, the Inescapable","namespace":"CAPTURED_BEAST"}
+{"name":"Black Death","refName":"Black Death","namespace":"CAPTURED_BEAST"}
+{"name":"The Weaver","refName":"The Weaver","namespace":"CAPTURED_BEAST"}
+{"name":"Balah, Duke","refName":"Balah, Duke","namespace":"CAPTURED_BEAST"}
+{"name":"Buried Tarantula","refName":"Buried Tarantula","namespace":"CAPTURED_BEAST"}
+{"name":"Maligaro's Inspiration","refName":"Maligaro's Inspiration","namespace":"CAPTURED_BEAST"}
+{"name":"Maze Webspinner","refName":"Maze Webspinner","namespace":"CAPTURED_BEAST"}
+{"name":"Maze Hatchling","refName":"Maze Hatchling","namespace":"CAPTURED_BEAST"}
+{"name":"Infected Spiker","refName":"Infected Spiker","namespace":"CAPTURED_BEAST"}
+{"name":"Thistlesage","refName":"Thistlesage","namespace":"CAPTURED_BEAST"}
+{"name":"Maze Needleback","refName":"Maze Needleback","namespace":"CAPTURED_BEAST"}
+{"name":"Bladeback Guardian","refName":"Bladeback Guardian","namespace":"CAPTURED_BEAST"}
+{"name":"Infected Watcher","refName":"Infected Watcher","namespace":"CAPTURED_BEAST"}
+{"name":"Mutated Watcher","refName":"Mutated Watcher","namespace":"CAPTURED_BEAST"}
+{"name":"Drifting Eye","refName":"Drifting Eye","namespace":"CAPTURED_BEAST"}
+{"name":"Strangledrift","refName":"Strangledrift","namespace":"CAPTURED_BEAST"}
+{"name":"The All-seeing Eye","refName":"The All-seeing Eye","namespace":"CAPTURED_BEAST"}
+{"name":"The Hundred Foot Shadow","refName":"The Hundred Foot Shadow","namespace":"CAPTURED_BEAST"}
+{"name":"Mutewind Lynx","refName":"Mutewind Lynx","namespace":"CAPTURED_BEAST"}
+{"name":"Sanctum Archives Research","refName":"Sanctum Archives Research","namespace":"ITEM"}
+{"name":"Sanctum Vaults Research","refName":"Sanctum Vaults Research","namespace":"ITEM"}
+{"name":"Sanctum Cathedral Research","refName":"Sanctum Cathedral Research","namespace":"ITEM"}
+{"name":"Sanctum Necropolis Research","refName":"Sanctum Necropolis Research","namespace":"ITEM"}
+{"name":"Storming Eshgraft","refName":"Storming Eshgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Replicating Eshgraft","refName":"Replicating Eshgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Draining Eshgraft","refName":"Draining Eshgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Jolting Eshgraft","refName":"Jolting Eshgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Squalling Tulgraft","refName":"Squalling Tulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Freezing Tulgraft","refName":"Freezing Tulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Summoning Tulgraft","refName":"Summoning Tulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Aegis Tulgraft","refName":"Aegis Tulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Fleshgraft","refName":"Fleshgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Battering Uulgraft","refName":"Battering Uulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Spiking Uulgraft","refName":"Spiking Uulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Impaling Uulgraft","refName":"Impaling Uulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Hardening Uulgraft","refName":"Hardening Uulgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Molten Xophgraft","refName":"Molten Xophgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Erupting Xophgraft","refName":"Erupting Xophgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Flamecaller Xophgraft","refName":"Flamecaller Xophgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Stoking Xophgraft","refName":"Stoking Xophgraft","namespace":"ITEM","category":"Graft"}
+{"name":"Growing Wombgift","refName":"Growing Wombgift","namespace":"ITEM","category":"Wombgift"}
+{"name":"Enshrouded Body Armour","refName":"Enshrouded Body Armour","namespace":"ITEM"}
+{"name":"Enshrouded Boots","refName":"Enshrouded Boots","namespace":"ITEM"}
+{"name":"Enshrouded Gloves","refName":"Enshrouded Gloves","namespace":"ITEM"}
+{"name":"Enshrouded Helmet","refName":"Enshrouded Helmet","namespace":"ITEM"}
+{"name":"Enshrouded Quiver","refName":"Enshrouded Quiver","namespace":"ITEM"}
+{"name":"Enshrouded Shield","refName":"Enshrouded Shield","namespace":"ITEM"}
+{"name":"AbyssalPlain","refName":"AbyssalPlain","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"Anchorfield","refName":"Anchorfield","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"BrineKingsDomain","refName":"BrineKingsDomain","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"ClamInfestedShelf","refName":"ClamInfestedShelf","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"DivingShoals","refName":"DivingShoals","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"EldritchDepths","refName":"EldritchDepths","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"HazardousDepths","refName":"HazardousDepths","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"InfestedBathyspheres","refName":"InfestedBathyspheres","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"KisharasRest","refName":"KisharasRest","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"LostRuins","refName":"LostRuins","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"PelagicAbyss","refName":"PelagicAbyss","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"SeafloorRidges","refName":"SeafloorRidges","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"SeaPillars","refName":"SeaPillars","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"SunkenTotems","refName":"SunkenTotems","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"UnderseaGroves","refName":"UnderseaGroves","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"UnremarkableSeabed","refName":"UnremarkableSeabed","namespace":"ITEM","category":"Chart","tradeDisc":"chart"}
+{"name":"Flaming Goat Hoof","refName":"Flaming Goat Hoof","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFGbGFtaW5nR29hdEhvb3ZlcyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/e5383edc68/VisceraFlamingGoatHooves.png"}
+{"name":"Primate Foot","refName":"Primate Foot","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFNb25rZXlMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7c385ea01a/VisceraMonkeyLeg.png"}
+{"name":"Al-Hezmin's Head","refName":"Al-Hezmin's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQWxIZXptaW5zSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/5e908f0e64/VisceraAlHezminsHead.png"}
+{"name":"Bandit Witch's Head","refName":"Bandit Witch's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFBbGlyYXNIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/0724c11a82/VisceraAlirasHead.png"}
+{"name":"Galvanic Tentacle","refName":"Galvanic Tentacle","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFUZW50YWNsZUxlZ0xpZ2h0bmluZyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/3edfc857fc/VisceraTentacleLegLightning.png"}
+{"name":"Bear Head","refName":"Bear Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFCZWFySGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/15eab691ca/VisceraBearHead.png"}
+{"name":"Boar Head","refName":"Boar Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFCb2FySGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/0c9a75eff4/VisceraBoarHead.png"}
+{"name":"Stag Head","refName":"Stag Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFTdGFnSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/b99abe6fdc/VisceraStagHead.png"}
+{"name":"Spider Queen's Head","refName":"Spider Queen's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFBcmFrYWFsaXNIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/67dc4aa6de/VisceraArakaalisHead.png"}
+{"name":"Templar Skull","refName":"Templar Skull","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFCb3NzU2t1bGwiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/accd86061e/VisceraBossSkull.png"}
+{"name":"Bloodied Arm","refName":"Bloodied Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhQmxvb2RpZWRBcm0iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/43b665ba06/VisceraBloodiedArm.png"}
+{"name":"Prosthetic Leg","refName":"Prosthetic Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhV2lja2VyTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/038f5d3551/VisceraWickerLeg.png"}
+{"name":"Champion's Banner","refName":"Champion's Banner","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFMdW5hcmlzQ2hhbXBpb25CYW5uZXIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/3d6549c19d/VisceraLunarisChampionBanner.png"}
+{"name":"Baran's Head","refName":"Baran's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQmFyYW5IZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/93857017e8/VisceraBaranHead.png"}
+{"name":"Gladiator's Heart","refName":"Gladiator's Heart","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFCYXJraHVsSGVhcnQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7d328c5c4c/VisceraBarkhulHeart.png"}
+{"name":"Chimeral Eye","refName":"Chimeral Eye","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFCYXNpbGlza0V5ZSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/83103937a3/VisceraBasiliskEye.png"}
+{"name":"Arachnid Fangs","refName":"Arachnid Fangs","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFTcGlkZXJIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/1c6168ffdd/VisceraSpiderHead.png"}
+{"name":"Osseous Scythe","refName":"Osseous Scythe","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhQm9uZVNjeXRoZSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/c3f04f9de2/VisceraBoneScythe.png"}
+{"name":"Chitinous Leg","refName":"Chitinous Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFTcGluZGx5TGVncyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/d42b510c5d/VisceraSpindlyLegs.png"}
+{"name":"Necromancer's Mask","refName":"Necromancer's Mask","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFOZWNyb21hbmNlcnNNYXNrIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/663d3f377f/VisceraNecromancersMask.png"}
+{"name":"Bonestalker's Ribcage","refName":"Bonestalker's Ribcage","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFSaWJjYWdlIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/db811af3f7/VisceraRibcage.png"}
+{"name":"Lithic Haunches","refName":"Lithic Haunches","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFSb2NreUJ1bGxIb292ZXMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/e2a6db3c09/VisceraRockyBullHooves.png"}
+{"name":"Hollowed Skull","refName":"Hollowed Skull","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFTa3VsbEhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/e6b20b4874/VisceraSkullHead.png"}
+{"name":"Pit Fighter's Helm","refName":"Pit Fighter's Helm","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhR2xhZGlhdG9ySGVsbWV0IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/4083b2a1e2/VisceraGladiatorHelmet.png"}
+{"name":"Sea Witch's Tentacle","refName":"Sea Witch's Tentacle","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFUZW50YWNsZUxlZyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/63d2565a60/VisceraTentacleLeg.png"}
+{"name":"Warden's Arm","refName":"Warden's Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFCcnV0ZTEiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/4fdff749a9/VisceraBrute1.png"}
+{"name":"Calcified Leg","refName":"Calcified Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFCb25lTWFzcyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/8b1e6b242d/VisceraBoneMass.png"}
+{"name":"Cutthroat's Head","refName":"Cutthroat's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFDYWxhZiIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/c6c94440ec/VisceraCalaf.png"}
+{"name":"Aristocrat's Torso","refName":"Aristocrat's Torso","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFCb3NzVG9yc28iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/9973b1807e/VisceraBossTorso.png"}
+{"name":"Soldier's Head","refName":"Soldier's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTb2xkaWVySGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/b6bfcf7c6d/VisceraSoldierHead.png"}
+{"name":"Heretical Tome","refName":"Heretical Tome","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFIZXJldGljYWxCb29rIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/c76d37219d/VisceraHereticalBook.png"}
+{"name":"Skeletal Warrior's Leg","refName":"Skeletal Warrior's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFTa2VsZXRvbkZvb3QiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/0ecd792034/VisceraSkeletonFoot.png"}
+{"name":"Gelid Fangs","refName":"Gelid Fangs","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFGcm96ZW5GYW5ncyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/7069a9e8cc/VisceraFrozenFangs.png"}
+{"name":"Chimera's Head","refName":"Chimera's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQ2hpbWVyYUhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/fb014a3a08/VisceraChimeraHead.png"}
+{"name":"Coagulated Essence","refName":"Coagulated Essence","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFCbG9vZENsb3QiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/b4da04ed74/VisceraBloodClot.png"}
+{"name":"Constrictor's Head","refName":"Constrictor's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQ29uc3RyaWN0b3JIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/fb0aaa9761/VisceraConstrictorHead.png"}
+{"name":"Coven Queen's Crown","refName":"Coven Queen's Crown","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQXVndXJ5TGVhZ3VlQm9zcyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/f242d0b2ca/VisceraAuguryLeagueBoss.png"}
+{"name":"Swordmaster's Blade","refName":"Swordmaster's Blade","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFEYXJlc3NvQmxhZGUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/6164fa7600/VisceraDaressoBlade.png"}
+{"name":"Hag's Head","refName":"Hag's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFEb2VkcmVzSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/7e98ec47c6/VisceraDoedresHead.png"}
+{"name":"Inquisitor's Head","refName":"Inquisitor's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFNYWxpZ2Fyb0hlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/b1c61695ee/VisceraMaligaroHead.png"}
+{"name":"Witch's Head","refName":"Witch's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFTaGF2cm9ubmVzSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/e7ecec8690/VisceraShavronnesHead.png"}
+{"name":"Scout's Bow","refName":"Scout's Bow","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFLYXJ1aUZsYW1pbmdCb3ciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8a9c21d776/VisceraKaruiFlamingBow.png"}
+{"name":"Hag's Stomach","refName":"Hag's Stomach","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFEb2VkcmVHdXRzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/10c22565ee/VisceraDoedreGuts.png"}
+{"name":"Despot's Fist","refName":"Despot's Fist","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFEb21pbnVzRmlzdCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/22fd5e9cf0/VisceraDominusFist.png"}
+{"name":"Flayed Arm","refName":"Flayed Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFTaW5ld0FybSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/8753a17ee3/VisceraSinewArm.png"}
+{"name":"Drox's Head","refName":"Drox's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRHJveEhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/c933887415/VisceraDroxHead.png"}
+{"name":"Crustacean's Claw","refName":"Crustacean's Claw","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFDbGF3MSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/d257b2b779/VisceraClaw1.png"}
+{"name":"Eater of Worlds' Head","refName":"Eater of Worlds' Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRWF0ZXJvZldvcmxkc0hlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/246b6a5471/VisceraEaterofWorldsHead.png"}
+{"name":"Scarecrow's Pitchfork","refName":"Scarecrow's Pitchfork","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFTY2FyZWNyb3dQaXRjaGZvcmsiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/ee5071e830/VisceraScarecrowPitchfork.png"}
+{"name":"Elder's Head","refName":"Elder's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRWxkZXJIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/c24ac0f275/VisceraElderHead.png"}
+{"name":"Enslaver's Head","refName":"Enslaver's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRW5zbGF2ZXJIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/b40698cde3/VisceraEnslaverHead.png"}
+{"name":"Eradicator's Head","refName":"Eradicator's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRXJhZGljYXRvckhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/c40cbd1786/VisceraEradicatorHead.png"}
+{"name":"Mariner's Tricorne","refName":"Mariner's Tricorne","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFQaXJhdGVIYXQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/d19532b0c9/VisceraPirateHat.png"}
+{"name":"Severed Stinger","refName":"Severed Stinger","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFTdGluZ2VyTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/0a3b9f502e/VisceraStingerLeg.png"}
+{"name":"Scorched Arm","refName":"Scorched Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFGaXJlRnVyeSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/17bcb32dad/VisceraFireFury.png"}
+{"name":"Skeleton Wheel","refName":"Skeleton Wheel","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFTa2VsZXRvbldoZWVsIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/fc131fce2c/VisceraSkeletonWheel.png"}
+{"name":"Severed Scythe-hand","refName":"Severed Scythe-hand","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFSZWFwZXJIYW5kIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/158604a93c/VisceraReaperHand.png"}
+{"name":"Desert Queen's Crown","refName":"Desert Queen's Crown","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFHYXJ1a2hhbnNDcm93biIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/b0359201fd/VisceraGarukhansCrown.png"}
+{"name":"Gemling Torso","refName":"Gemling Torso","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFHZW1saW5nVG9yc28iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/f78e8ce711/VisceraGemlingTorso.png"}
+{"name":"Voltaic Skull","refName":"Voltaic Skull","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFTdGVhbVB1bmtTa3VsbCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/0a870fff4a/VisceraSteamPunkSkull.png"}
+{"name":"General's Head","refName":"General's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFHcmF2aWN1c0hlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/4c9d8918c8/VisceraGravicusHead.png"}
+{"name":"Golemic Stone","refName":"Golemic Stone","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFSb2NrQm9keSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/871a2c0470/VisceraRockBody.png"}
+{"name":"Scholar's Leg","refName":"Scholar's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFIYW5kTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/3f80dbbee7/VisceraHandLeg.png"}
+{"name":"Voltaic Apparatus","refName":"Voltaic Apparatus","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFMaWdodG5pbmdIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/b69a258461/VisceraLightningHead.png"}
+{"name":"Gargantuan Claws","refName":"Gargantuan Claws","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFDbGF3MiIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/214c69ec42/VisceraClaw2.png"}
+{"name":"Ornate Torso","refName":"Ornate Torso","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFSYWxha2VzaHNGYWNlcyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/711d904b5e/VisceraRalakeshsFaces.png"}
+{"name":"Blackened Lungs","refName":"Blackened Lungs","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L0dydXRoa3Vsc0x1bmdzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/a719466fa1/GruthkulsLungs.png"}
+{"name":"Captain's Leg","refName":"Captain's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTb2xkaWVyTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/cc3670fc6f/VisceraSoldierLeg.png"}
+{"name":"Pocked Arm","refName":"Pocked Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFQb2NrZWRBcm0iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/27a1e8adaa/VisceraPockedArm.png"}
+{"name":"Lunar Bow","refName":"Lunar Bow","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFCb3dvZkx1bmFyaXMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/deff3dacc2/VisceraBowofLunaris.png"}
+{"name":"Resplendent Sceptre","refName":"Resplendent Sceptre","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFTY2VwdHJlb2ZTb2xhcmlzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/0dddd5ea3c/VisceraSceptreofSolaris.png"}
+{"name":"Molten Core","refName":"Molten Core","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFGbGFtaW5nR29sZW1Db3JlIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/14e41deecd/VisceraFlamingGolemCore.png"}
+{"name":"Armoured Leg","refName":"Armoured Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFUaXR1Y2l1c0xlZ0d1YXJkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/223c94857e/VisceraTituciusLegGuard.png"}
+{"name":"Hallowed Descry","refName":"Hallowed Descry","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFJbm5vY2VuY2VzRGVzY3J5IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/cdfac8fcd5/VisceraInnocencesDescry.png"}
+{"name":"Infested Torso","refName":"Infested Torso","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFJbmZlc3RlZFRvcnNvIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/7cd9390f2b/VisceraInfestedTorso.png"}
+{"name":"Vulture's Gut","refName":"Vulture's Gut","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFWdWx0dXJlR3V0IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/2b9dac0ce1/VisceraVultureGut.png"}
+{"name":"Hydra's Head","refName":"Hydra's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhSHlkcmFIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/5b8f01535e/VisceraHydraHead.png"}
+{"name":"Incarnation of Dread's Head","refName":"Incarnation of Dread's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRHJlYWRIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/afac00bc28/VisceraDreadHead.png"}
+{"name":"Incarnation of Fear's Head","refName":"Incarnation of Fear's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhRmVhckhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/417a874269/VisceraFearHead.png"}
+{"name":"Incarnation of Neglect's Cube","refName":"Incarnation of Neglect's Cube","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhTmVnbGVjdEN1YmUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/eea31ed2fe/VisceraNeglectCube.png"}
+{"name":"Skeletal Archer's Arm","refName":"Skeletal Archer's Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFTa2VsZXRvbkhhbmQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8bc004d856/VisceraSkeletonHand.png"}
+{"name":"Justicar's Helm","refName":"Justicar's Helm","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFKdXN0aWNhcnNIZWxtZXQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/6404f2d719/VisceraJusticarsHelmet.png"}
+{"name":"Blazing Skull","refName":"Blazing Skull","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFLYW9tSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/0fcc885ec8/VisceraKaomHead.png"}
+{"name":"Ravenous Skull","refName":"Ravenous Skull","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFLaXRhdmFzSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/1c94a68cc1/VisceraKitavasHead.png"}
+{"name":"Brute's Arm","refName":"Brute's Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFNdXNjdWxhckFybSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/6e84353088/VisceraMuscularArm.png"}
+{"name":"Bandit Rogue's Head","refName":"Bandit Rogue's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFLcmFpdHluSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/a449344d11/VisceraKraitynHead.png"}
+{"name":"Totemic Visage","refName":"Totemic Visage","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFUaWtpVG90ZW0iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/236aaeb078/VisceraTikiTotem.png"}
+{"name":"Broken Bust","refName":"Broken Bust","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhS25vd2xlZGdlYWJsZUJ1c3QiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/c0f5a5a9dd/VisceraKnowledgeableBust.png"}
+{"name":"Crescent Blade","refName":"Crescent Blade","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFMdW5hcmlzR2xhaXZlIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/56ecaf5f84/VisceraLunarisGlaive.png"}
+{"name":"Corrupted Carapace","refName":"Corrupted Carapace","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFNYWxhY2hhaUNhcmFwYWNlIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/9dd0fa6318/VisceraMalachaiCarapace.png"}
+{"name":"Inquisitor's Claw","refName":"Inquisitor's Claw","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFNYWxpZ2Fyb3NDbGF3IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/1b2f840c96/VisceraMaligarosClaw.png"}
+{"name":"Defaced Bust","refName":"Defaced Bust","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFEZWZhY2VkU3RhdHVlSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/4ab23fd47c/VisceraDefacedStatueHead.png"}
+{"name":"Flaming Furnace","refName":"Flaming Furnace","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFNYXRyaWFyY2hzQ2F1bGRyb24iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/72dd1133ea/VisceraMatriarchsCauldron.png"}
+{"name":"Maven's Orrery","refName":"Maven's Orrery","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhTWF2ZW5PcnJlcnkiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/d676363594/VisceraMavenOrrery.png"}
+{"name":"Siren's Tentacle","refName":"Siren's Tentacle","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFNZXJ2ZWlsTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/233e4553e4/VisceraMerveilLeg.png"}
+{"name":"Desert Sword","refName":"Desert Sword","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFTYW5keVN3b3JkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/5329eb40a3/VisceraSandySword.png"}
+{"name":"Minotaur's Head","refName":"Minotaur's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhTWlub3RhdXJIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/fdc028e6c3/VisceraMinotaurHead.png"}
+{"name":"Chaos Golem's Core","refName":"Chaos Golem's Core","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFDaGFvc0dvbGVtc0NvcmUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8d15c7ec64/VisceraChaosGolemsCore.png"}
+{"name":"Blackguard's Leg","refName":"Blackguard's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFNb29ubGl0TGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/ca389a76d9/VisceraMoonlitLeg.png"}
+{"name":"Nightmarish Wings of Catarina","refName":"Nightmarish Wings of Catarina","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhV2luZ3NvZkNhdGFyaW5hIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/96265fd57f/VisceraWingsofCatarina.png"}
+{"name":"Nightmarish Book of Depravity","refName":"Nightmarish Book of Depravity","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQm9va29mRGVwcmF2aXR5IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/76c28f2e15/VisceraBookofDepravity.png"}
+{"name":"Nightmarish Wings of Lycia","refName":"Nightmarish Wings of Lycia","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhV2luZ3NvZkx5Y2lhIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/026e09ae64/VisceraWingsofLycia.png"}
+{"name":"Nightmarish Head of Uhtred","refName":"Nightmarish Head of Uhtred","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhSGVhZG9mVWh0cmVkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/7cd62f4cf1/VisceraHeadofUhtred.png"}
+{"name":"Nightmarish Core of the Unbreakable","refName":"Nightmarish Core of the Unbreakable","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQ29yZW9mdGhlVW5icmVha2FibGUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/1347463a63/VisceraCoreoftheUnbreakable.png"}
+{"name":"Bandit Warrior's Head","refName":"Bandit Warrior's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFPYWtIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/8beab24fd6/VisceraOakHead.png"}
+{"name":"Ghostly Claw","refName":"Ghostly Claw","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFPbmRhckNsYXciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/5712029318/VisceraOndarClaw.png"}
+{"name":"Severed Rhoa Head","refName":"Severed Rhoa Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFSaG9hSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/015d10ac9a/VisceraRhoaHead.png"}
+{"name":"Overseer's Whip","refName":"Overseer's Whip","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFTbGF2ZURyaXZlcnNXaGlwIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/a14a2c1039/VisceraSlaveDriversWhip.png"}
+{"name":"Spined Claws","refName":"Spined Claws","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFVbmR5aW5nQ2xhdyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/646b50c8a2/VisceraUndyingClaw.png"}
+{"name":"Phoenix's Head","refName":"Phoenix's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhUGhvZW5peEhlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/20cb9301da/VisceraPhoenixHead.png"}
+{"name":"Thaumaturge's Head","refName":"Thaumaturge's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFQaWV0eXNIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/41840828be/VisceraPietysHead.png"}
+{"name":"Engorged Eye","refName":"Engorged Eye","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFQaWV0eVN3b2xsZW5FeWUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/39f2c6a9f0/VisceraPietySwollenEye.png"}
+{"name":"Pocked Leg","refName":"Pocked Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFQb2NrZWRMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/9e927dcb93/VisceraPockedLeg.png"}
+{"name":"Infected Leg","refName":"Infected Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFQdXRyaWRMZWdzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/6458c1ef7f/VisceraPutridLegs.png"}
+{"name":"Diseased Wing","refName":"Diseased Wing","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhUGxhZ3VlV2luZ3MiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/86dc7a632a/VisceraPlagueWings.png"}
+{"name":"Adherent's Crown","refName":"Adherent's Crown","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFQcmF5ZXJDcm93biIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/1cadbcdd4c/VisceraPrayerCrown.png"}
+{"name":"Purifier's Head","refName":"Purifier's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhUHVyaWZpZXJIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/258968bd3b/VisceraPurifierHead.png"}
+{"name":"Ursine Flesh","refName":"Ursine Flesh","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFEcm9wQmVhciIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/c21478dedd/VisceraDropBear.png"}
+{"name":"Conjoined Hound Head","refName":"Conjoined Hound Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFUd2luSG91bmRIZWFkcyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/6623174234/VisceraTwinHoundHeads.png"}
+{"name":"Charred Leg","refName":"Charred Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFNb2x0ZW5MZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/3a893ff8f0/VisceraMoltenLeg.png"}
+{"name":"Noble's Head","refName":"Noble's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFEcm93bmVkSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/c3fa45d77a/VisceraDrownedHead.png"}
+{"name":"Arachnid Egg Sac","refName":"Arachnid Egg Sac","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFSeXNsYXRoYXNFZ2dTYWMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/12ceb66cb1/VisceraRyslathasEggSac.png"}
+{"name":"Searing Exarch's Descry","refName":"Searing Exarch's Descry","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhU2VhcmluZ0V4YXJjaERlc2NyeSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/49a3647d97/VisceraSearingExarchDescry.png"}
+{"name":"Cobra Tail","refName":"Cobra Tail","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFTbmFrZVRhaWxMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/a58cf58a21/VisceraSnakeTailLeg.png"}
+{"name":"Scorpion Stinger","refName":"Scorpion Stinger","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q5L1Zpc2NlcmFTaGFrYXJpc1N0aW5nZXIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/aa3039aa9a/VisceraShakarisStinger.png"}
+{"name":"Shaper's Head","refName":"Shaper's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhU2hhcGVyc0hlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/d7feeb31f6/VisceraShapersHead.png"}
+{"name":"Flayed Visage","refName":"Flayed Visage","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFTaGF2cm9ubmVzVmVpbCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/9d21d59d05/VisceraShavronnesVeil.png"}
+{"name":"Lion's Claws","refName":"Lion's Claws","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhTGlvbkNsYXciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/11265ea469/VisceraLionClaw.png"}
+{"name":"Bat's Wings","refName":"Bat's Wings","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhQmF0V2luZ3MiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/161cbe2bf5/VisceraBatWings.png"}
+{"name":"Sirus' Head","refName":"Sirus' Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhU2lydXNIZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/1f9f1da27c/VisceraSirusHead.png"}
+{"name":"Skeletal Tail","refName":"Skeletal Tail","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q1L1Zpc2NlcmFTa3VsbFRhaWwiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/3d6947fd73/VisceraSkullTail.png"}
+{"name":"Osseous Talon","refName":"Osseous Talon","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFMaWdodHdlaWdodEJvbmVzIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/f0cb850c3d/VisceraLightweightBones.png"}
+{"name":"Solar Shield","refName":"Solar Shield","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFTb2xhcmlzU2hpZWxkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/51e2649577/VisceraSolarisShield.png"}
+{"name":"Elemental Essence","refName":"Elemental Essence","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFPcmJvZldhdGVyIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/3ef4b74db5/VisceraOrbofWater.png"}
+{"name":"Sun-bleached Breastplate","refName":"Sun-bleached Breastplate","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFTb2xhcmlzQ2hhbXBpb25CcmVhc3RwbGF0ZSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/fce7d11b1d/VisceraSolarisChampionBreastplate.png"}
+{"name":"Poacher's Leg","refName":"Poacher's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFCYW5kaXRzTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/6a675e5405/VisceraBanditsLeg.png"}
+{"name":"Flesh-fused Lantern","refName":"Flesh-fused Lantern","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFGbGVzaG1lbHRlZExhbnRlcm4iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/8bd5387f49/VisceraFleshmeltedLantern.png"}
+{"name":"Spectral Hood","refName":"Spectral Hood","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTaGFkZUhvb2QiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7e0905885b/VisceraShadeHood.png"}
+{"name":"Statue Leg","refName":"Statue Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTdGF0dWVMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/0dd17b65c2/VisceraStatueLeg.png"}
+{"name":"Flaming Ribbon","refName":"Flaming Ribbon","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFCdXJuaW5nUnVnQXJtIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/fac8ed434f/VisceraBurningRugArm.png"}
+{"name":"Voidbearer's Leg","refName":"Voidbearer's Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTbW9sZGVyaW5nTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/3ff9a9ff32/VisceraSmolderingLeg.png"}
+{"name":"Vendigo Claws","refName":"Vendigo Claws","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFWZW5kaWdvQ2xhdyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/9515e80662/VisceraVendigoClaw.png"}
+{"name":"Spiked Carapace","refName":"Spiked Carapace","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFTcGlrZWRCb2R5Q2FyYXBhY2UiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/420c42a55f/VisceraSpikedBodyCarapace.png"}
+{"name":"Golden Ankh","refName":"Golden Ankh","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFBbmtob2ZFdGVybml0eSIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/da9ae7c853/VisceraAnkhofEternity.png"}
+{"name":"Carved Haunches","refName":"Carved Haunches","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFUb3RlbUNodW5rIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/8d1fb3f0c3/VisceraTotemChunk.png"}
+{"name":"Dessicated Head","refName":"Dessicated Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFBYmVycmF0aW9uc0hlYWQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/d19ccb3336/VisceraAberrationsHead.png"}
+{"name":"Scholar's Arm","refName":"Scholar's Arm","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFCb3NzQXJtIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/ea5d57249e/VisceraBossArm.png"}
+{"name":"King Crab's Claw","refName":"King Crab's Claw","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFCcmluZUtpbmdzQ2xhdyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/c776527262/VisceraBrineKingsClaw.png"}
+{"name":"Ancestor's Club","refName":"Ancestor's Club","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q2L1Zpc2NlcmFUdWtvaGFtYXNDbHVicyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/e7f63c858c/VisceraTukohamasClubs.png"}
+{"name":"Devourer's Antenna","refName":"Devourer's Antenna","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFEZXZvdXJlcnNDbGF3cyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/08df4f8d0b/VisceraDevourersClaws.png"}
+{"name":"Skeletal Beast Leg","refName":"Skeletal Beast Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QzL1Zpc2NlcmFIaW5kQmVhc3RCb25lTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/618f020396/VisceraHindBeastBoneLeg.png"}
+{"name":"Distended Stomach","refName":"Distended Stomach","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhUmVndXJnaXRhdG9yU3RvbWFjaCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/9b6049dbac/VisceraRegurgitatorStomach.png"}
+{"name":"Goatman's Horn","refName":"Goatman's Horn","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFHb2F0SG9ybiIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/a49b778b2c/VisceraGoatHorn.png"}
+{"name":"Vaal Appendage","refName":"Vaal Appendage","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFWYWFsQXJtIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/a8eb1c6eb2/VisceraVaalArm.png"}
+{"name":"Artificial Appendage","refName":"Artificial Appendage","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFJbmNhQm9zczNBcm0iLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/e5bbcb9fe9/VisceraIncaBoss3Arm.png"}
+{"name":"Construct's Head","refName":"Construct's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFTZW50cnlzSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/1811ada31b/VisceraSentrysHead.png"}
+{"name":"Venarius' Scripture","refName":"Venarius' Scripture","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhVmVuYXJpdXNTY3JpcHR1cmUiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/40603aba2f/VisceraVenariusScripture.png"}
+{"name":"Veritania's Head","refName":"Veritania's Head","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9QaW5uYWNsZUFuZE1hcEJvc3Nlcy9WaXNjZXJhVmVyaXRhbmlhSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/30debe5f1d/VisceraVeritaniaHead.png"}
+{"name":"Smouldering Leg","refName":"Smouldering Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxMC9WaXNjZXJhVmlsZW50YXNMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/ed48dd94dd/VisceraVilentasLeg.png"}
+{"name":"Templar Banner","refName":"Templar Banner","namespace":"ITEM","category":"Viscera","visceraSlot":"Body","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q0L1Zpc2NlcmFWb2xsQmFubmVyIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/e8745da575/VisceraVollBanner.png"}
+{"name":"Wraith Claws","refName":"Wraith Claws","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q3L1Zpc2NlcmFXcmFpdGhDbGF3IiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/952fcf6cdd/VisceraWraithClaw.png"}
+{"name":"Smuggler's Hand","refName":"Smuggler's Hand","namespace":"ITEM","category":"Viscera","visceraSlot":"Arm","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFTbXVnZ2xlckhhbmQiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/6635a9827e/VisceraSmugglerHand.png"}
+{"name":"Arachnid Leg","refName":"Arachnid Leg","namespace":"ITEM","category":"Viscera","visceraSlot":"Leg","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QyL1Zpc2NlcmFTcGlkZXJMZWciLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/26fbdc6199/VisceraSpiderLeg.png"}
+{"name":"Terrifying Maw","refName":"Terrifying Maw","namespace":"ITEM","category":"Viscera","visceraSlot":"Head","icon":"https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3Q4L1Zpc2NlcmFZdWd1bE1hdyIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/4e7e716ec5/VisceraYugulMaw.png"}

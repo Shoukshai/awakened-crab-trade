@@ -1,0 +1,11 @@
+Item Class: Helmets
+Rarity: Unique
+Goldrim
+Leather Cap
+--------
+Evasion Rating: 38
+--------
+Item Level: 76
+--------
+{ Prefix Modifier }
++35(30-40)% to all Elemental Resistances

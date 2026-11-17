@@ -261,6 +261,6 @@ fn row_label(text: &str) -> gtk::Label {
     label.set_max_width_chars(60);
     label
 }
-fn money(value: &CurrencyValue) -> String {
+pub(super) fn money(value: &CurrencyValue) -> String {
     format!("{} {}", format_amount(value.min), value.currency)
 }

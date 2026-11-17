@@ -10,7 +10,20 @@ pub struct Key {
 }
 impl Key {
     pub fn for_item(item: &Item) -> Option<Self> {
-        let variant = if item.category.as_deref() == Some("Gem") {
+        let variant = if item.family() == crate::item::Family::Viscera {
+            let mut mods = item.modifiers.iter().filter(|m| m.kind == "implicit");
+            let first = mods.next()?;
+            if mods.next().is_some() {
+                return None;
+            }
+            return Some(Self {
+                namespace: item.namespace.clone(),
+                name: item.name.clone(),
+                variant: Some(crate::modifiers::translation::price_pattern(&first.text)),
+            });
+        } else if item.family() == crate::item::Family::Wombgift {
+            Some(item.item_level?.to_string())
+        } else if item.category.as_deref() == Some("Gem") {
             let level = item.gem_level?;
             let special = ["Empower Support", "Enlighten Support", "Enhance Support"]
                 .contains(&item.reference.as_str());
@@ -130,16 +143,14 @@ impl Key {
         } else {
             self.name.clone()
         };
-        text.nfkd()
+        text.replace('/', " ")
+            .nfkd()
             .filter(|c| c.is_ascii_alphanumeric() || [':', '-', ' '].contains(c))
-            .map(|c| {
-                if c == ' ' {
-                    '-'
-                } else {
-                    c.to_ascii_lowercase()
-                }
-            })
-            .collect()
+            .map(|c| c.to_ascii_lowercase())
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("-")
     }
 }
 pub fn valuable_base(item: &Item) -> bool {

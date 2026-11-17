@@ -9,7 +9,7 @@ cd "$repo_dir"
 # Only the native program and licensed build-time inputs; no local profiles/logs.
 tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source-${apt_pkg_version}.tar.gz" LICENSE README.md \
     rust/Cargo.toml rust/Cargo.lock rust/src rust/examples rust/scripts \
-    rust/packaging rust/README.md rust/docs \
+    rust/packaging rust/README.md rust/docs rust/assets \
     renderer/public/data/en/items.ndjson renderer/public/data/en/stats.ndjson \
     renderer/public/data/en/stats-matcher.index.bin renderer/public/data/en/stats-ref.index.bin \
     renderer/public/data/en/items-name.index.bin renderer/public/data/en/items-ref.index.bin \

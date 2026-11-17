@@ -1,0 +1,109 @@
+{
+  "generated_at": "2026-11-17T13:33:46.162097+00:00",
+  "league": "Covens",
+  "official_stats": 18427,
+  "supplement_stats": 9739,
+  "all_official_stat_ids_covered": true,
+  "additional_items": 1171,
+  "viscera_items": 164,
+  "icons": 3764,
+  "wickerman": {
+    "url": "https://poedb.tw/us/Wickerman",
+    "sha256": "308014062d94197c0953577ce12c0bd1510599a65a940f51880851eeeae0f49e"
+  },
+  "inputs": {
+    "trade-stats": {
+      "url": "https://www.pathofexile.com/api/trade/data/stats",
+      "sha256": "88ca2121c575d3508817fffcdef6d2fc9fa164fdc6ea9ff5f3b1e1a61118be2f"
+    },
+    "trade-items": {
+      "url": "https://www.pathofexile.com/api/trade/data/items",
+      "sha256": "a74455ad6233ed362a27e2ffd31006d8fe93ab97bd5bd217077ce742f70020da"
+    },
+    "trade-filters": {
+      "url": "https://www.pathofexile.com/api/trade/data/filters",
+      "sha256": "82c13dd7f7e95483e47f45545f62d95b09b4e55410b4cdb7107b37e6e13e4049"
+    },
+    "poedb-autocomplete": {
+      "url": "https://cdn.poedb.tw/json/autocomplete_us.e544844442caabb0.json",
+      "sha256": "2360b73b5d8388d22d8b0fc2bb50e8f686205fd0cbf7bf0babba11952a31665f"
+    },
+    "ninja-SkillGem": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=SkillGem",
+      "sha256": "06c24eec72f76a5d484de4760d73870ce80439f55f1d4047bb812a60dbac2315"
+    },
+    "ninja-ImbuedGem": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=ImbuedGem",
+      "sha256": "ff4319a6a76e8d671e25e68ee441062f981badb32c6478fc7e89a0309c126c54"
+    },
+    "ninja-UniqueWeapon": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueWeapon",
+      "sha256": "332a9d1d3c365bcdbe9aa27ce6b9ff0f683ba24c5c4e32aed372151255eb255a"
+    },
+    "ninja-UniqueArmour": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueArmour",
+      "sha256": "1b3e10e191a9b692e445ba8d36c334ab1a1a80c642c1aa7b1516f34c7cc971b4"
+    },
+    "ninja-UniqueAccessory": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueAccessory",
+      "sha256": "f807c3ac0028d6b2ac99ec179125ab28d0c5d8d9d9d5607a082df0c64aa75e94"
+    },
+    "ninja-UniqueFlask": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueFlask",
+      "sha256": "80f7d60544cf39bb5b5f7158cfef1441c4ca750b9a4829a361dd2e2316f22507"
+    },
+    "ninja-UniqueJewel": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueJewel",
+      "sha256": "609a211407e438f0f1809968cfcd05e8fe488ae1b15838f530b1ba266da519ce"
+    },
+    "ninja-UniqueTincture": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueTincture",
+      "sha256": "00d6a3c5cf30987cc22679772706147e437b979676a56ce4fc79a0794264da63"
+    },
+    "ninja-UniqueRelic": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueRelic",
+      "sha256": "f61a1a36d7e5800d227e3e03af0d9cdd500008cba181faf5260fcae2aa8d24b4"
+    },
+    "ninja-Map": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=Map",
+      "sha256": "5017f284b9e360db1c918733cca0bf8406348493ffc95bd2110e26aea0a04c2d"
+    },
+    "ninja-BlightedMap": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=BlightedMap",
+      "sha256": "a51870b323b95ea848db828983e88a796688a673060f31a004001e2feb768bd3"
+    },
+    "ninja-BlightRavagedMap": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=BlightRavagedMap",
+      "sha256": "1da3ab41089e1c790f75f308030dc04285a5073782d3d63747fe810404fd1b61"
+    },
+    "ninja-UniqueMap": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=UniqueMap",
+      "sha256": "27755a85868e5f0230440d35110d75437c4cd5c0b203e3e6c0275fa3cf467fc6"
+    },
+    "ninja-Viscera": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=Viscera",
+      "sha256": "a75d606bc8171df622423521d1417bbddbac9eb0546625b2df09b30ae57ea23f"
+    },
+    "ninja-Wombgift": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=Wombgift",
+      "sha256": "af35ea08d673c682a453806083411c9899c3c4dec2d12463eac35979c3131ce3"
+    },
+    "ninja-BaseType": {
+      "url": "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Covens&type=BaseType",
+      "sha256": "3ec41739b805b0b4b901944e77c583755a619c717f0152ef1b351fa99ab265ac"
+    },
+    "ninja-Currency": {
+      "url": "https://poe.ninja/poe1/api/economy/exchange/current/overview?league=Covens&type=Currency",
+      "sha256": "37831e4eb2253cc9fe59f6144608904138268c0dfb2a5c79e9a1b691d89ac8d1"
+    },
+    "ninja-Fragment": {
+      "url": "https://poe.ninja/poe1/api/economy/exchange/current/overview?league=Covens&type=Fragment",
+      "sha256": "0a4a9e081466f2d8d02fccb85b5149d450b7a64b6a5819330163dc2db4c0a296"
+    }
+  },
+  "notes": [
+    "Original upstream disambiguation remains authoritative. Current raw Trade labels fill absent text/types and IDs.",
+    "Supplement-only stats use exact numeric bounds; no guessed roll direction.",
+    "Game images are \u00a9 Grinding Gear Games; URLs discovered through poe.ninja/PoEDB. PoE Wiki returned HTTP 403."
+  ]
+}

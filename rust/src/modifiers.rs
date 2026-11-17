@@ -35,6 +35,8 @@ pub struct SourceInfo {
     pub kind: String,
     pub generation: Option<String>,
     pub mechanic: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub influence: Option<String>,
     pub has_roll: bool,
     pub scalable: bool,
     pub variable: bool,
@@ -84,6 +86,13 @@ pub fn header_info(header: &str) -> SourceInfo {
             None
         },
         mechanic: mechanic.map(str::to_string),
+        influence: if header.contains("Eater of Worlds") {
+            Some("eldritch-eater".into())
+        } else if header.contains("Searing Exarch") {
+            Some("eldritch-exarch".into())
+        } else {
+            None
+        },
         ..Default::default()
     }
 }

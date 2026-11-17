@@ -1,4 +1,27 @@
-# Validation du price checker 0.25 — Linux
+# Validation du price checker 0.26 — Linux
+
+La version 0.26 ajoute les panneaux par famille et un résumé poe.ninja sans
+courbe. Les monnaies ne lancent aucune recherche Trade. Les gemmes exposent
+niveau et qualité exacts et corruption ; les cartes leur tier ; les uniques
+conservent leur identité même sans la base. Les Viscera gardent leur nom gradué
+pour poe.ninja et leur base commune pour le Trade. Les variantes à plusieurs
+effets ne reçoivent pas de cote partielle.
+
+Le complément [current-data-0.26.json](current-data-0.26.json) documente les
+sources et empreintes des données : 18 427 identifiants de stats officiels
+représentés et 164 bases Viscera. Cela ne revendique pas la reconnaissance de
+toutes les combinaisons de texte du presse-papiers. Les règles de désambiguïsation
+upstream sont conservées ; les nouveaux mods sans règle de sens utilisent des
+bornes exactes. Le parseur accepte aussi les plages textuelles `(...)`.
+
+126 tests unitaires couvrent notamment les identités Trade/poe.ninja distinctes,
+les 164 emplacements Viscera, les filtres de gemme et les cartes modernes. Les
+essais natifs privés servent des offres et des cotes synthétiques ; ils ne
+mesurent aucun prix réel. Les captures sont dans `dist/previews/0.26/`. Les
+images du jeu et leurs sources sont créditées dans [GAME-ART.md](GAME-ART.md).
+
+## Régression conservée depuis 0.25
+
 
 Le périmètre actuel est le price checker : sélection des stats et Min/Max,
 recherche Trade, offres dans un panneau natif pleine hauteur adjacent à

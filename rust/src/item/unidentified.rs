@@ -119,7 +119,7 @@ mod tests {
                 .iter()
                 .map(|c| c.reference.as_str())
                 .collect::<Vec<_>>(),
-            ["Lifesprig"]
+            ["Lifesprig", "Splinter of the Moon"]
         );
         let chosen = i.with_unique_identity("Lifesprig").unwrap();
         assert!(chosen.modifiers.is_empty());

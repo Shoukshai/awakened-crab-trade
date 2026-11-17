@@ -1,0 +1,12 @@
+Item Class: Support Gems
+Rarity: Gem
+Impale Support
+--------
+Attack, Physical, Support
+Level: 20 (Max)
+Quality: +20%
+--------
+Requirements:
+Level: 70
+--------
+Corrupted

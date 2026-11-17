@@ -240,7 +240,7 @@ fn database() -> &'static Database {
     })
 }
 pub fn max_lines() -> usize {
-    database().max_lines
+    database().max_lines.max(supplement().max_lines)
 }
 pub fn has_matcher(text: &str) -> bool {
     lookup(text).is_some()
@@ -382,7 +382,57 @@ pub fn exclusion(
         sources: vec![],
     })
 }
+struct Supplement {
+    records: Vec<Record>,
+    index: HashMap<String, Vec<usize>>,
+    max_lines: usize,
+}
+fn supplement() -> &'static Supplement {
+    static DATA: OnceLock<Supplement> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let records: Vec<Record> = include_str!("../data/current-stats.ndjson")
+            .lines()
+            .map(|s| serde_json::from_str(s).expect("current official stat"))
+            .collect();
+        let mut index: HashMap<String, Vec<usize>> = HashMap::new();
+        let mut max_lines = 1;
+        for (row, record) in records.iter().enumerate() {
+            for stat in record.stats() {
+                for m in &stat.matchers {
+                    max_lines = max_lines.max(m.string.lines().count());
+                    index.entry(m.string.clone()).or_default().push(row);
+                }
+            }
+        }
+        Supplement {
+            records,
+            index,
+            max_lines,
+        }
+    })
+}
+fn lookup_kind(text: &str, kind: Option<&str>) -> Option<&'static Record> {
+    if let Some(record) = lookup_legacy(text) {
+        if kind.is_none_or(|kind| {
+            record
+                .stats()
+                .iter()
+                .any(|s| s.trade.ids.contains_key(kind))
+        }) {
+            return Some(record);
+        }
+    }
+    let data = supplement();
+    data.index
+        .get(text)?
+        .iter()
+        .map(|i| &data.records[*i])
+        .find(|r| kind.is_none_or(|k| r.stats().iter().any(|s| s.trade.ids.contains_key(k))))
+}
 fn lookup(text: &str) -> Option<&'static Record> {
+    lookup_kind(text, None)
+}
+fn lookup_legacy(text: &str) -> Option<&'static Record> {
     let data = database();
     let target = hash(text);
     // Same midpoint and equality rule as dataBinarySearch in assets/data/index.ts.
@@ -538,7 +588,7 @@ fn numbers(text: &str) -> (String, Vec<Number>) {
     let num = NUM.get_or_init(|| Regex::new(r"([+-]?\d+(?:\.\d+)?)(?:\(([^)]+)\))?").unwrap());
     let bounds = BOUNDS
         .get_or_init(|| Regex::new(r"^([+-]?\d+(?:\.\d+)?)(?:-([+-]?\d+(?:\.\d+)?))?$").unwrap());
-    let text = text.replace("()", "");
+    let text = text.replace("()", "").replace("(...)", "");
     let mut values = Vec::new();
     let mut output = String::new();
     let mut last = 0;
@@ -599,6 +649,9 @@ const REPLACEMENTS: &[&[&[usize]]] = &[
         &[0, 1],
     ],
 ];
+pub fn price_pattern(text: &str) -> String {
+    numbers(text).0
+}
 /// Translate one stat string, before modifier-effect scaling and aggregation.
 pub fn translate(
     text: &str,
@@ -632,7 +685,7 @@ pub fn translate(
     }
     combinations.push((text.into(), vec![]));
     for (candidate, mut values) in combinations {
-        let Some(record) = lookup(&candidate) else {
+        let Some(record) = lookup_kind(&candidate, Some(kind)) else {
             continue;
         };
         let Some(stat) = resolve(

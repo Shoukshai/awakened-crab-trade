@@ -89,10 +89,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .contains(gdk::ModifierType::CONTROL_MASK | gdk::ModifierType::MOD1_MASK)
                 && e.keyval() == gdk::keys::constants::c
             {
-                let item = if std::env::var("APT_FIXTURE_ITEM").as_deref() == Ok("ring") {
-                    include_str!("../src/fixtures/synthetic-calculated-ring.txt")
-                } else {
-                    include_str!("../src/fixtures/driftwood-wand.txt")
+                let item = match std::env::var("APT_FIXTURE_ITEM").as_deref() {
+                    Ok("ring") => include_str!("../src/fixtures/synthetic-calculated-ring.txt"),
+                    Ok("gem") => include_str!("../src/fixtures/price-gem.txt"),
+                    Ok("currency") => include_str!("../src/fixtures/price-currency.txt"),
+                    Ok("unique") => include_str!("../src/fixtures/price-unique.txt"),
+                    Ok("map") => include_str!("../src/fixtures/price-map.txt"),
+                    Ok("viscera") => include_str!("../src/fixtures/price-viscera.txt"),
+                    Ok("influence") => include_str!("../src/fixtures/price-influence.txt"),
+                    _ => include_str!("../src/fixtures/driftwood-wand.txt"),
                 };
                 gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).set_text(item);
                 return glib::Propagation::Stop;

@@ -20,19 +20,46 @@ riverctl rule-add -app-id steam_app_238960 fullscreen
 riverctl rule-add -app-id apt_foreign_fixture tags 2
 touch "$XDG_RUNTIME_DIR/ready"
 ''');init.chmod(0o700)
-env=os.environ.copy();env.update(XDG_RUNTIME_DIR=str(runtime),XDG_CONFIG_HOME=str(runtime/'config'),XDG_CACHE_HOME=str(runtime/'cache'),XDG_STATE_HOME=str(runtime/'state'),APT_FIXTURE_ITEM='ring',GSETTINGS_BACKEND='memory',WLR_BACKENDS='headless',WLR_HEADLESS_OUTPUTS='1',WLR_RENDERER='pixman',GDK_BACKEND='wayland',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',ALL_PROXY='http://127.0.0.1:9')
+env=os.environ.copy();env.update(XDG_RUNTIME_DIR=str(runtime),XDG_CONFIG_HOME=str(runtime/'config'),XDG_CACHE_HOME=str(runtime/'cache'),XDG_STATE_HOME=str(runtime/'state'),APT_FIXTURE_ITEM=os.environ.get('APT_FAMILY_CASE','ring'),GSETTINGS_BACKEND='memory',WLR_BACKENDS='headless',WLR_HEADLESS_OUTPUTS='1',WLR_RENDERER='pixman',GDK_BACKEND='wayland',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',ALL_PROXY='http://127.0.0.1:9')
 logs=[];processes=[];success=False;report={};httpd=None;persistent=None
+posts=[]
+ninja_requests=[]
 class TradeFixture(http.server.BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def reply(self,body):
         data=json.dumps(body).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
     def do_POST(self):
         assert self.path.startswith('/api/trade/search/'),self.path
-        self.rfile.read(int(self.headers.get('Content-Length','0')))
+        posts.append(json.loads(self.rfile.read(int(self.headers.get('Content-Length','0')))))
         self.reply({'id':'fixtureSearch','total':2,'result':['offerA','offerB']})
     def do_GET(self):
+        if self.path.startswith('/image.png?'):
+            url=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)['url'][0]
+            sources=json.loads((root/'assets/fixtures/sources.json').read_text())['items']
+            entry=next((x for x in sources if x['url']==url),None)
+            if entry is None:self.send_error(404);return
+            data=(root/'assets/fixtures'/f"{entry['fixture']}.png").read_bytes()
+            self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
+        if self.path.startswith('/poe1/api/economy/current/dense/overviews?'):
+            ninja_requests.append(self.path)
+            def line(name,variant,chaos):return dict(name=name,variant=variant,chaos=chaos,graph=[0,1,2,3,4,5,6])
+            self.reply({'currencyOverviews':[{'type':'Currency','lines':[line('Divine Orb',None,200),line('Chaos Orb',None,1)]}], 'itemOverviews':[
+              {'type':'SkillGem','lines':[line('Impale Support','20/20c',5)]},
+              {'type':'UniqueArmour','lines':[line('Goldrim','Leather Cap',8)]},
+              {'type':'Map','lines':[line('Map (Tier 16)','T0, Gen-24',3)]},
+              {'type':'Viscera','lines':[line('Greater Severed Rhoa Head','Every second, inflict Withered on Enemies within # metres for # seconds',5)]}]});return
         assert self.path.startswith('/api/trade/fetch/'),self.path
-        self.reply({'result':[{'listing':{'price':{'amount':price,'currency':'chaos'},'account':{'name':f'FixtureSeller{suffix}'}},'item':{'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True,'corrupted':suffix=='B'}} for suffix,price,life in [('A',5,73),('B',12,110)]]})
+        def offered(suffix,life):
+            item={'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True,'corrupted':suffix=='B'}
+            family=env['APT_FIXTURE_ITEM']
+            if family=='gem':item.update(name='',typeLine='Impale Support',frameType=4,ilvl=1,properties=[{'name':'Level','values':[['20 (Max)',0]]},{'name':'Quality','values':[['+20%',1]]}],implicitMods=[],explicitMods=['Supported Attacks have 40% chance to Impale Enemies on Hit'],craftedMods=[],corrupted=True)
+            if family=='unique':item.update(name='Goldrim',typeLine='Leather Cap',frameType=3,explicitMods=['+35% to all Elemental Resistances'])
+            if family=='map':item.update(name='',typeLine='Map (Tier 16)',frameType=0,properties=[{'name':'Map Tier','values':[['16',0]]},{'name':'Quality','values':[['+20%',1]]}])
+            if family=='influence':item.update(name=f'Fixture circlet {suffix}',typeLine='Hubris Circlet',properties=[{'name':'Energy Shield','values':[['100',0]]}],implicitMods=[],explicitMods=['Nearby Enemies have -9% to Chaos Resistance'],craftedMods=[])
+            if family=='viscera':item.update(name='',typeLine='Greater Severed Rhoa Head',frameType=0,ilvl=1,implicitMods=['Every second, inflict Withered on Enemies within 6 metres for 5 seconds'],explicitMods=[],craftedMods=[])
+            return item
+        self.reply({'result':[{'listing':{'indexed':'2026-11-17T12:00:00Z','price':{'amount':price,'currency':'chaos'},'account':{'name':f'FixtureSeller{suffix}'}},'item':offered(suffix,life)} for suffix,price,life in [('A',5,73),('B',12,110)]]})
+
 def start(args,name,**kwargs):
     log=open(runtime/(name+'.log'),'w');logs.append(log)
     p=subprocess.Popen(args,env=env,stderr=log,**({'stdout':log}|kwargs));processes.append(p);return p
@@ -93,6 +120,7 @@ try:
     configpath.write_text(json.dumps(original));original_bytes=configpath.read_bytes()
     httpd=http.server.ThreadingHTTPServer(('127.0.0.1',0),TradeFixture);threading.Thread(target=httpd.serve_forever,daemon=True).start()
     env['APT_RS_TEST_TRADE_BASE']=f'http://127.0.0.1:{httpd.server_address[1]}'
+    env['APT_RS_TEST_ECONOMY_BASE']=env['APT_RS_TEST_TRADE_BASE']
     env['NO_PROXY']='127.0.0.1,localhost'
     daemon=start([str(app),'daemon'],'overlay');wait_for(lambda:(runtime/'awakened-poe-trade-rs.sock').exists(),'daemon socket')
     if not os.environ.get('APT_TRANSIENT_POINTER'):
@@ -117,6 +145,47 @@ try:
             if v['y']+8<y<v['y']+v['height']-8:return r
             o=status()['origin'];subprocess.run([str(target/'debug/examples/pointer'),str(int(o['x']+v['x']+v['width']-10)),str(int(o['y']+v['y']+v['height']/2)),'2560','1600','--scroll','60' if y>v['y']+v['height']/2 else '-60'],env=env,check=True);time.sleep(.06)
         raise RuntimeError('stat row unreachable')
+    if os.environ.get('APT_FAMILY_CASE'):
+        family=os.environ['APT_FAMILY_CASE']
+        command('hide');focus_game();subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
+        wait_for(lambda:state(state='Interactive',visible=True,rendered=True) and status()['item'],'family copied')
+        expected={'gem':'Gem','currency':'Currency','unique':'Unique','map':'Map','viscera':'Viscera','influence':'Equipment'}[family]
+        assert status()['family']==expected,status()
+        wait_for(lambda:status()['summary']['image_ready'],'item image fetched through fixture',10)
+        if family!='influence':wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
+        s0=status()
+        assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
+        assert not posts,'copy must not automatically query Trade with automatic_search=false'
+        if family=='currency':
+            assert not s0['search_actions_visible'] and s0['request'] is None and s0['economy']['stack']['have']==2,s0
+            assert ninja_requests
+            if os.environ.get('APT_PANEL_SCREENSHOT'):capture_panel(os.environ['APT_PANEL_SCREENSHOT'])
+        else:
+            click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'family Trade results')
+            wait_for(lambda:status()['listings']['mapped_rows']==2,'family offers allocated')
+            q=status()['request']['query'];misc=q.get('filters',{}).get('misc_filters',{}).get('filters',{})
+            if family=='gem':
+                assert misc['gem_level']=={'min':20,'max':20} and misc['quality']=={'min':20,'max':20} and misc['corrupted']['option']=='true',q
+                assert 'ilvl' not in misc and not status()['stat_controls'],status()
+            if family=='unique':assert q['name']=='Goldrim' and 'type' not in q,q
+            if family=='map':assert 'ilvl' not in misc and q['filters']['map_filters']['filters']['map_tier']=={'min':16,'max':16},q
+            if family=='viscera':
+                assert q['filters']['type_filters']['filters']['category']['option']=='viscera.head',q
+                assert status()['item']['reference']=='Severed Rhoa Head',status()['item']
+                assert any(f['id']=='implicit.stat_1417918566' for g in q['stats'] for f in g['filters']),q
+            if family=='influence':assert any(r['influence_icons'] for r in status()['stat_controls']),status()['stat_controls']
+            pointer(status()['origin']['x']+8,1500)
+            wait_for(lambda:not status()['listings']['tooltip_visible'],'no hover')
+            if os.environ.get('APT_PANEL_SCREENSHOT'):capture_panel(os.environ['APT_PANEL_SCREENSHOT'])
+            row=status()['listings']['offers'][0]['rect'];o=status()['origin'];pointer(o['x']+row['x']+row['width']-6,o['y']+row['y']+row['height']/2)
+            wait_for(lambda:status()['listings']['tooltip_visible'],'whole row hover')
+            if os.environ.get('APT_HOVER_SCREENSHOT'):capture_panel(os.environ['APT_HOVER_SCREENSHOT'])
+        report.update(binary_version=subprocess.check_output([str(app),'--version'],text=True).strip(),binary_sha256=hashlib.sha256(app.read_bytes()).hexdigest(),family=family,summary=status()['summary'],item_filters=status()['item_filters'],request=status()['request'],trade_posts=len(posts),ninja_fetches=len(ninja_requests),scope='Private native compositor, synthetic family clipboard and synthetic market quotes; actual credited game artwork. No real game input or live prices.')
+        assert fixture_command('input')['submitted']==[]
+        assert '-CRITICAL' not in (runtime/'overlay.log').read_text()
+        if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report,indent=2));success=True
+        sys.exit(0)
     command('hide');focus_game();time.sleep(.1)
     subprocess.run(['grim',str(runtime/'before-veil.png')],env=env,check=True)
     before_pixel=Image.open(runtime/'before-veil.png').getpixel((2300,1200))[:3]
@@ -301,7 +370,7 @@ try:
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines
     assert fixture_command('input')['submitted']==[]
     report.update(scope='Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.',binary_version=subprocess.check_output([str(app),'--version'],text=True).strip())
-    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs']}
+    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs','src/ui/summary_panel.rs','src/ui/icons.rs','src/economy.rs','src/economy/identity.rs','src/modifiers/translation.rs','src/data/current-stats.ndjson','src/data/current-items.ndjson','src/data/current-icons.json']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 

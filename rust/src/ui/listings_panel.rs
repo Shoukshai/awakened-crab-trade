@@ -43,6 +43,8 @@ fn rarity_class(item: &OfferedItem) -> &'static str {
         Some(1) => "rarity-magic",
         Some(2) => "rarity-rare",
         Some(3 | 9) => "rarity-unique",
+        Some(4) => "rarity-gem",
+        Some(5) => "rarity-currency",
         _ => "rarity-normal",
     }
 }
@@ -64,7 +66,15 @@ fn details(item: &OfferedItem, price: &str) -> (gtk::Box, String) {
         plain.push(text.clone());
     }
     let meta = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    if let Some(level) = item.item_level {
+    if let Some(level) = item.gem_level {
+        let text = format!("Niv. {level} · Q. {}%", item.quality.unwrap_or(0));
+        meta.pack_start(&label(&text, "muted"), false, false, 0);
+        plain.push(text);
+    } else if let Some(tier) = item.map_tier {
+        let text = format!("T{tier} · Q. {}%", item.quality.unwrap_or(0));
+        meta.pack_start(&label(&text, "muted"), false, false, 0);
+        plain.push(text);
+    } else if let Some(level) = item.item_level {
         let text = format!("ilvl {level}");
         meta.pack_start(&label(&text, "muted"), false, false, 0);
         plain.push(text);
@@ -138,7 +148,7 @@ impl Panel {
         self.rows.borrow_mut().clear();
         self.container.hide();
     }
-    pub fn show(&self, prices: &Prices) {
+    pub fn show(&self, prices: &Prices, family: Option<crate::item::Family>) {
         self.clear();
         for (index, listing) in prices.listings.iter().enumerate() {
             let widget = gtk::EventBox::new();
@@ -171,10 +181,54 @@ impl Panel {
                         .map(|b| format!("Stock {}", b.stock))
                         .unwrap_or_default()
                 });
+            let name = match (family, listing.item.as_ref()) {
+                (Some(crate::item::Family::Gem), Some(item)) => format!(
+                    "Niv. {} · Q. {}%{}",
+                    item.gem_level
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "—".into()),
+                    item.quality
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "—".into()),
+                    if item.corrupted { " · Corrompu" } else { "" }
+                ),
+                (Some(crate::item::Family::Map), Some(item)) => format!(
+                    "{} · T{}",
+                    name,
+                    item.map_tier
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "—".into())
+                ),
+                _ => name,
+            };
             let name = label(&name, "offer-name");
             name.set_ellipsize(gtk::pango::EllipsizeMode::End);
             name.set_max_width_chars(28);
-            let seller = label(&listing.seller, "seller");
+            let age = listing
+                .indexed
+                .as_ref()
+                .and_then(|s| glib::DateTime::from_iso8601(s, None).ok())
+                .and_then(|date| {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .ok()?
+                        .as_secs() as i64;
+                    let elapsed = (now - date.to_unix()).max(0);
+                    Some(if elapsed < 60 {
+                        "à l’instant".into()
+                    } else if elapsed < 3600 {
+                        format!("{} min", elapsed / 60)
+                    } else if elapsed < 86400 {
+                        format!("{} h", elapsed / 3600)
+                    } else {
+                        format!("{} j", elapsed / 86400)
+                    })
+                });
+            let seller = label(
+                &age.map(|age| format!("{} · {age}", listing.seller))
+                    .unwrap_or_else(|| listing.seller.clone()),
+                "seller",
+            );
             seller.set_ellipsize(gtk::pango::EllipsizeMode::End);
             seller.set_max_width_chars(28);
             identity.pack_start(&name, false, false, 0);

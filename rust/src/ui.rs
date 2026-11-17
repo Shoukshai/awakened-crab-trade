@@ -12,11 +12,13 @@ use crate::{
 };
 mod backdrop;
 mod economy_panel;
+mod icons;
 mod item_filters_panel;
 mod listings_panel;
 mod mercenary_panel;
 mod settings_panel;
 mod stat_row;
+mod summary_panel;
 mod unidentified_panel;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -39,6 +41,7 @@ enum View {
     Settings,
 }
 enum Event {
+    Icon(u64, Result<std::path::PathBuf, String>),
     OutsideClick,
     Leagues(Result<crate::leagues::Selection, String>),
     GameGeometry(u32, crate::price_layout::Rect),
@@ -94,9 +97,13 @@ struct Ui {
     currency: gtk::ComboBoxText,
     bulk_row: gtk::Box,
     economy_panel: economy_panel::EconomyPanel,
+    summary: summary_panel::Panel,
+    quote_current: Arc<AtomicU64>,
+    icon_worker: mpsc::Sender<(u64, String)>,
+    actions: gtk::Box,
     unidentified: unidentified_panel::Panel,
     identity_epoch: Cell<u64>,
-    economy_worker: SyncSender<EconomyJob>,
+    economy_worker: mpsc::Sender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
     mod_box: gtk::Box,
     mod_scroll: gtk::ScrolledWindow,
@@ -347,6 +354,7 @@ impl Ui {
     }
     fn hide(&self, reason: HideReason) {
         self.pending_interaction.set(None);
+        self.quote_current.fetch_add(1, Ordering::Release);
         self.state.borrow_mut().hide(reason);
         self.sync_generation();
         apply_input(&self.window, false);
@@ -508,13 +516,38 @@ impl Ui {
             }
         }
     }
+    fn request_quote(&self) {
+        if !self.league_ready.get() {
+            return;
+        }
+        let Some(item) = self.item.borrow().clone() else {
+            return;
+        };
+        let generation = self.quote_current.fetch_add(1, Ordering::AcqRel) + 1;
+        self.economy_result.replace(None);
+        let _ = self.economy_worker.send(EconomyJob::Price {
+            generation,
+            league: self.league.text().to_string(),
+            item: Box::new(item),
+        });
+    }
     fn price_after_copy(&self) {
+        self.request_quote();
+        if self
+            .item
+            .borrow()
+            .as_ref()
+            .is_some_and(|i| i.family() == crate::item::Family::Currency)
+        {
+            self.text.set_text("");
+            return;
+        }
         // Rare equipment needs explicit stat selection before a meaningful comparison.
         let manual_rare = self.item.borrow().as_ref().is_some_and(|i| {
             i.rarity == crate::item::Rarity::Rare
                 && !matches!(
                     i.category.as_deref(),
-                    Some("map" | "heistcontract" | "heistblueprint")
+                    Some("Map" | "Heist Contract" | "Heist Blueprint")
                 )
         });
         if self.settings.borrow().automatic_search && !manual_rare {
@@ -628,8 +661,18 @@ impl Ui {
         } else {
             &item.name
         });
+        self.summary.reset(&item);
+        if let Some(url) = crate::item::icon_url(&item) {
+            let _ = self.icon_worker.send((self.identity_epoch.get(), url));
+        }
+        let currency_only = item.family() == crate::item::Family::Currency;
+        self.mod_scroll.set_no_show_all(currency_only);
+        self.mod_scroll.set_visible(!currency_only);
+        self.actions.set_no_show_all(currency_only);
+        self.actions.set_visible(!currency_only);
+        self.bulk_row.set_no_show_all(true);
         self.currency.set_sensitive(item.trade_tag.is_some());
-        if item.trade_tag.is_some() {
+        if item.trade_tag.is_some() && !currency_only {
             for child in self.bulk_row.children() {
                 child.show_all();
             }
@@ -751,6 +794,9 @@ impl Ui {
             label.set_xalign(0.);
             self.mod_box.pack_start(&label, false, false, 0);
         }
+        if item.family() == crate::item::Family::Gem {
+            candidates.retain(|c| matches!(c.modifier.kind.as_str(), "imbued" | "enchant"));
+        }
         let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
         let expander = gtk::Expander::new(Some("Autres stats"));
         expander.add(&advanced);
@@ -791,6 +837,18 @@ impl Ui {
             candidates.iter().filter(|c| !c.disabled).count()
         )));
         self.mod_box.show_all();
+        let show_stats = !(candidates.is_empty()
+            && matches!(
+                item.family(),
+                crate::item::Family::Gem
+                    | crate::item::Family::Map
+                    | crate::item::Family::Viscera
+                    | crate::item::Family::Wombgift
+            ));
+        self.mod_expander.set_no_show_all(!show_stats);
+        self.mod_expander.set_visible(show_stats);
+        self.preset
+            .set_visible(crate::presets::available(item).len() > 1);
     }
     fn reset_item_filters(&self, item: &Item) {
         let settings = self.settings.borrow();
@@ -894,6 +952,10 @@ impl Ui {
         let Some(item) = self.item.borrow().clone() else {
             return;
         };
+        if item.family() == crate::item::Family::Currency {
+            self.request_quote();
+            return;
+        }
         if item.needs_unique_identity() {
             eprintln!("search refused: unresolved unique identity; automatic_http=false");
             return;
@@ -977,19 +1039,7 @@ impl Ui {
         self.request.replace(Some((generation, query.clone())));
         self.economy_panel.reset();
         self.economy_panel.container.hide();
-        if self
-            .economy_worker
-            .try_send(EconomyJob::Price {
-                generation,
-                league: settings.league.clone(),
-                item: Box::new(item.clone()),
-            })
-            .is_err()
-        {
-            self.economy_panel.show(&Err(
-                "une requête indicative est déjà en cours ; réessayez".into()
-            ));
-        }
+        self.request_quote();
         self.text.set_text("Recherche…");
         match self.worker.try_send(Job {
             generation,
@@ -1007,6 +1057,13 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::Icon(epoch, result) => {
+                if epoch == self.identity_epoch.get() {
+                    if let Ok(path) = result {
+                        self.summary.image(&path);
+                    }
+                }
+            }
             Event::OutsideClick => {
                 eprintln!(
                     "outside dispatched main={}x{} origin={:?} popup={}",
@@ -1137,7 +1194,8 @@ impl Ui {
                 self.result.replace(Some((generation, result.clone())));
                 match result {
                     Ok(p) => {
-                        self.listings.show(&p);
+                        self.listings
+                            .show(&p, self.item.borrow().as_ref().map(|i| i.family()));
                         self.text.set_text(&format!(
                             "{} résultat{}",
                             p.total,
@@ -1156,7 +1214,10 @@ impl Ui {
             }
             Event::Economy(generation, result) => {
                 let result = *result;
-                if !self.state.borrow().accepts(generation) {
+                if self.quote_current.load(Ordering::Acquire) != generation
+                    || !self.window.is_visible()
+                    || self.view.get() != View::Price
+                {
                     eprintln!("discarded economy generation={generation}");
                     return;
                 }
@@ -1169,6 +1230,7 @@ impl Ui {
                         q.chaos, q.age_seconds, q.from_cache
                     );
                 }
+                self.summary.show(&result);
                 self.economy_panel.show(&result);
                 if result.as_ref().is_ok_and(|r| {
                     r.quote.is_some()
@@ -1465,6 +1527,7 @@ pub fn run() -> Result<(), String> {
     let preset = gtk::ComboBoxText::new();
     preset.set_no_show_all(true);
     let current = Arc::new(AtomicU64::new(0));
+    let quote_current = Arc::new(AtomicU64::new(0));
     let edit_generation = current.clone();
     let item_sender = sender.clone();
     let item_filters = item_filters_panel::Panel::new(move || {
@@ -1499,7 +1562,8 @@ pub fn run() -> Result<(), String> {
     stack.set_vhomogeneous(false);
     let price_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     price_content.pack_start(&bulk_row, false, false, 0);
-    price_content.pack_start(&economy_panel.container, false, false, 0);
+    let summary = summary_panel::Panel::new();
+    price_content.pack_start(&summary.container, false, false, 0);
     filter_content.pack_start(&item_filters.container, false, false, 0);
     filter_content.pack_start(&preset, false, false, 0);
     filter_content.pack_start(&mod_expander, false, false, 0);
@@ -1578,13 +1642,16 @@ pub fn run() -> Result<(), String> {
             }
         });
     }
-    let (economy_worker, economy_jobs) = mpsc::sync_channel::<EconomyJob>(1);
+    let (economy_worker, economy_jobs) = mpsc::channel::<EconomyJob>();
     {
         let sender = sender.clone();
-        let current = current.clone();
+        let current = quote_current.clone();
         std::thread::spawn(move || {
             let mut economy = Economy::new();
-            while let Ok(job) = economy_jobs.recv() {
+            while let Ok(mut job) = economy_jobs.recv() {
+                while let Ok(newer) = economy_jobs.try_recv() {
+                    job = newer;
+                }
                 let event = match job {
                     EconomyJob::Price {
                         generation,
@@ -1599,6 +1666,29 @@ pub fn run() -> Result<(), String> {
                     }
                 };
                 if sender.send(event).is_err() {
+                    break;
+                }
+            }
+        });
+    }
+    let (icon_worker, icon_jobs) = mpsc::channel::<(u64, String)>();
+    {
+        let sender = sender.clone();
+        std::thread::spawn(move || {
+            let client = reqwest::blocking::Client::builder()
+                .timeout(Duration::from_secs(8))
+                .redirect(reqwest::redirect::Policy::none())
+                .build();
+            while let Ok(mut job) = icon_jobs.recv() {
+                while let Ok(newer) = icon_jobs.try_recv() {
+                    job = newer;
+                }
+                let (epoch, url) = job;
+                let result = client
+                    .as_ref()
+                    .map_err(|e| e.to_string())
+                    .and_then(|c| icons::fetch(c, &url));
+                if sender.send(Event::Icon(epoch, result)).is_err() {
                     break;
                 }
             }
@@ -1649,6 +1739,10 @@ pub fn run() -> Result<(), String> {
         currency,
         bulk_row,
         economy_panel,
+        summary,
+        quote_current,
+        icon_worker,
+        actions: actions.clone(),
         unidentified,
         identity_epoch: Cell::new(0),
         economy_worker,
@@ -1696,6 +1790,16 @@ pub fn run() -> Result<(), String> {
         });
     }
     ui.refresh_league();
+    {
+        let ui = ui.clone();
+        let open = ui.summary.open.clone();
+        open.connect_clicked(move |_| {
+            if let Some(url) = ui.summary.url() {
+                ui.hide(HideReason::ExternalLink);
+                let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+            }
+        });
+    }
     {
         let owner = ui.clone();
         preferences_open.connect_clicked(move |_| owner.open_settings());
@@ -1930,7 +2034,7 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==ui.quote_current.load(Ordering::Acquire)).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         value["popup_controls"] = popup_controls(&ui.window);
                         value["header_text"] = serde_json::json!(ui.title.text().as_str());
                         value["status_text"] = serde_json::json!(ui.text.text().as_str());
@@ -1945,6 +2049,11 @@ pub fn run() -> Result<(), String> {
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
                         value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
                         value["frames"] = serde_json::json!(ui.frames.get());
+                        value["summary"] = ui.summary.diagnostics();
+                        value["family"] =
+                            serde_json::json!(ui.item.borrow().as_ref().map(|i| i.family()));
+                        value["search_actions_visible"] =
+                            serde_json::json!(ui.actions.is_visible());
                         value["backdrop"] = ui.backdrop.diagnostics();
                         value["item_filter_controls"] = ui.item_filters.diagnostics(&ui.window);
                         value["listings"] = ui.listings.diagnostics(&ui.window);

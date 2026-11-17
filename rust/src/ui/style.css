@@ -60,3 +60,8 @@ menuitem label { color: inherit; }
 #apt-native button.chip label { color: #8e959f; }
 #apt-native button.chip:checked label { color: #e3c995; }
 #apt-native spinbutton entry { border: none; background: transparent; padding: 4px; }
+
+#apt-native .summary-price { font-size: 22px; color: #eeeeef; }
+
+#apt-offer-details .rarity-gem { color: #1ba29b; }
+#apt-offer-details .rarity-currency { color: #aa9e82; }

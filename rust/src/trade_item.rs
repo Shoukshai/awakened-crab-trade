@@ -7,6 +7,12 @@ pub struct OfferedItem {
     pub base: String,
     pub item_level: Option<u64>,
     pub rarity: Option<u64>,
+    #[serde(default)]
+    pub gem_level: Option<u64>,
+    #[serde(default)]
+    pub quality: Option<u64>,
+    #[serde(default)]
+    pub map_tier: Option<u64>,
     pub properties: Vec<String>,
     pub requirements: Vec<String>,
     pub mods: Vec<ModGroup>,
@@ -89,7 +95,25 @@ impl OfferedItem {
             })
         })
         .collect();
+        let numeric = |name: &str| {
+            value["properties"]
+                .as_array()?
+                .iter()
+                .find(|p| p["name"].as_str() == Some(name))?["values"][0][0]
+                .as_str()?
+                .split(|c: char| !c.is_ascii_digit())
+                .find(|s| !s.is_empty())?
+                .parse::<u64>()
+                .ok()
+        };
         Some(Self {
+            gem_level: numeric("Level"),
+            quality: numeric("Quality"),
+            map_tier: numeric("Map Tier").or_else(|| {
+                base.rsplit_once(" (Tier ")
+                    .and_then(|(_, v)| v.strip_suffix(')'))
+                    .and_then(|v| v.parse().ok())
+            }),
             name,
             base,
             item_level: value["ilvl"].as_u64(),

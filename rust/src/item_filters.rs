@@ -172,6 +172,12 @@ impl Default for Options {
 }
 pub const CATEGORIES: &[(&str, &str)] = &[
     ("Map", "map"),
+    ("Viscera", "viscera"),
+    ("Head Viscera", "viscera.head"),
+    ("Arm Viscera", "viscera.arm"),
+    ("Body Viscera", "viscera.body"),
+    ("Leg Viscera", "viscera.leg"),
+    ("Wombgift", "wombgift"),
     ("Abyss Jewel", "jewel.abyss"),
     ("Amulet", "accessory.amulet"),
     ("Belt", "accessory.belt"),
@@ -704,7 +710,41 @@ impl Plan {
         if let Some(search) = &mut self.search_relaxed {
             search.disabled = Some(false);
         }
-        if let Some(level) = item.item_level {
+        if item.family() == crate::item::Family::Viscera {
+            if let Some(slot) = &item.market.viscera_slot {
+                self.search_relaxed = Some(Search {
+                    category: Some(format!("{slot} Viscera")),
+                    disabled: Some(false),
+                    ..Default::default()
+                });
+            }
+            self.corrupted = None;
+            self.rarity = None;
+        }
+        if item.family() == crate::item::Family::Gem {
+            if let Some(corrupted) = &mut self.corrupted {
+                corrupted.exact = Some(true);
+            }
+            self.gem_level = item.gem_level.map(|level| Numeric {
+                value: level,
+                max: Some(level),
+                disabled: false,
+            });
+            self.quality = Some(Numeric {
+                value: item.quality.unwrap_or(0),
+                max: Some(item.quality.unwrap_or(0)),
+                disabled: false,
+            });
+        }
+        if matches!(
+            item.family(),
+            crate::item::Family::Gem
+                | crate::item::Family::Map
+                | crate::item::Family::Currency
+                | crate::item::Family::Viscera
+        ) {
+            self.item_level = None;
+        } else if let Some(level) = item.item_level {
             self.item_level = Some(Numeric {
                 value: level,
                 max: None,
@@ -820,8 +860,8 @@ impl Plan {
         ] {
             if let Some(f) = field.as_ref().filter(|f| !f.disabled) {
                 let mut value = json!({"min":f.value});
-                if range {
-                    if let Some(max) = f.max.filter(|v| *v != 0) {
+                if range || f.max.is_some() {
+                    if let Some(max) = f.max.filter(|v| !range || *v != 0) {
                         value["max"] = json!(max);
                     }
                 }
@@ -915,6 +955,24 @@ impl Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn native_gem_editor_uses_exact_level_quality_and_no_ilvl() {
+        let item = Item::parse(include_str!("fixtures/price-gem.txt")).unwrap();
+        let mut plan = create(&item, &Options::default()).unwrap();
+        plan.editor_defaults(&item);
+        let mut query = json!({"filters":{},"stats":[{"type":"and","filters":[]}]});
+        plan.append_query(&mut query).unwrap();
+        let misc = &query["filters"]["misc_filters"]["filters"];
+        assert_eq!(misc["gem_level"], json!({"min":20,"max":20}));
+        assert_eq!(misc["quality"], json!({"min":20,"max":20}));
+        assert!(misc.get("ilvl").is_none());
+        plan.quality.as_mut().unwrap().disabled = true;
+        let mut query = json!({"filters":{},"stats":[{"type":"and","filters":[]}]});
+        plan.append_query(&mut query).unwrap();
+        assert!(query["filters"]["misc_filters"]["filters"]
+            .get("quality")
+            .is_none());
+    }
     #[test]
     fn optional_base_does_not_drop_unique_identity_from_editor_query() {
         let item=Item::parse("Item Class: Helmets\nRarity: Unique\nGoldrim\nLeather Cap\n--------\nItem Level: 76\n--------").unwrap();

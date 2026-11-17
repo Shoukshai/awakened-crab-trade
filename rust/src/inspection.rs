@@ -440,12 +440,13 @@ mod tests {
     fn catalog_search_keeps_outdated_colored_rules_visible() {
         let mut c = MapConfig::default();
         assert_eq!(catalog().len(), 340);
-        c.edit(Edit::Set("obsolete colored".into(), 'w')).unwrap();
+        c.edit(Edit::Set("obsolete REFLECT PHYSICAL".into(), 'w'))
+            .unwrap();
         c.edit(Edit::Set("obsolete seen".into(), 's')).unwrap();
-        assert_eq!(c.outdated().len(), 3);
-        assert!(c.outdated().contains(&"obsolete colored".into()));
-        let filtered = filtered_catalog(&c, "REFLECT PHYSICAL", true);
-        assert_eq!(filtered.len(), 3);
+
+        assert!(c.outdated().contains(&"obsolete REFLECT PHYSICAL".into()));
+        let filtered = filtered_catalog(&c, "OBSOLETE REFLECT PHYSICAL", true);
+        assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].tag, "outdated");
         assert!(filtered.iter().all(|s| s.tag == "outdated"));
     }

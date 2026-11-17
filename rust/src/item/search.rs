@@ -109,6 +109,7 @@ fn candidates(kind: Kind) -> impl Iterator<Item = &'static super::CatalogueEntry
     let gem_entries = GEM_ENTRIES.get_or_init(|| {
         include_str!("../../../renderer/public/data/en/items.ndjson")
             .lines()
+            .chain(include_str!("../data/current-items.ndjson").lines())
             .map(|l| l.contains("altQuality\":[\"Anomalous"))
             .collect()
     });

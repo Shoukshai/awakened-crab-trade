@@ -1,0 +1,18 @@
+{
+  "game_art_copyright": "Grinding Gear Games",
+  "six_conqueror_icons": "Existing MIT Awakened PoE Trade source assets, renderer/public/images/influence-*.png",
+  "eldritch": [
+    {
+      "name": "Exceptional Eldritch Ichor",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvVGFuZ2xlT3JiUmFuazQiLCJzY2FsZSI6MX1d/dcf73ecd8e/TangleOrbRank4.png",
+      "sha256": "80d54fdc8af0c3886d996e1be3b15738ecc8b0c3b0b60ea70bd1c3ff5e7be25c",
+      "discovered_via": "https://poe.ninja/docs/api"
+    },
+    {
+      "name": "Exceptional Eldritch Ember",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ2xlYW5zaW5nRmlyZU9yYlJhbms0Iiwic2NhbGUiOjF9XQ/c2c828fa16/CleansingFireOrbRank4.png",
+      "sha256": "555642721f7cb7eb260b7489d4bff05a8380e9c50f6bd248967c9214fd2d7618",
+      "discovered_via": "https://poe.ninja/docs/api"
+    }
+  ]
+}

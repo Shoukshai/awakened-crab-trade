@@ -65,6 +65,8 @@ pub struct Item {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MarketMetadata {
     pub known: bool,
+    #[serde(default)]
+    pub viscera_slot: Option<String>,
     pub name: String,
     pub craftable: bool,
     pub exchangeable: bool,
@@ -171,6 +173,10 @@ impl AreaProperties {
 #[derive(Deserialize)]
 struct CatalogueEntry {
     name: String,
+    icon: Option<String>,
+    category: Option<String>,
+    #[serde(rename = "visceraSlot")]
+    viscera_slot: Option<String>,
     #[serde(rename = "refName")]
     reference: String,
     area: Option<AreaInfo>,
@@ -213,6 +219,7 @@ fn catalogue() -> &'static Vec<CatalogueEntry> {
     ITEMS.get_or_init(|| {
         include_str!("../../renderer/public/data/en/items.ndjson")
             .lines()
+            .chain(include_str!("data/current-items.ndjson").lines())
             .map(|s| serde_json::from_str(s).expect("upstream catalogue entry"))
             .collect()
     })
@@ -235,6 +242,29 @@ pub fn catalogue_name(namespace: &str, reference: &str, variant: Option<&str>) -
         .find(|e| e.namespace == namespace && e.reference == reference)
         .map(|e| e.name.clone())
 }
+/// Image URLs come from the pinned catalogue plus current poe.ninja overviews.
+pub fn icon_url(item: &Item) -> Option<String> {
+    static ICONS: OnceLock<std::collections::HashMap<String, String>> = OnceLock::new();
+    let icons = ICONS.get_or_init(|| {
+        serde_json::from_str(include_str!("data/current-icons.json")).expect("current item icons")
+    });
+    let reference = if item.category.as_deref() == Some("Map") && item.reference == "Map" {
+        format!("Map (Tier {})", item.map_tier.unwrap_or(0))
+    } else {
+        item.reference.clone()
+    };
+    if item.family() == Family::Viscera {
+        if let Some(url) = icons.get(&item.name) {
+            return Some(url.clone());
+        }
+    }
+    icons.get(&reference).cloned().or_else(|| {
+        catalogue()
+            .iter()
+            .find(|e| e.namespace == item.namespace && e.reference == item.reference)
+            .and_then(|e| e.icon.clone())
+    })
+}
 fn number(text: &str) -> Option<u32> {
     text.replace(',', "")
         .split(|c: char| !c.is_ascii_digit())
@@ -242,7 +272,44 @@ fn number(text: &str) -> Option<u32> {
         .parse()
         .ok()
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Family {
+    Currency,
+    Gem,
+    Map,
+    Unique,
+    Viscera,
+    Wombgift,
+    Equipment,
+    Other,
+}
 impl Item {
+    pub fn family(&self) -> Family {
+        match self.category.as_deref() {
+            Some("Viscera") => Family::Viscera,
+            Some("Wombgift") => Family::Wombgift,
+            Some("Gem") => Family::Gem,
+            Some("Map") => Family::Map,
+            _ if self.rarity == Rarity::Unique => Family::Unique,
+            Some("Currency") if self.rarity == Rarity::Currency => Family::Currency,
+            _ if crate::properties::is_armour(self.category.as_deref())
+                || crate::properties::is_weapon(self.category.as_deref())
+                || [
+                    Some("Ring"),
+                    Some("Amulet"),
+                    Some("Belt"),
+                    Some("Quiver"),
+                    Some("Jewel"),
+                    Some("Abyss Jewel"),
+                ]
+                .contains(&self.category.as_deref()) =>
+            {
+                Family::Equipment
+            }
+            _ => Family::Other,
+        }
+    }
+
     pub fn parse(text: &str) -> Result<Self, String> {
         if text.len() > 65536 {
             return Err("Item text exceeds 64 KiB".into());
@@ -282,6 +349,13 @@ impl Item {
         } else {
             name.clone()
         };
+        if class == "Viscera" {
+            base = base
+                .strip_prefix("Lesser ")
+                .or_else(|| base.strip_prefix("Greater "))
+                .unwrap_or(&base)
+                .to_string();
+        }
         let vestigial =
             rarity == Rarity::Unique && names.len() >= 2 && base.starts_with("Vestigial ");
         if vestigial {
@@ -349,6 +423,10 @@ impl Item {
         });
         let category_override = if captured {
             Some("Captured Beast")
+        } else if class == "Viscera" {
+            Some("Viscera")
+        } else if class == "Wombgifts" {
+            Some("Wombgift")
         } else if metamorph {
             Some("Metamorph Sample")
         } else {
@@ -360,13 +438,17 @@ impl Item {
             }
         };
         let category = category_override.or_else(|| {
-            info.and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
-                .or_else(|| {
-                    catalogue()
-                        .iter()
-                        .find(|v| v.namespace == "ITEM" && v.name == base)
-                        .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
-                })
+            info.and_then(|v| {
+                v.category
+                    .as_deref()
+                    .or_else(|| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+            })
+            .or_else(|| {
+                catalogue()
+                    .iter()
+                    .find(|v| v.namespace == "ITEM" && v.name == base)
+                    .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
+            })
         });
         let prop = |key: &str| {
             lines
@@ -497,6 +579,7 @@ impl Item {
         }
         let market = MarketMetadata {
             known: info.is_some(),
+            viscera_slot: info.and_then(|v| v.viscera_slot.clone()),
             name: info
                 .map(|v| v.name.clone())
                 .unwrap_or_else(|| identity.clone()),
@@ -628,6 +711,54 @@ impl Item {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn current_family_clipboards_keep_trade_and_price_identities_distinct() {
+        let item = Item::parse(include_str!("fixtures/price-viscera.txt")).unwrap();
+        assert_eq!(item.family(), Family::Viscera);
+        assert_eq!(item.reference, "Severed Rhoa Head");
+        assert_eq!(item.market.viscera_slot.as_deref(), Some("Head"));
+        assert!(item.modifiers.iter().any(|m| m
+            .ids
+            .iter()
+            .any(|id| id == "implicit.stat_1417918566")
+            && m.value == Some(5.)));
+        let key = crate::economy::Key::for_item(&item).unwrap();
+        assert_eq!(key.name, "Greater Severed Rhoa Head");
+        assert_eq!(
+            key.variant.as_deref(),
+            Some("Every second, inflict Withered on Enemies within # metres for # seconds")
+        );
+        for (text, family) in [
+            (include_str!("fixtures/price-gem.txt"), Family::Gem),
+            (
+                include_str!("fixtures/price-currency.txt"),
+                Family::Currency,
+            ),
+            (include_str!("fixtures/price-unique.txt"), Family::Unique),
+            (include_str!("fixtures/price-map.txt"), Family::Map),
+        ] {
+            let item = Item::parse(text).unwrap();
+            assert_eq!(item.family(), family);
+            assert!(icon_url(&item).is_some());
+        }
+    }
+    #[test]
+    fn every_current_viscera_base_has_a_slot_and_resolves() {
+        let entries: Vec<_> = catalogue()
+            .iter()
+            .filter(|e| e.category.as_deref() == Some("Viscera"))
+            .collect();
+        assert_eq!(entries.len(), 164);
+        for entry in entries {
+            let text = format!(
+                "Item Class: Viscera\nRarity: Normal\n{}\n--------\nItem Level: 1\n--------",
+                entry.name
+            );
+            let item = Item::parse(&text).unwrap();
+            assert_eq!(item.family(), Family::Viscera, "{}", entry.name);
+            assert!(item.market.viscera_slot.is_some(), "{}", entry.name);
+        }
+    }
     #[test]
     fn real_advanced_clipboard_item_preserves_identity_and_implicit() {
         let item = Item::parse(include_str!("fixtures/driftwood-wand.txt")).unwrap();

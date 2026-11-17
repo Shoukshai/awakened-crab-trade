@@ -10,6 +10,7 @@ pub struct StatRow {
     min: gtk::SpinButton,
     max: gtk::SpinButton,
     numeric: bool,
+    influence_icons: usize,
     template: StatFilter,
 }
 impl StatRow {
@@ -34,7 +35,24 @@ impl StatRow {
         label.set_ellipsize(gtk::pango::EllipsizeMode::End);
         label.set_max_width_chars(32);
         label.set_xalign(0.);
-        body.pack_start(&label, false, false, 0);
+        let caption = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        let mut seen = std::collections::HashSet::new();
+        let mut influence_icons = 0;
+        for mechanic in modifier
+            .sources
+            .iter()
+            .filter_map(|s| s.influence.as_deref().or(s.mechanic.as_deref()))
+            .chain(std::iter::once(candidate.tag.as_str()))
+        {
+            if seen.insert(mechanic) {
+                if let Some(image) = super::icons::influence(mechanic) {
+                    caption.pack_start(&image, false, false, 0);
+                    influence_icons += 1;
+                }
+            }
+        }
+        caption.pack_start(&label, true, true, 0);
+        body.pack_start(&caption, false, false, 0);
         container.set_tooltip_text(Some(&candidate.display_reference));
         if let Some(accessible) = container.accessible() {
             accessible.set_role(gtk::atk::Role::CheckBox);
@@ -204,6 +222,7 @@ impl StatRow {
             numeric: !modifier.option
                 && !modifier.ids.iter().any(|id| id.contains('|'))
                 && modifier.value.is_some(),
+            influence_icons,
             template: StatFilter::from_candidate(candidate),
         }
     }
@@ -224,7 +243,7 @@ impl StatRow {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"id":self.template.id,"selected":self.selected.is_active(),"min_value":self.min.value(),"max_value":self.max.value(),"min_enabled":self.min_enabled.is_active(),"max_enabled":self.max_enabled.is_active(),"select":rect(self.container.upcast_ref()),"min":rect(self.min.upcast_ref()),"max":rect(self.max.upcast_ref())})
+        serde_json::json!({"id":self.template.id,"influence_icons":self.influence_icons,"selected":self.selected.is_active(),"min_value":self.min.value(),"max_value":self.max.value(),"min_enabled":self.min_enabled.is_active(),"max_enabled":self.max_enabled.is_active(),"select":rect(self.container.upcast_ref()),"min":rect(self.min.upcast_ref()),"max":rect(self.max.upcast_ref())})
     }
     pub fn connect_changed(&self, send: impl Fn() + 'static) {
         use std::{cell::RefCell, rc::Rc};

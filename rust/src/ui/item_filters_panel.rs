@@ -22,12 +22,12 @@ impl Number {
     fn label(self) -> &'static str {
         match self {
             Self::ItemLevel => "ilvl minimum",
-            Self::Quality => "Qualité minimum",
-            Self::GemLevel => "Gemme minimum",
-            Self::Links => "Sockets liés minimum",
+            Self::Quality => "Qualité",
+            Self::GemLevel => "Niveau",
+            Self::Links => "Liens",
             Self::White => "Sockets blancs minimum",
             Self::Stack => "Stock minimum",
-            Self::MapTier => "Tier de carte exact",
+            Self::MapTier => "Tier",
             Self::AreaLevel => "Zone minimum",
             Self::Charge => "Charges minimum",
         }
@@ -76,6 +76,7 @@ struct NumberRow {
     enabled: gtk::ToggleButton,
     min: gtk::SpinButton,
     value_entry: Option<gtk::Entry>,
+    exact: Option<gtk::CheckButton>,
     max_enabled: Option<gtk::CheckButton>,
     max: Option<gtk::SpinButton>,
 }
@@ -192,7 +193,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)| serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"corruption":self.corruption.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"rarity":self.rarity.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"base":self.scope.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"label":b.label().map(|s|s.to_string()),"active":b.is_active(),"sensitive":b.is_sensitive()})),"numbers":self.numbers.borrow().iter().map(|r|serde_json::json!({"name":format!("{:?}",r.kind),"rect":rect(r.enabled.upcast_ref()),"active":r.enabled.is_active(),"value":r.value_entry.as_ref().map(|e|e.text().to_string()),"field":r.value_entry.as_ref().and_then(|e|rect(e.upcast_ref())),"field_sensitive":r.value_entry.as_ref().map(|e|e.is_sensitive())})).collect::<Vec<_>>()})
+        serde_json::json!({"corruption":self.corruption.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"rarity":self.rarity.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"base":self.scope.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"label":b.label().map(|s|s.to_string()),"active":b.is_active(),"sensitive":b.is_sensitive()})),"numbers":self.numbers.borrow().iter().map(|r|serde_json::json!({"name":format!("{:?}",r.kind),"rect":rect(r.enabled.upcast_ref()),"active":r.enabled.is_active(),"value":r.value_entry.as_ref().map(|e|e.text().to_string()),"field":r.value_entry.as_ref().and_then(|e|rect(e.upcast_ref())).or_else(||rect(r.min.upcast_ref())),"field_sensitive":r.value_entry.as_ref().map(|e|e.is_sensitive())})).collect::<Vec<_>>()})
     }
     fn quick_choice(&self, text: &str, choice: &gtk::ComboBoxText) {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -269,7 +270,9 @@ impl Panel {
         scope.set_sensitive(plan.search_relaxed.is_some());
 
         self.wire_toggle(&scope);
-        self.quick.pack_start(&scope, false, false, 0);
+        if plan.search_relaxed.is_some() {
+            self.quick.pack_start(&scope, false, false, 0);
+        }
         self.scope.replace(Some(scope));
         if plan.search_exact.sub.is_some()
             || plan
@@ -333,7 +336,14 @@ impl Panel {
                     .unwrap_or("all")
             },
         );
-        if plan.rarity.is_some() || plan.foil.is_some() {
+        if (plan.rarity.is_some() || plan.foil.is_some())
+            && !matches!(
+                item.family(),
+                crate::item::Family::Gem
+                    | crate::item::Family::Unique
+                    | crate::item::Family::Viscera
+            )
+        {
             self.wire_combo(&rarity);
             self.quick_choice("Rareté", &rarity);
             self.rarity.replace(Some(rarity));
@@ -446,11 +456,23 @@ impl Panel {
             group.pack_start(&enabled, false, false, 0);
             group.pack_start(&row, false, false, 0);
             self.quick.pack_start(&group, false, false, 0);
+            let exact = if item.family() == crate::item::Family::Gem
+                && matches!(kind, Number::GemLevel | Number::Quality)
+            {
+                let check = gtk::CheckButton::with_label("Exact");
+                check.set_active(n.max.is_some());
+                self.wire_check(&check);
+                group.pack_start(&check, false, false, 0);
+                Some(check)
+            } else {
+                None
+            };
             self.numbers.borrow_mut().push(NumberRow {
                 kind,
                 enabled,
                 min,
                 value_entry,
+                exact,
                 max_enabled,
                 max,
             });
@@ -637,7 +659,9 @@ impl Panel {
                 } else {
                     row.min.value().round() as u32
                 };
-                f.max = if let (Some(check), Some(max)) = (&row.max_enabled, &row.max) {
+                f.max = if let Some(exact) = &row.exact {
+                    exact.is_active().then_some(f.value)
+                } else if let (Some(check), Some(max)) = (&row.max_enabled, &row.max) {
                     check.is_active().then(|| max.value().round() as u32)
                 } else {
                     None

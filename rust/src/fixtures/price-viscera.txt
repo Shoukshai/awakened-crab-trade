@@ -1,0 +1,12 @@
+Item Class: Viscera
+Rarity: Normal
+Greater Severed Rhoa Head
+--------
+Head
+--------
+Item Level: 1
+--------
+{ Implicit Modifier }
+Every second, inflict Withered on Enemies within 6 metres for 5(...) seconds
+--------
+Take this to the Wickerman in a town or hideout to attach it.

@@ -1,0 +1,68 @@
+{
+  "game_art_copyright": "Grinding Gear Games",
+  "items": [
+    {
+      "fixture": "gem",
+      "name": "Impale Support",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L2ltcGFsZSIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/a974bd1dc1/impale.png",
+      "sha256": "f9b255c84e283c10b748c40b3507dc55d602ff309095238b463ae0ab4bde0d69",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "currency",
+      "name": "Divine Orb",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/ec48896769/CurrencyModValues.png",
+      "sha256": "4648df6b1aeeb7b4d65439b7366a8a427b9d932c2becc7a077a3f88a282418a8",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "chaos",
+      "name": "Chaos Orb",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9XQ/46a2347805/CurrencyRerollRare.png",
+      "sha256": "98065c8ce6f918f6c68a72f0664ce9d165a4f2b13345038ccb7ede19aeb65e25",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "unique",
+      "name": "Goldrim",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL0hlbG1ldERleFVuaXF1ZTIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7f4908ef2f/HelmetDexUnique2.png",
+      "sha256": "987d2a6bab18c46ad2283d4dbcaf02531bcba7b81a75ceff8620fd631ff25f0f",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "map",
+      "name": "Map (Tier 16)",
+      "url": "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9BdGxhczJNYXBzL05ldy9NYXBOdW1iZXJzMTYiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwibW4iOjI0LCJtdCI6MH1d/b4b8302406/MapNumbers16.png",
+      "sha256": "0a356cd837f4ec65e6d44b10cce573383b8b3b27f5cc9db0229036d445e183f3",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "viscera",
+      "name": "Severed Rhoa Head",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFSaG9hSGVhZCIsInciOjIsImgiOjIsInNjYWxlIjoxfV0/015d10ac9a/VisceraRhoaHead.png",
+      "sha256": "d67fe6fa7e42e4bdf77e68f97505104853c51d42ff4853186bf32dddfda4b094",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "influence",
+      "name": "Hubris Circlet",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL0hlbG1ldEludDExIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/4588b92597/HelmetInt11.png",
+      "sha256": "20d5ca247b75886b3a1c92dc66ba01b51965299aa00b86b06b2c7fb5723de0b4",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "wand",
+      "name": "Driftwood Wand",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kMSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/899dabeaf1/Wand1.png",
+      "sha256": "5076188d6dbd9460d8e85902d13589f783629841fe04ca5e35d9dc2ce100abe3",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "ring",
+      "name": "Gold Ring",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvUmluZzQiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/2164e44179/Ring4.png",
+      "sha256": "0b695b5611dc147b7f557f9b1066c70fc7ab056cd0453d26ccf4ada62d925295",
+      "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    }
+  ]
+}

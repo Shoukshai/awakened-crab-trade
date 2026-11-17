@@ -81,12 +81,29 @@ impl Cached {
                 if key.namespace != namespace {
                     return None;
                 }
-                let line = overview.lines.iter().find(|line| {
-                    line.name == key.name
-                        && line.variant == key.variant
-                        && line.chaos.is_finite()
-                        && line.chaos >= 0.
-                })?;
+                let line = overview
+                    .lines
+                    .iter()
+                    .find(|line| {
+                        line.name == key.name
+                            && line.variant == key.variant
+                            && line.chaos.is_finite()
+                            && line.chaos >= 0.
+                    })
+                    .or_else(|| {
+                        if overview.kind != "Map" || key.name != "Map" {
+                            return None;
+                        }
+                        let (tier, series) = key.variant.as_deref()?.split_once(", ")?;
+                        let tier = tier.strip_prefix('T')?;
+                        overview.lines.iter().find(|line| {
+                            line.chaos.is_finite()
+                                && line.chaos >= 0.
+                                && line.name == format!("Map (Tier {tier})")
+                                && line.variant.as_deref() == Some(format!("T0, {series}").as_str())
+                        })
+                    })?;
+
                 let mut league_slug = self.league.replacen("Hardcore ", "", 1).to_lowercase();
                 if self.league.starts_with("Hardcore ") {
                     league_slug.push_str("hc");
@@ -105,7 +122,16 @@ impl Cached {
                         "https://poe.ninja/poe1/economy/{}/{}/{}",
                         encode_segment(&league_slug),
                         route,
-                        key.slug()
+                        if overview.kind == "Map" && key.name == "Map" && line.name != key.name {
+                            Key {
+                                namespace: key.namespace.clone(),
+                                name: line.name.clone(),
+                                variant: line.variant.clone(),
+                            }
+                            .slug()
+                        } else {
+                            key.slug()
+                        }
                     ),
                     from_cache,
                 })
@@ -151,6 +177,8 @@ fn category(kind: &str) -> Option<(&'static str, &'static str)> {
         "Ducat" => ("ITEM", "ducats"),
         "EnshroudingCrystal" => ("ITEM", "enshrouding-crystals"),
         "Corpse" => ("ITEM", "corpses"),
+        "Viscera" => ("ITEM", "viscera"),
+        "Wombgift" => ("ITEM", "wombgifts"),
         _ => return None,
     })
 }
@@ -184,7 +212,8 @@ impl Economy {
                 .timeout(Duration::from_secs(15))
                 .build()
                 .map_err(|e| e.to_string())?,
-            base: "https://poe.ninja".into(),
+            base: crate::trade::fixture_endpoint("APT_RS_TEST_ECONOMY_BASE")?
+                .unwrap_or_else(|| "https://poe.ninja".into()),
             cache_dir: cache.join("awakened-poe-trade-rs/economy"),
             memory: HashMap::new(),
             next: Instant::now(),
@@ -357,6 +386,42 @@ mod tests {
             socket.write_all(response.as_bytes()).unwrap();
         });
         (url, thread)
+    }
+    #[test]
+    fn ninja_variant_links_preserve_gem_separators_and_collapse_empty_tokens() {
+        let gem = Item::parse(include_str!("fixtures/price-gem.txt")).unwrap();
+        assert_eq!(Key::for_item(&gem).unwrap().slug(), "impale-support-20-20c");
+        let viscera = Item::parse(include_str!("fixtures/price-viscera.txt")).unwrap();
+        assert_eq!(Key::for_item(&viscera).unwrap().slug(), "greater-severed-rhoa-head-every-second-inflict-withered-on-enemies-within-metres-for-seconds");
+    }
+    #[test]
+    fn generic_map_quote_matches_tier_and_series_and_rejects_invalid_prices() {
+        let data: Snapshot = serde_json::from_value(serde_json::json!({"itemOverviews":[{"type":"Map","lines":[{"name":"Map (Tier 16)","variant":"T0, Gen-24","chaos":3}]}]})).unwrap();
+        let mut cache = Cached {
+            version: 1,
+            league: "Covens".into(),
+            fetched: 100,
+            data,
+        };
+        let item = Item::parse(include_str!("fixtures/price-map.txt")).unwrap();
+        let key = Key::for_item(&item).unwrap();
+        let quote = cache.find(&key, 101, false).unwrap();
+        assert_eq!(quote.chaos, 3.);
+        assert!(quote.url.ends_with("/map-tier-16-t0-gen-24"));
+        assert!(cache
+            .find(
+                &Key {
+                    variant: Some("T15, Gen-24".into()),
+                    ..key.clone()
+                },
+                101,
+                false
+            )
+            .is_none());
+        for invalid in [-1., f64::NAN, f64::INFINITY] {
+            cache.data.items[0].lines[0].chaos = invalid;
+            assert!(cache.find(&key, 101, false).is_none());
+        }
     }
     #[test]
     fn base_quotes_keep_item_level_and_influence_and_reject_double_influence() {

@@ -1,0 +1,13 @@
+Item Class: Helmets
+Rarity: Rare
+Doom Visage
+Hubris Circlet
+--------
+Energy Shield: 100
+--------
+Item Level: 85
+--------
+{ Suffix Modifier "of the Hunt" (Tier: 1) }
+Nearby Enemies have -9(-12--9)% to Chaos Resistance
+--------
+Hunter Item
