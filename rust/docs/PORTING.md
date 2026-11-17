@@ -24,7 +24,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF, contrôles et ancrages | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres ; 8 192 étapes de survol et 630 ancrages d’images ; scénarios GTK privés et aperçu réel au-dessus de PoE | alignement dans la vraie interface Delve ; ordre de superposition persistant, menu général, URL distantes, édition et présentation upstream complètes |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF, contrôles et ancrages ; surface commune et superposition mémorisée images/chronomètres | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres ; 8 192 étapes de survol et 630 ancrages d’images ; scénarios GTK privés et aperçu réel au-dessus de PoE | alignement dans la vraie interface Delve ; menu général, URL distantes, édition et présentation upstream complètes |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes/Chronomètres/Images ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
@@ -398,3 +398,45 @@ disposition aux bords n’a pas la parité des contraintes CSS upstream. Pas de
 glisser-déposer de fichiers ou d’édition inline complète, ni d’URL distante.
 La feuille Syndicate conserve intégralement son crédit et sa mention version
 3.24 ; ses récompenses ne sont pas présentées comme actuelles.
+
+## Jalon 0.19 : surface commune et ordre des widgets
+
+`widget_order.rs` modélise l’ordre relatif des widgets non exclusifs. Les clés
+conservent le type et l’identifiant des instances des anciens profils. Un clic
+sur une partie visible remonte l’instance ; l’ordre relatif équivaut à la suite
+des valeurs numériques `wmZorder` upstream. Les nouvelles instances rejoignent
+la séquence, les références retirées disparaissent. L’ordre par défaut est omis
+du JSON ; supprimer les instances de test retrouve le profil initial.
+
+`ui/widget_canvas.rs` possède une seule fenêtre layer-shell RGBA, son Layout et
+l’union des régions d’entrée des chronomètres et des images. Les deux moteurs
+conservent leur métier et leurs échéances ; ils ne masquent plus chacun une
+fenêtre indépendante. Masquer les images laisse les contrôles des chronomètres
+actifs. La région commune reste vide jusqu’au premier rendu réel, et le clavier
+reste None en mode passif. Les diagnostics `widget_canvas` décrivent la surface
+réelle ; ceux de chaque moteur décrivent son propre affichage et sa délégation
+d’entrée. Une frame commune peut dessiner les deux types.
+
+L’ordre est appliqué aux fenêtres enfants GDK lors du clic, de la réalisation et
+du mapping. Le choix d’une poignée de déplacement respecte aussi le widget
+visible au point visé. L’aperçu agrandi garde sa couche transparente aux entrées.
+Une sauvegarde d’ordre seule ne reconstruit pas les widgets, ne ferme pas
+l’aperçu, ne relance pas de recherche et ne change pas la génération des prix.
+Elle utilise le worker existant après le relâchement ; un refus d’écriture
+rétablit aussi l’ordre dessiné. Un clic plus récent pendant l’écriture reste
+à sauvegarder. Les suppressions au brouillon retirent les références d’ordre
+avant la validation du profil. La fermeture de la surface commune est déléguée
+à l’action globale de masquage.
+
+GDK transmet la région d’entrée Wayland au commit suivant : la modifier dans
+`after-paint` ne suffit pas pour un widget statique. La surface demande une frame
+lorsque l’union change, puis s’arrête quand elle est stable. Cette correction
+est vérifiée par de vrais clics sur les rectangles dessinés, sans timer qui
+masquerait le problème. Les premiers rendus et les changements de sortie gardent
+la même règle d’activation explicite.
+
+La superposition couvre les images et chronomètres. Les gestionnaires natifs
+restent des vues du panneau principal ; le menu général upstream et les autres
+widgets de l’inventaire restent à porter. La grille Delve reste une surface
+passive distincte, avec son exclusion existante. Les contraintes CSS exactes
+aux bords et les autres environnements restent dans la validation à compléter.

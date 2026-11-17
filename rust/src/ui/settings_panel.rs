@@ -311,6 +311,8 @@ impl Panel {
         s.image_strips = self.images.read()?;
         s.stopwatches = configs;
         s.hotkeys.stopwatch_keys = keys;
+        // Removing a draft instance also removes its saved stacking reference.
+        s.widget_order = crate::widget_order::saved(&s.widget_order, &s.widget_keys());
         s.hotkeys = s.hotkeys.normalized()?;
         s.validate()?;
         Ok(s)

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub widget_order: Vec<crate::widget_order::Key>,
     pub league: String,
     pub filters: Filters,
     pub scale: f64,
@@ -26,6 +28,7 @@ fn is_true(value: &bool) -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            widget_order: Vec::new(),
             league: "Standard".into(),
             filters: Filters::default(),
             scale: 1.0,
@@ -58,7 +61,27 @@ impl Settings {
         settings.validate()?;
         Ok(settings)
     }
+    pub fn widget_keys(&self) -> Vec<crate::widget_order::Key> {
+        self.stopwatches
+            .iter()
+            .map(|c| crate::widget_order::Key::Stopwatch(c.id))
+            .chain(
+                self.image_strips
+                    .iter()
+                    .map(|c| crate::widget_order::Key::Image(c.id)),
+            )
+            .collect()
+    }
     pub fn validate(&self) -> Result<(), String> {
+        let keys = self.widget_keys();
+        let mut order_ids = std::collections::HashSet::new();
+        if self
+            .widget_order
+            .iter()
+            .any(|k| !keys.contains(k) || !order_ids.insert(k))
+        {
+            return Err("Ordre des widgets invalide ou dupliqué.".into());
+        }
         if self.image_strips.len() > crate::image_strip::MAX_STRIPS {
             return Err("Au plus 16 bandes d’images.".into());
         }
@@ -178,6 +201,25 @@ mod tests {
 #[cfg(test)]
 mod stopwatch_tests {
     use super::*;
+    #[test]
+    fn widget_order_is_optional_and_rejects_dangling_or_duplicate_keys() {
+        use crate::widget_order::Key;
+        let mut s = Settings::default();
+        assert!(serde_json::to_value(&s)
+            .unwrap()
+            .get("widget_order")
+            .is_none());
+        s.stopwatches.push(crate::stopwatch::Config::default());
+        s.widget_order = vec![Key::Image(1), Key::Stopwatch(1)];
+        s.validate().unwrap();
+        let roundtrip: Settings =
+            serde_json::from_value(serde_json::to_value(&s).unwrap()).unwrap();
+        assert_eq!(roundtrip.widget_order, s.widget_order);
+        s.widget_order.push(Key::Image(1));
+        assert!(s.validate().is_err());
+        s.widget_order = vec![Key::Stopwatch(2)];
+        assert!(s.validate().is_err());
+    }
     #[test]
     fn timer_keys_require_valid_unique_instances_and_share_global_reservations() {
         let mut s = Settings::default();

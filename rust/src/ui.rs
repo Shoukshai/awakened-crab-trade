@@ -25,6 +25,7 @@ mod stopwatch_manager;
 mod stopwatch_panel;
 mod stopwatch_settings;
 mod unidentified_panel;
+mod widget_canvas;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -50,6 +51,7 @@ enum View {
     Images,
 }
 enum Event {
+    WidgetOrder,
     Shortcut(&'static str),
     Hotkey(crate::hotkeys::Action),
     Stopwatch(stopwatch_panel::Action),
@@ -91,6 +93,7 @@ struct Job {
     query: serde_json::Value,
 }
 struct Ui {
+    widget_canvas: Result<Rc<widget_canvas::Canvas>, String>,
     window: gtk::Window,
     delve: Result<Rc<delve_grid::Grid>, String>,
     stopwatches: Result<Rc<stopwatch_panel::Runtime>, String>,
@@ -99,6 +102,7 @@ struct Ui {
     image_manager: image_manager::Panel,
     pending_image_edit: Cell<Option<(u64, u64)>>,
     widget_transaction: Cell<bool>,
+    order_transaction: Cell<bool>,
     pending_interaction: Cell<Option<u64>>,
     pending_stopwatch_edit: Cell<Option<u64>>,
     started: Instant,
@@ -640,7 +644,17 @@ impl Ui {
         }
         self.update_stopwatch_manager();
     }
-    fn commit_widgets(&self, candidate: Settings) {
+    fn save_widget_order(&self) {
+        if !self.preferences_pending.get() && self.widget_canvas.as_ref().is_ok_and(|c| c.dirty()) {
+            let settings = self.settings.borrow().clone();
+            self.commit_widgets(settings);
+        }
+    }
+    fn commit_widgets(&self, mut candidate: Settings) {
+        if let Ok(canvas) = &self.widget_canvas {
+            candidate.widget_order =
+                crate::widget_order::saved(&canvas.order(), &candidate.widget_keys());
+        }
         if self.preferences_pending.get() {
             return;
         }
@@ -651,13 +665,20 @@ impl Ui {
         self.preferences_epoch.set(self.preferences_epoch.get() + 1);
         self.preferences_pending.set(true);
         self.widget_transaction.set(true);
-        self.stopwatch_manager.busy(true);
-        self.image_manager.busy(true);
-        if let Ok(r) = &self.images {
-            r.set_busy(true);
-        }
-        if let Ok(r) = &self.stopwatches {
-            r.set_busy(true);
+        let order_only = {
+            let old = self.settings.borrow();
+            candidate.stopwatches == old.stopwatches && candidate.image_strips == old.image_strips
+        };
+        self.order_transaction.set(order_only);
+        if !order_only {
+            self.stopwatch_manager.busy(true);
+            self.image_manager.busy(true);
+            if let Ok(r) = &self.images {
+                r.set_busy(true);
+            }
+            if let Ok(r) = &self.stopwatches {
+                r.set_busy(true);
+            }
         }
         if let Err(e) = self
             .preferences_worker
@@ -668,6 +689,17 @@ impl Ui {
         {
             self.preferences_pending.set(false);
             self.widget_transaction.set(false);
+            if let Ok(c) = &self.widget_canvas {
+                let s = self.settings.borrow();
+                c.rollback(&s.widget_order, &s.widget_keys());
+            }
+            if self.order_transaction.replace(false) {
+                self.stopwatch_manager
+                    .message(&format!("Modifications non enregistrées : {e}"));
+                self.image_manager
+                    .message(&format!("Modifications non enregistrées : {e}"));
+                return;
+            }
             self.stopwatch_manager.busy(false);
             self.image_manager.busy(false);
             self.image_manager.message(&e.to_string());
@@ -856,13 +888,17 @@ impl Ui {
         {
             return;
         }
-        let candidate = match self.preferences.read() {
+        let mut candidate = match self.preferences.read() {
             Ok(s) => s,
             Err(e) => {
                 self.preferences.error(&e);
                 return;
             }
         };
+        if let Ok(canvas) = &self.widget_canvas {
+            candidate.widget_order =
+                crate::widget_order::saved(&canvas.order(), &candidate.widget_keys());
+        }
         self.widget_transaction.set(false);
         self.preferences_pending.set(true);
         self.preferences.busy(true);
@@ -898,6 +934,18 @@ impl Ui {
                 self.preferences_pending.set(false);
                 self.stack.set_sensitive(true);
                 eprintln!("settings transaction rejected epoch={epoch} error={error}");
+                if let Ok(c) = &self.widget_canvas {
+                    let s = self.settings.borrow();
+                    c.rollback(&s.widget_order, &s.widget_keys());
+                }
+                if self.order_transaction.replace(false) {
+                    self.widget_transaction.set(false);
+                    self.stopwatch_manager
+                        .message(&format!("Modifications non enregistrées : {error}"));
+                    self.image_manager
+                        .message(&format!("Modifications non enregistrées : {error}"));
+                    return;
+                }
                 if self.widget_transaction.replace(false) {
                     self.image_manager.busy(false);
                     self.image_manager
@@ -940,6 +988,15 @@ impl Ui {
                     Err("Réglages enregistrés, mais la connexion aux raccourcis est perdue.".into())
                 });
                 self.settings.replace(settings.clone());
+                if let Ok(c) = &self.widget_canvas {
+                    c.configure(&settings.widget_order, &settings.widget_keys());
+                    c.ack(&settings.widget_order);
+                }
+                if self.order_transaction.replace(false) {
+                    self.widget_transaction.set(false);
+                    eprintln!("widgets order saved epoch={epoch} activation_requested=false");
+                    return;
+                }
                 if let Ok(r) = &self.images {
                     r.set_busy(false);
                     r.reconcile(&settings.image_strips, settings.scale);
@@ -1573,6 +1630,7 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::WidgetOrder => self.save_widget_order(),
             Event::Shortcut(command) => self.command(command),
             Event::Hotkey(crate::hotkeys::Action::Command(command)) => self.command(command),
             Event::Hotkey(crate::hotkeys::Action::StopwatchToggle(id)) => {
@@ -1593,7 +1651,10 @@ impl Ui {
                     eprintln!("discarded catalogue economy generation={generation}");
                 }
             }
-            Event::Preferences(update) => self.preferences_update(*update),
+            Event::Preferences(update) => {
+                self.preferences_update(*update);
+                self.save_widget_order();
+            }
             Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
             Event::Windows(s) => {
                 let active = s.game_active();
@@ -1984,10 +2045,28 @@ pub fn run() -> Result<(), String> {
         gtk::STYLE_PROVIDER_PRIORITY_USER + 1,
     );
     let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
+    let order_sender = sender.clone();
+    let close_sender = sender.clone();
+    let widget_canvas = widget_canvas::Canvas::new(
+        move || {
+            let _ = order_sender.send(Event::WidgetOrder);
+        },
+        move || {
+            let _ = close_sender.send(Event::Shortcut("hide"));
+        },
+    );
+    if let Ok(c) = &widget_canvas {
+        c.configure(&settings.widget_order, &settings.widget_keys());
+    }
     let stopwatch_sender = sender.clone();
-    let stopwatches = stopwatch_panel::Runtime::new(move |action| {
-        let _ = stopwatch_sender.send(Event::Stopwatch(action));
-    });
+    let stopwatches = widget_canvas
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|canvas| {
+            stopwatch_panel::Runtime::new(canvas.clone(), move |action| {
+                let _ = stopwatch_sender.send(Event::Stopwatch(action));
+            })
+        });
     if let Ok(r) = &stopwatches {
         r.reconcile(&settings.stopwatches, settings.scale);
     }
@@ -1997,9 +2076,14 @@ pub fn run() -> Result<(), String> {
     });
     stopwatch_manager.configure(&settings.stopwatches);
     let image_sender = sender.clone();
-    let images = image_panel::Runtime::new(move |action| {
-        let _ = image_sender.send(Event::Image(action));
-    });
+    let images = widget_canvas
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|canvas| {
+            image_panel::Runtime::new(canvas.clone(), move |action| {
+                let _ = image_sender.send(Event::Image(action));
+            })
+        });
     if let Ok(r) = &images {
         r.reconcile(&settings.image_strips, settings.scale);
     }
@@ -2257,6 +2341,7 @@ pub fn run() -> Result<(), String> {
     }
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
+        widget_canvas,
         window: window.clone(),
         delve,
         stopwatches,
@@ -2265,6 +2350,7 @@ pub fn run() -> Result<(), String> {
         image_manager,
         pending_image_edit: Cell::new(None),
         widget_transaction: Cell::new(false),
+        order_transaction: Cell::new(false),
         pending_interaction: Cell::new(None),
         pending_stopwatch_edit: Cell::new(None),
         started: Instant::now(),
@@ -2588,6 +2674,10 @@ pub fn run() -> Result<(), String> {
                             Err(error) => serde_json::json!({"available":false,"error":error}),
                         };
                         value["delve_button"]=serde_json::json!(delve_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":delve_open.allocated_width(),"height":delve_open.allocated_height()})));
+                        value["widget_canvas"] = match &ui.widget_canvas {
+                            Ok(c) => c.diagnostics(),
+                            Err(e) => serde_json::json!({"available":false,"error":e}),
+                        };
                         value["images"] = match &ui.images {
                             Ok(r) => r.diagnostics(ui.state.borrow().state == State::Interactive),
                             Err(e) => serde_json::json!({"available":false,"error":e}),

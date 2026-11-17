@@ -182,10 +182,12 @@ seconde, annulé au relâchement ou à la sortie. **Réglages → Chronomètres*
 de changer les noms, positions et deux raccourcis par instance, ou de retirer une
 instance au brouillon. Enregistrer applique ces champs et les raccourcis ensemble ;
 un conflit ou un refus d’écriture conserve l’ancien profil. Limite native : 32
-instances. La disposition des commandes est adaptée à GTK ; la persistance de
-l’ordre de superposition des widgets reste à porter.
+instances. La disposition des commandes est adaptée à GTK. Cliquer une partie
+visible d’un chronomètre ou d’une bande d’images la place devant les autres ; cet
+ordre est mémorisé entre deux lancements. Le menu général reste à porter.
 
-Les chronomètres partagent une seule surface transparente et une seule échéance
+Les chronomètres et les bandes d’images partagent une seule surface transparente.
+Les chronomètres gardent une seule échéance
 de mise à jour. Aucun réveil périodique n’est programmé lorsque tous les widgets
 et le gestionnaire sont masqués ; les durées en marche continuent par calcul à la
 réouverture. Une autre application masque la surface et révoque ses entrées.
@@ -216,7 +218,8 @@ seulement lorsqu’ils sont visibles. Les URL distantes ne sont pas prises en ch
 La feuille Syndicate fournie est l’image upstream inchangée, marquée **version
 3.24**, avec son crédit à elrincondelexiliado.com/syndicate ; elle ne constitue pas
 une référence des mécaniques de la ligue actuelle. L’ordre de superposition
-persistant et la disposition exacte des commandes upstream restent à porter.
+entre chronomètres et images est mémorisé ; la disposition exacte des commandes
+upstream reste à porter.
 
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
@@ -287,7 +290,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.18.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.19.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -395,3 +398,11 @@ python3 scripts/test-image-strips.py target/release/awakened-poe-trade-rs docs/i
 Les deux comparaisons exigent les dépendances Node upstream dans `renderer/`.
 Elles ne sont pas utilisées à l’exécution du programme natif. Le test graphique
 crée son propre River headless et son faux jeu, sans toucher au PoE réel.
+
+Validation de l’ordre des widgets :
+
+```sh
+cargo build --locked --example widget-order
+node scripts/compare-widget-order.cjs target/debug/examples/widget-order docs/widget-order-parity-0.19.json
+python3 scripts/test-widget-order.py target/release/awakened-poe-trade-rs docs/widget-order-lifecycle-0.19.json
+```

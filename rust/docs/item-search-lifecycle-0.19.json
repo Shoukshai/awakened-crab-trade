@@ -1,0 +1,21 @@
+{
+  "configured_shortcut_opens_passively": true,
+  "typing_and_kind_changes_are_offline": true,
+  "prefilled_query_is_passive_and_offline": true,
+  "five_sorted_choices_duplicate_guard_and_sixth_replacement": true,
+  "quotes_from_seeded_dense_cache": true,
+  "virtual_consultation_exact_unique_identity_clipboard_unchanged": true,
+  "league_revokes_quotes_and_late_response_cannot_reopen": true,
+  "quote_error_keeps_unknown_price": true,
+  "scope": "Private River/XWayland; seeded economy cache and refusing/delayed local proxy; no external services or real game input",
+  "binary_version": "awakened-poe-trade-rs 0.19.0",
+  "source_sha256": {
+    "scripts/test-item-search.py": "990909723fa1e069cf052786ee02f6d849412647b88c127e5555d323d378af01",
+    "src/item/search.rs": "036c0e7eccb8318db0cacde68880dd2dd58d0f0e4e1165083acb72087cf81f3e",
+    "src/item.rs": "f1c6f28c51cb75a6cea23a3b3eb8fa4e161c9fd507e764af423ac2f9b40eb0d2",
+    "src/ui/item_search_panel.rs": "35637faee7f9edc59783d7a2fcef233834568e8d012e0739010ea93dba38e71f",
+    "src/ui.rs": "2d8932a30ce854d3906e4b9c117d5f974e69f0608b8b7bfb3c91ce092e9d55d6",
+    "src/hotkeys.rs": "96bbd38bba496fa79f540b9acd63ca90fb73a3a736b088a2a75a7879a04f392b",
+    "src/ui/settings_panel.rs": "69773a528d4c84b67a0d73234576d568cc70aa4fdeb37a861225cc45e9e9e429"
+  }
+}

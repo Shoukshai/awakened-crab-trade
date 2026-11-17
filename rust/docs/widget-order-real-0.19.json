@@ -1,0 +1,40 @@
+{
+  "scope": "Real Artix/River/XWayland PoE at 2560\u00d71600 scale 1. Built-in sheet only; verified native clicks and existing copy/interaction shortcuts. Coexisting timer and image, clicks that raise each type and persisted order tested without overlap. Overlapping pixels/routing, file import, drag, holds, GIF and output changes tested on the isolated desktop.",
+  "initial_real_wand_dps": 11,
+  "hidden_initial_rss_kib": 70100,
+  "native_thumbnail_click_and_fullscreen_preview": true,
+  "visible_static_sheet": {
+    "cpu_ticks_3s": 2,
+    "rss_kib": 91988,
+    "no_new_frames_3s": true,
+    "no_animation_tick": true
+  },
+  "hidden_sheet": {
+    "cpu_ticks_3s": 1,
+    "rss_kib": 74832,
+    "no_new_frames_3s": true,
+    "no_animation_tick": true
+  },
+  "clock_ticks_per_second": 100,
+  "explicit_shortcut_opens_images_after_paint": true,
+  "preferences_restored": true,
+  "native_shared_canvas_image_then_timer_order_saved": true,
+  "shared_test_preferences_restored": true,
+  "actual_wand_trade": {
+    "cached": false,
+    "first_offer": {
+      "bulk": null,
+      "currency": "alch",
+      "unit_price": 1.0
+    },
+    "kind": "Item",
+    "listings": 10,
+    "network_ms": 670,
+    "total": 483
+  },
+  "final_real_wand_dps": 11,
+  "final_state": "Hidden",
+  "poe_and_river_kept_open": true,
+  "live_pid": 26521,
+  "binary_sha256": "2533959c34637ebbc73d387cac88cf57c63df3d994cb8e2366b3c09991f6e057"
+}

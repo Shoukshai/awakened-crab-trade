@@ -1,0 +1,112 @@
+{
+  "configured_shortcut_shows_only_passive_grid": true,
+  "rendered_pixels": {
+    "outside": [
+      34,
+      51,
+      68
+    ],
+    "background": [
+      56,
+      71,
+      86
+    ],
+    "clipped": [
+      34,
+      51,
+      68
+    ],
+    "border": [
+      113,
+      128,
+      150
+    ]
+  },
+  "pass_through_clicks": 4,
+  "static_grid_no_redraws_1s": true,
+  "exclusive_suppression_nonexclusive_restore_and_hide_on_interaction": true,
+  "new_grid_request_dismisses_exclusive_panel": true,
+  "native_button_handoffs": 20,
+  "explicit_toggle_and_hide": true,
+  "application_switch_and_inactive_refusal": true,
+  "game_recreation_does_not_restore_grid": true,
+  "private_output_reconfiguration": [
+    {
+      "physical": [
+        1920,
+        1080
+      ],
+      "output_scale": 1,
+      "geometry": {
+        "cell": 97,
+        "columns": 11,
+        "grid_left": 426.5,
+        "grid_top": 34.5,
+        "height": 808,
+        "left": 445.0,
+        "rows": 9,
+        "top": 67,
+        "viewport_height": 1080,
+        "viewport_width": 1920,
+        "width": 1030
+      },
+      "buffer_scale": 1
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "output_scale": 2,
+      "geometry": {
+        "cell": 72,
+        "columns": 11,
+        "grid_left": 244.0,
+        "grid_top": 25.5,
+        "height": 599,
+        "left": 258.0,
+        "rows": 9,
+        "top": 50,
+        "viewport_height": 800,
+        "viewport_width": 1280,
+        "width": 764
+      },
+      "buffer_scale": 2
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "output_scale": 1,
+      "geometry": {
+        "cell": 144,
+        "columns": 11,
+        "grid_left": 488.0,
+        "grid_top": 49.5,
+        "height": 1197,
+        "left": 517.0,
+        "rows": 9,
+        "top": 99,
+        "viewport_height": 1600,
+        "viewport_width": 2560,
+        "width": 1526
+      },
+      "buffer_scale": 1
+    }
+  ],
+  "widget_actions_keep_preferences_bytes": true,
+  "native_shortcut_capture_save_and_rebind": true,
+  "no_network": true,
+  "scope": "Private headless River/XWayland, fake game and local pointer events only; pixel sampling and output changes confined to private compositor",
+  "binary_version": "awakened-poe-trade-rs 0.19.0",
+  "source_sha256": {
+    "scripts/test-delve.py": "f2ba8358241534cf13ccf2d408055dbca8cf57ff9b0128a8ff278784e21ba8e6",
+    "src/delve.rs": "d4b7b2fa86e07727ab15663254673dfb0be4bb21bb6440ac649b292fb23ff9fc",
+    "src/ui/delve_grid.rs": "af4ca4a04eb3a5902a6c4eb97458e261dafe59debff581f4da33062e62912773",
+    "src/ui.rs": "2d8932a30ce854d3906e4b9c117d5f974e69f0608b8b7bfb3c91ce092e9d55d6",
+    "examples/overlay-fixture.rs": "df3d8595e37a0893274cfea16cad273195b9841698fa45c71712f2a4f6ff0eb4",
+    "src/hotkeys.rs": "96bbd38bba496fa79f540b9acd63ca90fb73a3a736b088a2a75a7879a04f392b",
+    "src/ui/settings_panel.rs": "69773a528d4c84b67a0d73234576d568cc70aa4fdeb37a861225cc45e9e9e429"
+  }
+}

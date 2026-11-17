@@ -1,5 +1,7 @@
 //! Native image strips, bounded asynchronous assets, and pointer-transparent
 //! fullscreen previews. Every surface maps with empty input until its first paint.
+use super::widget_canvas::{Canvas, Owner};
+use crate::widget_order::Key;
 use crate::{
     desktop::images as files,
     image_strip::{Anchor, Config},
@@ -9,7 +11,6 @@ use gtk::{
     gdk_pixbuf::{Pixbuf, PixbufAnimationIter, PixbufLoader},
     prelude::*,
 };
-use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, VecDeque},
@@ -152,6 +153,7 @@ fn actor() -> (mpsc::SyncSender<Job>, glib::Receiver<Loaded>) {
     (tx, receiver)
 }
 pub struct Runtime {
+    canvas: Rc<Canvas>,
     window: gtk::Window,
     layout: gtk::Layout,
     preview_area: gtk::DrawingArea,
@@ -187,31 +189,10 @@ pub struct Runtime {
     send: Box<dyn Fn(Action)>,
 }
 impl Runtime {
-    pub fn new(send: impl Fn(Action) + 'static) -> Result<Rc<Self>, String> {
-        let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        window.set_title("Awakened PoE Trade — Images");
-        window.set_widget_name("apt-image-strips");
-        let visual = GtkWindowExt::screen(&window)
-            .and_then(|s| s.rgba_visual())
-            .ok_or("Surface RGBA indisponible pour les images.")?;
-        window.set_visual(Some(&visual));
-        window.set_app_paintable(true);
-        window.set_decorated(false);
-        window.set_focus_on_map(false);
-        window.set_accept_focus(false);
-        window.init_layer_shell();
-        window.set_namespace("awakened-poe-trade-rs-images");
-        window.set_layer(Layer::Overlay);
-        window.set_exclusive_zone(-1);
-        for e in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-            window.set_anchor(e, true);
-        }
-        empty(&window);
-        let overlay = gtk::Overlay::new();
-        let layout = gtk::Layout::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        layout.set_hexpand(true);
-        layout.set_vexpand(true);
-        overlay.add(&layout);
+    pub fn new(canvas: Rc<Canvas>, send: impl Fn(Action) + 'static) -> Result<Rc<Self>, String> {
+        let window = canvas.window.clone();
+        let layout = canvas.layout.clone();
+        let overlay = canvas.overlay.clone();
         let preview_area = gtk::DrawingArea::new();
         preview_area.set_hexpand(true);
         preview_area.set_vexpand(true);
@@ -233,9 +214,6 @@ impl Runtime {
         });
         overlay.add_overlay(&preview_area);
         overlay.set_overlay_pass_through(&preview_area, true);
-        window.add(&overlay);
-        overlay.show();
-        layout.show();
         let css = gtk::CssProvider::new();
         if let Some(s) = GtkWindowExt::screen(&window) {
             gtk::StyleContext::add_provider_for_screen(
@@ -248,6 +226,7 @@ impl Runtime {
         let (thumb_worker, thumb_results) = actor();
         let (preview_worker, preview_results) = actor();
         let r = Rc::new(Self {
+            canvas,
             window,
             layout,
             preview_area,
@@ -317,24 +296,21 @@ impl Runtime {
             glib::ControlFlow::Continue
         });
         let weak = Rc::downgrade(&r);
-        r.window.connect_draw(move |_, cr| {
+        r.window.connect_draw(move |_, _| {
             if let Some(r) = weak.upgrade() {
-                r.draws.set(r.draws.get() + 1);
+                if r.canvas.visible(Owner::Image) {
+                    r.draws.set(r.draws.get() + 1);
+                }
             }
-            cr.set_operator(gtk::cairo::Operator::Source);
-            cr.set_source_rgba(0., 0., 0., 0.);
-            let _ = cr.paint();
-            cr.set_operator(gtk::cairo::Operator::Over);
             glib::Propagation::Proceed
         });
         let weak = Rc::downgrade(&r);
         r.window.connect_realize(move |w| {
-            empty(w);
             if let Some(clock) = w.frame_clock() {
                 let weak = weak.clone();
                 clock.connect_after_paint(move |_| {
                     if let Some(r) = weak.upgrade() {
-                        if r.window.is_visible() {
+                        if r.canvas.visible(Owner::Image) {
                             r.frames.set(r.frames.get() + 1);
                             if !r.rendered.replace(true){eprintln!("images first_frame=painted geometry={}x{} buffer_scale={} activation_requested=false",r.window.allocated_width(),r.window.allocated_height(),r.window.scale_factor());}
                             r.apply_input();
@@ -421,7 +397,9 @@ impl Runtime {
         });
         let weak = Rc::downgrade(&r);
         r.window.connect_key_press_event(move |_, e| {
-            if e.keyval() == gdk::keys::constants::Escape {
+            if e.keyval() == gdk::keys::constants::Escape
+                && weak.upgrade().is_some_and(|r| r.can_input())
+            {
                 if let Some(r) = weak.upgrade() {
                     (r.send)(Action::Escape(r.epoch.get()));
                 }
@@ -429,13 +407,6 @@ impl Runtime {
             } else {
                 glib::Propagation::Proceed
             }
-        });
-        let weak = Rc::downgrade(&r);
-        r.window.connect_delete_event(move |_, _| {
-            if let Some(r) = weak.upgrade() {
-                (r.send)(Action::Escape(r.epoch.get()));
-            }
-            glib::Propagation::Stop
         });
         let gesture = gtk::GestureDrag::new(&r.layout);
         gesture.set_button(1);
@@ -450,7 +421,11 @@ impl Runtime {
                         .borrow()
                         .iter()
                         .rev()
-                        .filter(|r| r.root.is_visible() && r.mover.is_active())
+                        .filter(|row| {
+                            row.root.is_visible()
+                                && row.mover.is_active()
+                                && r.canvas.hit(x, y) == Some(Key::Image(row.config.id))
+                        })
                         .find_map(|row| {
                             let (bx, by) = row.body.translate_coordinates(&r.window, 0, 0)?;
                             Anchor::ALL.into_iter().find_map(|a| {
@@ -512,14 +487,14 @@ impl Runtime {
         self.interactive.get()
             && !self.exclusive.get()
             && !self.dismissed.get()
-            && self.window.is_visible()
+            && self.canvas.visible(Owner::Image)
             && self.rendered.get()
     }
     pub fn accepts(&self, epoch: u64) -> bool {
         epoch == self.epoch.get() && self.can_input()
     }
     pub fn owns_focus(&self) -> bool {
-        self.window.is_visible() && self.window.is_active()
+        self.canvas.visible(Owner::Image) && self.window.is_active()
     }
     pub fn has_wanted(&self) -> bool {
         self.rows.borrow().iter().any(|r| r.config.wanted)
@@ -577,6 +552,7 @@ impl Runtime {
                     row.config = c.clone();
                     self.rows.borrow_mut().push(row);
                 } else {
+                    self.canvas.unregister(Key::Image(row.config.id));
                     self.layout.remove(&row.root);
                     self.add_row(c.clone());
                 }
@@ -585,6 +561,7 @@ impl Runtime {
             }
         }
         for r in old {
+            self.canvas.unregister(Key::Image(r.config.id));
             self.layout.remove(&r.root);
         }
         self.revision.set(self.revision.get() + 1);
@@ -603,6 +580,7 @@ impl Runtime {
     }
     fn add_row(self: &Rc<Self>, config: Config) {
         let root = gtk::EventBox::new();
+        root.set_widget_name("apt-image-strips");
         root.set_visible_window(true);
         root.add_events(
             gdk::EventMask::ENTER_NOTIFY_MASK
@@ -829,6 +807,7 @@ impl Runtime {
             }
             glib::Propagation::Proceed
         });
+        self.canvas.register(Key::Image(config.id), &root);
         self.layout.put(&root, 0, 0);
         root.show_all();
         let (_, toolbar_size) = toolbar.preferred_size();
@@ -902,17 +881,15 @@ impl Runtime {
                 });
         }
         if any {
-            if !self.window.is_visible() {
+            if !self.canvas.visible(Owner::Image) {
                 self.rendered.set(false);
-                empty(&self.window);
-                self.window.show();
+                self.canvas.set_visible(Owner::Image, true);
             }
             self.layout_rows();
             self.load_thumbnails();
         } else {
-            empty(&self.window);
+            self.canvas.set_visible(Owner::Image, false);
             self.rendered.set(false);
-            self.window.hide();
             self.clear_preview();
         }
         self.apply_input();
@@ -920,7 +897,8 @@ impl Runtime {
     }
     fn apply_input(&self) {
         if !self.can_input() {
-            empty(&self.window);
+            self.canvas
+                .set_input(Owner::Image, gtk::cairo::Region::create());
             return;
         }
         let region = gtk::cairo::Region::create();
@@ -940,14 +918,10 @@ impl Runtime {
             self.window.allocated_width(),
             self.window.allocated_height(),
         ));
-        if let Some(w) = self.window.window() {
-            w.input_shape_combine_region(&region, 0, 0);
-        }
-        self.window.set_accept_focus(true);
-        self.window.set_keyboard_mode(KeyboardMode::OnDemand);
+        self.canvas.set_input(Owner::Image, region);
     }
     fn load_thumbnails(&self) {
-        if !self.window.is_visible() {
+        if !self.canvas.visible(Owner::Image) {
             return;
         }
         let (w, h) = self.viewport();
@@ -1138,7 +1112,7 @@ impl Runtime {
         if let Some(t) = self.animation_tick.borrow_mut().take() {
             t.remove();
         }
-        if !self.window.is_visible() {
+        if !self.canvas.visible(Owner::Image) {
             return;
         }
         let visible = self.visible_urls();
@@ -1214,16 +1188,10 @@ impl Runtime {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"available":true,"visible":self.window.is_visible(),"focused":self.window.is_active(),"keyboard_mode":format!("{:?}",self.window.keyboard_mode()),"rendered":self.rendered.get(),"epoch":self.epoch.get(),"buffer_scale":self.window.scale_factor(),"viewport":[self.window.allocated_width(),self.window.allocated_height()],"frames":self.frames.get(),"draws":self.draws.get(),"scheduled_animation":self.animation_tick.borrow().is_some(),"pending_thumbnails":self.thumb_pending.borrow().len(),"loaded_assets":self.assets.borrow().len(),"preview":self.preview.borrow().as_ref().map(|p|serde_json::json!({"strip":p.strip,"image":p.image,"loaded":p.asset.is_some(),"error":p.error,"visible":self.preview_area.is_visible()})),"rows":self.rows.borrow().iter().map(|r|serde_json::json!({"id":r.config.id,"title":r.config.title,"wanted":r.config.wanted,"x":r.config.x,"y":r.config.y,"anchor":r.config.anchor,"visible":r.root.is_visible(),"rect":rect(r.root.upcast_ref()),"body":rect(r.body.upcast_ref()),"moving":r.mover.is_active(),"controls":if details{Some(serde_json::json!({"edit":rect(r.edit.upcast_ref()),"hide":rect(r.hide.upcast_ref()),"move":rect(r.mover.upcast_ref()),"remove":rect(r.remove.upcast_ref())}))}else{None},"cards":if details{r.cards.iter().take(32).map(|c|serde_json::json!({"id":c.id,"url":c.url,"rect":rect(c.root.upcast_ref()),"loaded":self.assets.borrow().get(&c.url).map(|a|a.is_ok()),"animated":self.assets.borrow().get(&c.url).and_then(|a|a.as_ref().ok()).is_some_and(|a|a.animation.is_some()),"error":self.assets.borrow().get(&c.url).and_then(|a|a.as_ref().err()),"requires_leave":c.hover.borrow().requires_leave})).collect::<Vec<_>>()}else{Vec::new()}})).collect::<Vec<_>>()})
+        serde_json::json!({"available":true,"visible":self.canvas.visible(Owner::Image),"focused":self.canvas.visible(Owner::Image)&&self.window.is_active(),"keyboard_mode":if self.canvas.input(Owner::Image) {"OnDemand"} else {"None"},"rendered":self.rendered.get(),"epoch":self.epoch.get(),"buffer_scale":self.window.scale_factor(),"viewport":[self.window.allocated_width(),self.window.allocated_height()],"frames":self.frames.get(),"draws":self.draws.get(),"scheduled_animation":self.animation_tick.borrow().is_some(),"pending_thumbnails":self.thumb_pending.borrow().len(),"loaded_assets":self.assets.borrow().len(),"preview":self.preview.borrow().as_ref().map(|p|serde_json::json!({"strip":p.strip,"image":p.image,"loaded":p.asset.is_some(),"error":p.error,"visible":self.preview_area.is_visible()})),"rows":self.rows.borrow().iter().map(|r|serde_json::json!({"id":r.config.id,"title":r.config.title,"wanted":r.config.wanted,"x":r.config.x,"y":r.config.y,"anchor":r.config.anchor,"visible":r.root.is_visible(),"rect":rect(r.root.upcast_ref()),"body":rect(r.body.upcast_ref()),"moving":r.mover.is_active(),"controls":if details{Some(serde_json::json!({"edit":rect(r.edit.upcast_ref()),"hide":rect(r.hide.upcast_ref()),"move":rect(r.mover.upcast_ref()),"remove":rect(r.remove.upcast_ref())}))}else{None},"cards":if details{r.cards.iter().take(32).map(|c|serde_json::json!({"id":c.id,"url":c.url,"rect":rect(c.root.upcast_ref()),"loaded":self.assets.borrow().get(&c.url).map(|a|a.is_ok()),"animated":self.assets.borrow().get(&c.url).and_then(|a|a.as_ref().ok()).is_some_and(|a|a.animation.is_some()),"error":self.assets.borrow().get(&c.url).and_then(|a|a.as_ref().err()),"requires_leave":c.hover.borrow().requires_leave})).collect::<Vec<_>>()}else{Vec::new()}})).collect::<Vec<_>>()})
     }
 }
-fn empty(w: &gtk::Window) {
-    w.set_keyboard_mode(KeyboardMode::None);
-    w.set_accept_focus(false);
-    if let Some(g) = w.window() {
-        g.input_shape_combine_region(&gtk::cairo::Region::create(), 0, 0);
-    }
-}
+
 fn paint(cr: &gtk::cairo::Context, pixbuf: &Pixbuf, x: f64, y: f64, w: f64, h: f64, cover: bool) {
     if w <= 0. || h <= 0. {
         return;

@@ -1279,3 +1279,75 @@ de sortie sont vérifiés sur le bureau privé ; seule la feuille fournie a ét�
 utilisée sur le vrai jeu. Les grands GIF, l’ordre de superposition persistant,
 les bords CSS exacts, la réduction réelle, plusieurs sorties, les autres
 compositeurs, X11 natif et Windows restent non validés ou à porter.
+
+## Jalon 0.19 : superposition et surface commune des widgets
+
+### Comparaisons et tests automatisés
+
+**122 tests unitaires passent**, ainsi que Clippy toutes cibles avec
+`-D warnings` et le contrôle de format. Les ajouts vérifient l’ordre, les clés
+retirées ou ajoutées, l’omission de l’ordre par défaut et le refus des références
+dupliquées ou absentes. [widget-order-parity-0.19.json](widget-order-parity-0.19.json)
+exécute les fonctions inchangées `bringToTop` et `topmostWidget` upstream sur
+**256 séquences, 32 768 opérations**, sans écart d’ordre relatif. Cela concerne
+les widgets initialisés, non exclusifs ; pas leur présentation CSS.
+
+[widget-order-lifecycle-0.19.json](widget-order-lifecycle-0.19.json) vérifie dans
+un River/XWayland privé une image opaque qui recouvre un chronomètre. Les pixels
+du chevauchement changent après clic sur une partie exposée du chronomètre. Un
+bouton de ce dernier, pourtant au-dessus d’une vignette, reçoit le clic et ne
+déclenche pas l’aperçu situé dessous. L’image peut ensuite remonter. La séquence
+est sauvegardée, puis ses pixels sont retrouvés après redémarrage masqué.
+
+Un vrai refus d’écriture du répertoire de profil rétablit l’ordre natif et le
+fichier précédent, sans nouvelle tentative automatique. Supprimer le dernier
+chronomètre dans le brouillon retire sa référence de superposition et enregistre
+un profil valide. Masquer les images laisse l’entrée du chronomètre active sur
+la même surface ; une vue exclusive révoque l’union entière. Toutes surfaces
+masquées : ni nouvelle frame commune, ni échéance des deux moteurs. Aucun réseau
+Trade dans ce scénario, ni message GTK/GDK critical dans les journaux.
+
+Trois erreurs ont été reproduites puis corrigées : une région d’entrée modifiée
+après le rendu attendait un commit Wayland qui ne venait pas pour les widgets
+statiques ; le mapping d’un enfant annulait l’ordre restauré ; la sauvegarde
+d’ordre reconstruisait les widgets et fermait l’aperçu. La région déclenche
+maintenant une frame uniquement lorsqu’elle change, l’ordre est réappliqué au
+mapping et sa sauvegarde ne reconstruit plus le contenu. Le test réel a aussi
+révélé le refus de sauvegarder une suppression au brouillon avec une ancienne
+référence d’ordre : cette référence est retirée avant validation. Le profil
+initial a été restauré avant de poursuivre ; le cas est désormais vérifié par
+le scénario natif. Les clics de test attendent la nouvelle allocation GTK après
+retrait d’une ligne avant de viser Enregistrer.
+
+Les scénarios [images](image-strips-lifecycle-0.19.json),
+[chronomètres](stopwatch-lifecycle-0.19.json), [réglages](settings-0.19.json),
+[cycle de vie](overlay-lifecycle-0.19.json), [Delve](delve-lifecycle-0.19.json) et
+[Heist](item-search-lifecycle-0.19.json) passent sur les sources courantes. Ils
+conservent leurs portées : changements de sortie et facteur 2 sur le serveur
+privé, aucun réglage de l’écran réel modifié.
+
+### Observations sur le vrai PoE
+
+[widget-order-real-0.19.json](widget-order-real-0.19.json) décrit le release sur
+Artix/River/XWayland, 2560×1600 au facteur 1. La vignette et son aperçu sont
+visibles au-dessus du jeu. Une image et un chronomètre coexistent sur la surface
+commune ; cliquer l’image puis une partie visible du chronomètre change l’ordre
+mémorisé, sans fermer le panneau principal. Capture inspectée. Le chronomètre
+est ensuite retiré par le brouillon natif et l’image masquée : le profil initial
+est retrouvé intégralement, y compris l’absence du champ d’ordre par défaut.
+Ces widgets ne se chevauchent pas sur le vrai jeu ; les pixels et les clics de
+chevauchement sont prouvés sur le bureau privé.
+
+Sur trois secondes, à 100 ticks/s : image statique visible, **2 ticks CPU**,
+**91 988 Kio RSS**, aucune nouvelle frame ni animation ; masqué, **1 tick CPU**,
+**74 832 Kio RSS**, aucune nouvelle frame ni animation. Mesures courtes de ce
+processus, sans comparaison Electron et sans garantie universelle.
+
+Copie réelle avant/après : Driftwood Wand, **11 DPS physiques**. Trade Covens :
+**483 résultats, 10 offres, 670 ms réseau**, affichage passif et clavier None.
+PoE et River restent ouverts ; le service finit masqué. Le menu général, les
+autres widgets et préférences de l’inventaire, les bords CSS exacts, les grands
+GIF, la réduction réelle, plusieurs sorties, les autres compositeurs, X11 natif
+et Windows restent à porter ou à valider. La fermeture de la surface commune
+est déléguée à l’action globale ; sa demande de fermeture par un compositeur
+n’a pas été provoquée sur le vrai jeu.

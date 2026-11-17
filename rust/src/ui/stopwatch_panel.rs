@@ -1,8 +1,9 @@
 //! Native multi-instance stopwatch HUD. A single canvas owns the widgets so
 //! transparent pixels stay click-through and all instances share one idle clock.
+use super::widget_canvas::{Canvas, Owner};
 use crate::stopwatch::{Config, State};
+use crate::widget_order::Key;
 use gtk::{gdk, prelude::*};
-use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
@@ -50,6 +51,7 @@ struct Drag {
     start_y: f64,
 }
 pub struct Runtime {
+    canvas: Rc<Canvas>,
     window: gtk::Window,
     layout: gtk::Layout,
     css: gtk::CssProvider,
@@ -71,30 +73,9 @@ pub struct Runtime {
     send: Box<dyn Fn(Action)>,
 }
 impl Runtime {
-    pub fn new(send: impl Fn(Action) + 'static) -> Result<Rc<Self>, String> {
-        let window = gtk::Window::new(gtk::WindowType::Toplevel);
-        window.set_title("Awakened PoE Trade — Chronomètres");
-        window.set_widget_name("apt-stopwatches");
-        let visual = GtkWindowExt::screen(&window)
-            .and_then(|s| s.rgba_visual())
-            .ok_or("Surface RGBA indisponible pour les chronomètres.")?;
-        window.set_visual(Some(&visual));
-        window.set_app_paintable(true);
-        window.set_decorated(false);
-        window.set_focus_on_map(false);
-        window.set_accept_focus(false);
-        window.init_layer_shell();
-        window.set_namespace("awakened-poe-trade-rs-stopwatches");
-        window.set_layer(Layer::Overlay);
-        window.set_exclusive_zone(-1);
-        for e in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-            window.set_anchor(e, true);
-        }
-        window.set_keyboard_mode(KeyboardMode::None);
-        let layout = gtk::Layout::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        layout.set_hexpand(true);
-        layout.set_vexpand(true);
-        window.add(&layout);
+    pub fn new(canvas: Rc<Canvas>, send: impl Fn(Action) + 'static) -> Result<Rc<Self>, String> {
+        let window = canvas.window.clone();
+        let layout = canvas.layout.clone();
         let css = gtk::CssProvider::new();
         if let Some(screen) = GtkWindowExt::screen(&window) {
             gtk::StyleContext::add_provider_for_screen(
@@ -104,6 +85,7 @@ impl Runtime {
             );
         }
         let r = Rc::new(Self {
+            canvas,
             window,
             layout,
             css,
@@ -126,24 +108,21 @@ impl Runtime {
         });
         r.style(1.)?;
         let weak = Rc::downgrade(&r);
-        r.window.connect_draw(move |_, cr| {
+        r.window.connect_draw(move |_, _| {
             if let Some(r) = weak.upgrade() {
-                r.draws.set(r.draws.get() + 1);
+                if r.canvas.visible(Owner::Stopwatch) {
+                    r.draws.set(r.draws.get() + 1);
+                }
             }
-            cr.set_operator(gtk::cairo::Operator::Source);
-            cr.set_source_rgba(0., 0., 0., 0.);
-            let _ = cr.paint();
-            cr.set_operator(gtk::cairo::Operator::Over);
             glib::Propagation::Proceed
         });
         let weak = Rc::downgrade(&r);
         r.window.connect_realize(move |w| {
-            empty(w);
             if let Some(clock) = w.frame_clock() {
                 let weak = weak.clone();
                 clock.connect_after_paint(move |_| {
                     if let Some(r) = weak.upgrade() {
-                        if r.window.is_visible() {
+                        if r.canvas.visible(Owner::Stopwatch) {
                             r.rendered.set(true);
                             r.frames.set(r.frames.get() + 1);
                             r.apply_input();
@@ -182,18 +161,13 @@ impl Runtime {
             }
             glib::Propagation::Proceed
         });
-        let weak = Rc::downgrade(&r);
-        r.window.connect_delete_event(move |_, _| {
-            if let Some(r) = weak.upgrade() {
-                r.dismiss();
-            }
-            glib::Propagation::Stop
-        });
         // The gesture is attached to the unmoving canvas, so moving its child does
         // not change the coordinate system used to measure drag offsets.
         let weak = Rc::downgrade(&r);
         r.window.connect_key_press_event(move |_, e| {
-            if e.keyval() == gdk::keys::constants::Escape {
+            if e.keyval() == gdk::keys::constants::Escape
+                && weak.upgrade().is_some_and(|r| r.can_input())
+            {
                 if let Some(r) = weak.upgrade() {
                     (r.send)(Action::Escape(r.epoch.get()));
                 }
@@ -216,6 +190,7 @@ impl Runtime {
                     .rev()
                     .find(|row| {
                         row.mover.is_active()
+                            && r.canvas.hit(x, y) == Some(Key::Stopwatch(row.config.id))
                             && row.root.is_visible()
                             && center_hit(row, &r.window, x, y)
                     })
@@ -305,11 +280,11 @@ impl Runtime {
         c.interactive
             && !c.exclusive
             && !self.dismissed.get()
-            && self.window.is_visible()
+            && self.canvas.visible(Owner::Stopwatch)
             && self.rendered.get()
     }
     pub fn owns_focus(&self) -> bool {
-        self.window.is_visible() && self.window.is_active()
+        self.canvas.visible(Owner::Stopwatch) && self.window.is_active()
     }
     pub fn resume(self: &Rc<Self>) {
         self.dismissed.set(false);
@@ -361,6 +336,7 @@ impl Runtime {
                 let mut row = old.remove(index);
                 if rebuild {
                     let state = row.state.clone();
+                    self.canvas.unregister(Key::Stopwatch(row.config.id));
                     self.layout.remove(&row.root);
                     self.add_row(config.clone(), state);
                 } else {
@@ -372,6 +348,7 @@ impl Runtime {
             }
         }
         for row in old {
+            self.canvas.unregister(Key::Stopwatch(row.config.id));
             self.layout.remove(&row.root);
         }
         self.render();
@@ -380,10 +357,11 @@ impl Runtime {
         !self.rows.borrow().is_empty()
     }
     pub fn visible_rendered(&self) -> bool {
-        self.window.is_visible() && self.rendered.get()
+        self.canvas.visible(Owner::Stopwatch) && self.rendered.get()
     }
     fn add_row(self: &Rc<Self>, config: Config, state: State) {
         let root = gtk::EventBox::new();
+        root.set_widget_name("apt-stopwatches");
         root.set_visible_window(true);
         root.add_events(
             gdk::EventMask::ENTER_NOTIFY_MASK
@@ -501,17 +479,6 @@ impl Runtime {
             glib::Propagation::Proceed
         });
         let weak = Rc::downgrade(self);
-        root.connect_button_press_event(move |w, _| {
-            if let Some(r) = weak.upgrade() {
-                if r.can_input() {
-                    if let Some(w) = w.window() {
-                        w.raise();
-                    }
-                }
-            }
-            glib::Propagation::Proceed
-        });
-        let weak = Rc::downgrade(self);
         remove.connect_button_press_event(move |_, e| {
             if e.button() == 1 {
                 if let Some(r) = weak.upgrade() {
@@ -536,6 +503,7 @@ impl Runtime {
             }
             glib::Propagation::Proceed
         });
+        self.canvas.register(Key::Stopwatch(config.id), &root);
         self.layout.put(&root, 0, 0);
         root.show_all();
         for child in toolbar.children() {
@@ -679,20 +647,15 @@ impl Runtime {
             }
         }
         if any {
-            if !self.window.is_visible() {
+            if !self.canvas.visible(Owner::Stopwatch) {
                 self.rendered.set(false);
-                empty(&self.window);
-                self.window.show();
+                self.canvas.set_visible(Owner::Stopwatch, true);
                 self.layout.show();
             }
             self.layout_rows();
-            if !c.interactive {
-                empty(&self.window);
-            }
         } else {
             self.rendered.set(false);
-            empty(&self.window);
-            self.window.hide();
+            self.canvas.set_visible(Owner::Stopwatch, false);
         }
         if let Some(source) = self.timer.borrow_mut().take() {
             source.remove();
@@ -727,7 +690,8 @@ impl Runtime {
     }
     fn apply_input(&self) {
         if !self.can_input() {
-            empty(&self.window);
+            self.canvas
+                .set_input(Owner::Stopwatch, gtk::cairo::Region::create());
             return;
         }
         let region = gtk::cairo::Region::create();
@@ -747,11 +711,7 @@ impl Runtime {
             self.window.allocated_width(),
             self.window.allocated_height(),
         ));
-        if let Some(w) = self.window.window() {
-            w.input_shape_combine_region(&region, 0, 0);
-        }
-        self.window.set_accept_focus(true);
-        self.window.set_keyboard_mode(KeyboardMode::OnDemand);
+        self.canvas.set_input(Owner::Stopwatch, region);
     }
     pub fn readings(&self) -> Vec<crate::stopwatch::Reading> {
         let now = self.now();
@@ -774,16 +734,10 @@ impl Runtime {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"available":true,"visible":self.window.is_visible(),"focused":self.window.is_active(),"keyboard_mode":format!("{:?}",self.window.keyboard_mode()),"rendered":self.rendered.get(),"epoch":self.epoch.get(),"dismissed":self.dismissed.get(),"scheduled_tick":self.timer.borrow().is_some(),"frames":self.frames.get(),"draws":self.draws.get(),"viewport":[self.window.allocated_width(),self.window.allocated_height()],"rows":self.rows.borrow().iter().map(|r|serde_json::json!({"id":r.config.id,"title":r.config.title,"running":r.state.running,"millis":r.state.elapsed(now),"formatted":State::formatted(r.state.elapsed(now)),"moving":r.mover.is_active(),"wanted":r.config.wanted,"invisible_on_blur":r.state.invisible_on_blur,"x":r.config.x,"y":r.config.y,"visible":r.root.is_visible(),"layout_position":[self.layout.child_x(&r.root),self.layout.child_y(&r.root)],"rect":rect(r.root.upcast_ref()),"controls":if details {Some(serde_json::json!({"toggle":rect(r.toggle.upcast_ref()),"reset":rect(r.reset.upcast_ref()),"edit":rect(r.edit.upcast_ref()),"move":rect(r.mover.upcast_ref()),"remove":rect(r.remove.upcast_ref())}))}else{None}})).collect::<Vec<_>>()})
+        serde_json::json!({"available":true,"visible":self.canvas.visible(Owner::Stopwatch),"focused":self.canvas.visible(Owner::Stopwatch)&&self.window.is_active(),"keyboard_mode":if self.canvas.input(Owner::Stopwatch) {"OnDemand"} else {"None"},"rendered":self.rendered.get(),"epoch":self.epoch.get(),"dismissed":self.dismissed.get(),"scheduled_tick":self.timer.borrow().is_some(),"frames":self.frames.get(),"draws":self.draws.get(),"viewport":[self.window.allocated_width(),self.window.allocated_height()],"rows":self.rows.borrow().iter().map(|r|serde_json::json!({"id":r.config.id,"title":r.config.title,"running":r.state.running,"millis":r.state.elapsed(now),"formatted":State::formatted(r.state.elapsed(now)),"moving":r.mover.is_active(),"wanted":r.config.wanted,"invisible_on_blur":r.state.invisible_on_blur,"x":r.config.x,"y":r.config.y,"visible":r.root.is_visible(),"layout_position":[self.layout.child_x(&r.root),self.layout.child_y(&r.root)],"rect":rect(r.root.upcast_ref()),"controls":if details {Some(serde_json::json!({"toggle":rect(r.toggle.upcast_ref()),"reset":rect(r.reset.upcast_ref()),"edit":rect(r.edit.upcast_ref()),"move":rect(r.mover.upcast_ref()),"remove":rect(r.remove.upcast_ref())}))}else{None}})).collect::<Vec<_>>()})
     }
 }
-fn empty(w: &gtk::Window) {
-    w.set_keyboard_mode(KeyboardMode::None);
-    w.set_accept_focus(false);
-    if let Some(g) = w.window() {
-        g.input_shape_combine_region(&gtk::cairo::Region::create(), 0, 0);
-    }
-}
+
 fn center_hit(row: &Row, window: &gtk::Window, x: f64, y: f64) -> bool {
     let Some((left, top)) = row.label.translate_coordinates(window, 0, 0) else {
         return false;
