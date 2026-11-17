@@ -6,7 +6,7 @@ root=pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
 for name in ['river','riverctl','wlr-randr','xdotool','wl-copy','wtype']:
     assert shutil.which(name),name+' required'
-subprocess.run(['cargo','build','--locked','--example','pointer','--example','overlay-fixture','--example','stash-fixture','-j','3'],check=True)
+subprocess.run(['cargo','build','--locked','--example','pointer','--example','overlay-fixture','--example','stash-fixture','--example','native-key','-j','3'],check=True)
 app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else root/'target/release/awakened-poe-trade-rs').resolve()
 target=pathlib.Path(os.environ.get('CARGO_TARGET_DIR',root/'target')).resolve()
 runtime=pathlib.Path(tempfile.mkdtemp(prefix='apt-overlay-desktop-'));runtime.chmod(0o700)
@@ -52,11 +52,16 @@ class TradeFixture(http.server.BaseHTTPRequestHandler):
         def offered(suffix,life):
             item={'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True,'corrupted':suffix=='B'}
             family=env['APT_FIXTURE_ITEM']
+            if family=='wand':item.update(name='Fixture wand',typeLine='Spiraled Wand',properties=[],implicitMods=['30% increased Spell Damage'],explicitMods=['+21 to Intelligence','+100 to maximum Mana'],craftedMods=[])
             if family=='gem':item.update(name='',typeLine='Impale Support',frameType=4,ilvl=1,properties=[{'name':'Level','values':[['20 (Max)',0]]},{'name':'Quality','values':[['+20%',1]]}],implicitMods=[],explicitMods=['Supported Attacks have 40% chance to Impale Enemies on Hit'],craftedMods=[],corrupted=True)
             if family=='unique':item.update(name='Goldrim',typeLine='Leather Cap',frameType=3,explicitMods=['+35% to all Elemental Resistances'])
             if family=='map':item.update(name='',typeLine='Map (Tier 16)',frameType=0,properties=[{'name':'Map Tier','values':[['16',0]]},{'name':'Quality','values':[['+20%',1]]}])
             if family=='influence':item.update(name=f'Fixture circlet {suffix}',typeLine='Hubris Circlet',properties=[{'name':'Energy Shield','values':[['100',0]]}],implicitMods=[],explicitMods=['Nearby Enemies have -9% to Chaos Resistance'],craftedMods=[])
             if family=='viscera':item.update(name='',typeLine='Greater Severed Rhoa Head',frameType=0,ilvl=1,implicitMods=['Every second, inflict Withered on Enemies within 6 metres for 5 seconds'],explicitMods=[],craftedMods=[])
+            # Current Trade uses structured mods; keep one legacy row for compatibility.
+            if suffix=='A':
+                for key in ['implicitMods','explicitMods','craftedMods','fracturedMods','enchantMods']:
+                    if key in item:item[key]=[{'description':text,'domain':key.removesuffix('Mods'),'mods':[{'tier':'P2','magnitudes':[{'min':'1','max':'999'}]}]} for text in item[key]]
             return item
         self.reply({'result':[{'listing':{'indexed':'2026-11-17T12:00:00Z','price':{'amount':price,'currency':'chaos'},'account':{'name':f'FixtureSeller{suffix}'}},'item':offered(suffix,life)} for suffix,price,life in [('A',5,73),('B',12,110)]]})
 
@@ -74,19 +79,24 @@ def command(name):return subprocess.check_output([str(app),name],env=env,text=Tr
 def status():return json.loads(command('status'))
 def state(**expected):
     s=status();return s if all(s[k]==v for k,v in expected.items()) else None
+def pointer_command(line):
+    assert persistent is not None
+    persistent.stdin.write(line+'\n');persistent.stdin.flush()
+    assert select.select([persistent.stdout],[],[],3)[0],'persistent pointer stalled'
+    assert persistent.stdout.readline().strip()=='ok'
 def pointer(x,y,click=False):
     if persistent is not None:
-        def send(line):
-            persistent.stdin.write(line+'\n');persistent.stdin.flush()
-            assert select.select([persistent.stdout],[],[],3)[0],'persistent pointer stalled'
-            assert persistent.stdout.readline().strip()=='ok'
-        send(f'move {int(x)} {int(y)}')
+        pointer_command(f'move {int(x)} {int(y)}')
         if click:
-            send('down');time.sleep(.08);send('up')
+            pointer_command('down');time.sleep(.08);pointer_command('up')
     else:
         args=[str(target/'debug/examples/pointer'),str(int(x)),str(int(y)),'2560','1600']
         if click:args+=['--click']
         subprocess.run(args,env=env,check=True)
+def drag_slider(rect,start,end):
+    o=status()['origin'];left=o['x']+rect['x']+6;span=rect['width']-12;y=o['y']+rect['y']+rect['height']/2
+    pointer(left+span*start,y);pointer_command('down');time.sleep(.08)
+    pointer(left+span*end,y);time.sleep(.08);pointer_command('up')
 
 def capture_panel(path):
     s=status();o=s['origin'];subprocess.run(['grim','-g',f"{o['x']},{o['y']} {s['width']}x{s['height']}",path],env=env,check=True)
@@ -149,13 +159,42 @@ try:
         family=os.environ['APT_FAMILY_CASE']
         command('hide');focus_game();subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
         wait_for(lambda:state(state='Interactive',visible=True,rendered=True) and status()['item'],'family copied')
-        expected={'gem':'Gem','currency':'Currency','unique':'Unique','map':'Map','viscera':'Viscera','influence':'Equipment'}[family]
+        expected={'gem':'Gem','currency':'Currency','unique':'Unique','map':'Map','viscera':'Viscera','influence':'Equipment','wand':'Equipment'}[family]
         assert status()['family']==expected,status()
         wait_for(lambda:status()['summary']['image_ready'],'item image fetched through fixture',10)
-        if family!='influence':wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
+        if family not in ['influence','wand']:wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
         s0=status()
         assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
         assert not posts,'copy must not automatically query Trade with automatic_search=false'
+        if family=='wand':
+            row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
+            assert row['bounds']=={'min':8.0,'max':12.0,'roll':8.0},row
+            click(row['slider'])
+            wait_for(lambda:next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')['min_value']==10,'slider single click sets min')
+            row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
+            assert row['selected'] and not row['max_enabled']
+            drag_slider(row['slider'],0.5,0.75)
+            wait_for(lambda:next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')['min_value']==11,'slider drag sets min without toggling row')
+            assert abs(row['min']['y']-row['max']['y'])<=1 and abs(row['min']['x']+row['min']['width']-row['max']['x'])<=1,row
+            for field,text in [(row['min'],'9'),(row['max'],'40')]:
+                click(field);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--',text],env=env,check=True)
+            assert status()['request'] is None
+            row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
+            click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','11'],env=env,check=True)
+            drag_slider(row['slider'],0.75,1.0)
+            wait_for(lambda:next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')['max_value']==12,'second slider handle sets max')
+            click(row['max']);subprocess.run([str(target/'debug/examples/native-key'),'ctrl-a'],env=env,check=True);subprocess.run([str(target/'debug/examples/native-key'),'backspace'],env=env,check=True)
+            wait_for(lambda:not next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')['max_enabled'],'empty Max removes bound')
+            click(row['min']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','abc'],env=env,check=True)
+            click(status()['search_button']);wait_for(lambda:status()['status_text']=='Valeur Min/Max invalide.','invalid number refuses search')
+            assert not posts and status()['request'] is None
+            click(row['min']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','9'],env=env,check=True)
+            click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','4'],env=env,check=True)
+            click(status()['search_button']);wait_for(lambda:status()['status_text']=='Min doit être inférieur ou égal à Max.','inverted bounds refuse search')
+            assert not posts and status()['request'] is None
+            click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','40'],env=env,check=True)
+            report['slider_click_drag_both_handles_and_joined_fields']=True
+            report['blank_bound_is_removed_and_invalid_ranges_send_no_trade_request']=True
         if family=='currency':
             assert not s0['search_actions_visible'] and s0['request'] is None and s0['economy']['stack']['have']==2,s0
             assert ninja_requests
@@ -164,6 +203,12 @@ try:
             click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'family Trade results')
             wait_for(lambda:status()['listings']['mapped_rows']==2,'family offers allocated')
             q=status()['request']['query'];misc=q.get('filters',{}).get('misc_filters',{}).get('filters',{})
+            if family=='wand':
+                mods=[f for g in q['stats'] for f in g['filters'] if f['id']=='implicit.stat_2974417149']
+                assert len(mods)==1 and mods[0]['value']=={'min':9.0,'max':40.0},q
+                tooltip=status()['listings']['offers'][0]['tooltip']
+                assert all(t in tooltip for t in ['30% increased Spell Damage','+21 to Intelligence','+100 to maximum Mana']),tooltip
+                assert '8% increased Spell Damage' not in tooltip,tooltip
             if family=='gem':
                 assert misc['gem_level']=={'min':20,'max':20} and misc['quality']=={'min':20,'max':20} and misc['corrupted']['option']=='true',q
                 assert 'ilvl' not in misc and not status()['stat_controls'],status()
@@ -307,7 +352,7 @@ try:
     report['first_offered_item_life']=73;report['searched_item_life']=85
     r=status()['search_button'];o=status()['origin'];pointer(o['x']+r['x']+10,o['y']+r['y']+10)
     wait_for(lambda:not status()['listings']['tooltip_visible'],'tooltip closes on leaving offer')
-    r=reveal(current_life)['select'];click(dict(r,x=r['x']+r['width']-14,y=r['y']+r['height']-14,width=8,height=8));wait_for(lambda:not current_life()['selected'] and status()['request'] is None,'deselect invalidates old query');assert not status()['listings']['visible']
+    r=reveal(current_life)['select'];click(dict(r,x=r['x']+r['width']-14,y=r['y']+8,width=8,height=8));wait_for(lambda:not current_life()['selected'] and status()['request'] is None,'deselect invalidates old query');assert not status()['listings']['visible']
     time.sleep(5.1);click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'query without life')
     assert not any(f['id']=='pseudo.pseudo_total_life' for group in status()['request']['query']['stats'] for f in group['filters'])
     report['deselecting_a_mod_clears_prices_and_removes_it_from_next_query']=True
@@ -370,7 +415,7 @@ try:
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines
     assert fixture_command('input')['submitted']==[]
     report.update(scope='Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.',binary_version=subprocess.check_output([str(app),'--version'],text=True).strip())
-    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs','src/ui/summary_panel.rs','src/ui/icons.rs','src/economy.rs','src/economy/identity.rs','src/modifiers/translation.rs','src/data/current-stats.ndjson','src/data/current-items.ndjson','src/data/current-icons.json']}
+    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','examples/native-key.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs','src/ui/summary_panel.rs','src/ui/roll_slider.rs','src/ui/icons.rs','src/economy.rs','src/economy/identity.rs','src/modifiers/translation.rs','src/data/current-stats.ndjson','src/data/current-items.ndjson','src/data/current-icons.json']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 

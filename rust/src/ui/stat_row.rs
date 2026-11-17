@@ -5,10 +5,10 @@ use gtk::{atk::prelude::*, prelude::*};
 pub struct StatRow {
     pub container: gtk::EventBox,
     selected: gtk::ToggleButton,
-    min_enabled: gtk::CheckButton,
-    max_enabled: gtk::CheckButton,
-    min: gtk::SpinButton,
-    max: gtk::SpinButton,
+    min: gtk::Entry,
+    max: gtk::Entry,
+    slider: Option<gtk::DrawingArea>,
+    bounds: Option<super::roll_slider::Bounds>,
     numeric: bool,
     influence_icons: usize,
     template: StatFilter,
@@ -92,35 +92,62 @@ impl StatRow {
             }
         });
         let controls = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-        let min_enabled = gtk::CheckButton::with_label("Min");
-        let max_enabled = gtk::CheckButton::with_label("Max");
-        let min = gtk::SpinButton::with_range(-1e12, 1e12, 1.);
-        let max = gtk::SpinButton::with_range(-1e12, 1e12, 1.);
-        for spin in [&min, &max] {
+        let min = gtk::Entry::new();
+        let max = gtk::Entry::new();
+        for (entry, name, value) in [
+            (&min, "Min", candidate.initial_min),
+            (&max, "Max", candidate.initial_max),
+        ] {
+            entry.set_width_chars(5);
+            entry.set_max_width_chars(7);
+            entry.set_alignment(0.5);
+            entry.set_placeholder_text(Some(name));
+            entry.set_tooltip_text(Some(name));
+            if let Some(accessible) = entry.accessible() {
+                accessible.set_name(name);
+            }
             let attrs = gtk::pango::AttrList::new();
             attrs.insert(gtk::pango::AttrFontFeatures::new("tnum=1"));
-            spin.set_attributes(&attrs);
-            spin.set_digits(if modifier.decimal { 2 } else { 0 });
-            spin.set_width_chars(4);
-            spin.set_value(candidate.display_value.unwrap_or(0.));
+            entry.set_attributes(&attrs);
+            if let Some(value) = value {
+                entry.set_text(&super::economy_panel::format_amount(value));
+            }
         }
-        min_enabled.set_active(candidate.initial_min.is_some());
-        max_enabled.set_active(candidate.initial_max.is_some());
-        if let Some(value) = candidate.initial_min {
-            min.set_value(value);
+        let bounds = modifier
+            .min
+            .zip(modifier.max)
+            .zip(candidate.display_value)
+            .and_then(|((min, max), roll)| {
+                let negate = crate::modifiers::translation::display(modifier).1;
+                let (min, max) = if negate { (-max, -min) } else { (min, max) };
+                super::roll_slider::Bounds::new(min, max, roll, modifier.decimal)
+            });
+        let slider = bounds.map(|bounds| {
+            super::roll_slider::new(
+                bounds,
+                &min,
+                &max,
+                &selected,
+                candidate.initial_min.is_none() && candidate.initial_max.is_some(),
+            )
+        });
+        if let Some(slider) = &slider {
+            controls.pack_start(slider, true, true, 0);
+        } else {
+            controls.pack_start(
+                &gtk::Box::new(gtk::Orientation::Horizontal, 0),
+                true,
+                true,
+                0,
+            );
         }
-        if let Some(value) = candidate.initial_max {
-            max.set_value(value);
-        }
-        for (check, spin) in [(&min_enabled, &min), (&max_enabled, &max)] {
-            spin.set_sensitive(check.is_active());
-            let spin = spin.clone();
-            check.connect_toggled(move |check| spin.set_sensitive(check.is_active()));
-        }
-        controls.pack_start(&min_enabled, false, false, 0);
-        controls.pack_start(&min, false, false, 0);
-        controls.pack_start(&max_enabled, false, false, 0);
-        controls.pack_start(&max, false, false, 0);
+        let inputs = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        inputs.style_context().add_class("mod-bounds");
+        min.style_context().add_class("bound-min");
+        max.style_context().add_class("bound-max");
+        inputs.pack_start(&min, false, false, 0);
+        inputs.pack_start(&max, false, false, 0);
+        controls.pack_end(&inputs, false, false, 0);
         if modifier.option || modifier.ids.iter().any(|id| id.contains('|')) {
             let option = modifier
                 .ids
@@ -164,13 +191,13 @@ impl StatRow {
             label.set_xalign(0.);
             body.pack_start(&label, false, false, 0);
         }
-        let editable = [
-            min.upcast_ref::<gtk::Widget>(),
-            max.upcast_ref::<gtk::Widget>(),
-            min_enabled.upcast_ref::<gtk::Widget>(),
-            max_enabled.upcast_ref::<gtk::Widget>(),
-        ]
-        .map(|w| w.downgrade());
+        let mut editable = vec![
+            min.upcast_ref::<gtk::Widget>().downgrade(),
+            max.upcast_ref::<gtk::Widget>().downgrade(),
+        ];
+        if let Some(slider) = &slider {
+            editable.push(slider.upcast_ref::<gtk::Widget>().downgrade());
+        }
         let model = selected.clone();
         container.connect_button_press_event(move |row, event| {
             if event.button() != 1 {
@@ -215,10 +242,10 @@ impl StatRow {
         Self {
             container,
             selected,
-            min_enabled,
-            max_enabled,
             min,
             max,
+            slider,
+            bounds,
             numeric: !modifier.option
                 && !modifier.ids.iter().any(|id| id.contains('|'))
                 && modifier.value.is_some(),
@@ -226,60 +253,55 @@ impl StatRow {
             template: StatFilter::from_candidate(candidate),
         }
     }
-    pub fn commit(&self) {
-        self.min.update();
-        self.max.update();
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.selected.is_active() || !self.numeric {
+            return Ok(());
+        }
+        let min = super::roll_slider::read(&self.min)?;
+        let max = super::roll_slider::read(&self.max)?;
+        if min.zip(max).is_some_and(|(a, b)| a > b) {
+            return Err("Min doit être inférieur ou égal à Max.".into());
+        }
+        Ok(())
     }
     pub fn selected_filter(&self) -> Option<StatFilter> {
         if !self.selected.is_active() {
             return None;
         }
         let mut filter = self.template.clone();
-        filter.min = (self.numeric && self.min_enabled.is_active()).then(|| self.min.value());
-        filter.max = (self.numeric && self.max_enabled.is_active()).then(|| self.max.value());
+        filter.min = if self.numeric {
+            super::roll_slider::read(&self.min).ok().flatten()
+        } else {
+            None
+        };
+        filter.max = if self.numeric {
+            super::roll_slider::read(&self.max).ok().flatten()
+        } else {
+            None
+        };
         Some(filter)
     }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"id":self.template.id,"influence_icons":self.influence_icons,"selected":self.selected.is_active(),"min_value":self.min.value(),"max_value":self.max.value(),"min_enabled":self.min_enabled.is_active(),"max_enabled":self.max_enabled.is_active(),"select":rect(self.container.upcast_ref()),"min":rect(self.min.upcast_ref()),"max":rect(self.max.upcast_ref())})
+        serde_json::json!({"id":self.template.id,"influence_icons":self.influence_icons,"selected":self.selected.is_active(),"min_value":super::roll_slider::read(&self.min).ok().flatten(),"max_value":super::roll_slider::read(&self.max).ok().flatten(),"min_enabled":!self.min.text().trim().is_empty(),"max_enabled":!self.max.text().trim().is_empty(),"select":rect(self.container.upcast_ref()),"min":rect(self.min.upcast_ref()),"max":rect(self.max.upcast_ref()),"slider":self.slider.as_ref().and_then(|s|rect(s.upcast_ref())),"bounds":self.bounds.map(|b|serde_json::json!({"min":b.min,"max":b.max,"roll":b.roll}))})
     }
     pub fn connect_changed(&self, send: impl Fn() + 'static) {
         use std::{cell::RefCell, rc::Rc};
-        let id = self.template.id.clone();
-        self.selected.connect_button_press_event(move |_, e| {
-            eprintln!(
-                "stat pointer-press id={id:?} root={:?} button={} time={} kind={:?}",
-                e.root(),
-                e.button(),
-                e.time(),
-                e.event_type()
-            );
-            glib::Propagation::Proceed
-        });
         let selected = self.selected.downgrade();
-        let min_enabled = self.min_enabled.downgrade();
-        let max_enabled = self.max_enabled.downgrade();
         let min = self.min.downgrade();
         let max = self.max.downgrade();
-        let numeric = self.numeric;
         let read = Rc::new(move || {
-            let (Some(selected), Some(min_enabled), Some(max_enabled), Some(min), Some(max)) = (
-                selected.upgrade(),
-                min_enabled.upgrade(),
-                max_enabled.upgrade(),
-                min.upgrade(),
-                max.upgrade(),
-            ) else {
-                return "null".into();
+            let (Some(selected), Some(min), Some(max)) =
+                (selected.upgrade(), min.upgrade(), max.upgrade())
+            else {
+                return String::new();
             };
-            if !selected.is_active() {
-                return "null".into();
-            }
             serde_json::json!([
-                (numeric && min_enabled.is_active()).then(|| min.value()),
-                (numeric && max_enabled.is_active()).then(|| max.value())
+                selected.is_active(),
+                min.text().as_str(),
+                max.text().as_str()
             ])
             .to_string()
         });
@@ -291,17 +313,20 @@ impl StatRow {
                 send();
             }
         });
-        for check in [
-            &self.selected,
-            self.min_enabled.upcast_ref::<gtk::ToggleButton>(),
-            self.max_enabled.upcast_ref::<gtk::ToggleButton>(),
-        ] {
+        let toggled = changed.clone();
+        self.selected.connect_toggled(move |_| toggled());
+        for entry in [&self.min, &self.max] {
             let changed = changed.clone();
-            check.connect_toggled(move |_| changed());
-        }
-        for spin in [&self.min, &self.max] {
-            let changed = changed.clone();
-            spin.connect_value_changed(move |_| changed());
+            let selected = self.selected.clone();
+            entry.connect_changed(move |entry| {
+                if super::roll_slider::read(entry).is_err() {
+                    entry.style_context().add_class("error");
+                } else {
+                    entry.style_context().remove_class("error");
+                }
+                selected.set_active(true);
+                changed();
+            });
         }
     }
 }

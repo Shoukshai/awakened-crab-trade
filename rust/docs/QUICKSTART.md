@@ -6,7 +6,8 @@
 3. Le bloc du haut affiche la cote poe.ninja et l’image de l’objet. Pour une
    monnaie, cette consultation suffit : aucune recherche Trade n’est lancée.
    La ligue actuelle est sélectionnée automatiquement. Cliquer les rectangles
-   des stats à comparer et ajuster Min/Max. Les puces base et ilvl sont
+   des stats à comparer. Ajuster le slider bicolore ou les deux champs Min/Max
+   accolés à droite ; vider un champ retire sa limite. Les puces base et ilvl sont
    désactivées par défaut ; cliquer pour les activer. Rareté et corruption
    se choisissent dans leurs listes. Les gemmes utilisent niveau et qualité
    exacts, modifiables ou désactivables ; les cartes utilisent leur tier.

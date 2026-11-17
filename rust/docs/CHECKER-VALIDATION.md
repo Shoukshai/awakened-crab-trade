@@ -1,4 +1,31 @@
-# Validation du price checker 0.26 — Linux
+# Validation du price checker 0.27 — Linux
+
+Le survol lit les descriptions des mods structurés du Trade actuel et les
+anciennes listes de textes. Les autres groupes `*Mods` sont également lus,
+y compris les groupes de nouvelles mécaniques. L'objet présenté reste celui
+de l'offre ; ses valeurs ne viennent jamais de l'objet copié.
+
+Les bornes des mods numériques utilisent un slider bicolore et deux champs
+Min/Max accolés à droite. Les champs acceptent des valeurs hors de la plage
+copiée ; un champ vide retire sa borne. Cliquer ou glisser le slider active le
+mod et ajuste une borne. Avec deux bornes, la poignée la plus proche est
+choisie. Les saisies invalides ou Min > Max bloquent toute requête Trade.
+Les valeurs négatives, décimales et les plages fixes sont couvertes.
+Le slider utilise les bornes copiées ; il ne représente pas une liste de tiers.
+
+128 tests unitaires couvrent le moteur et les formats Trade. Le scénario natif
+`APT_FAMILY_CASE=wand` vérifie le clic, le glissement des deux bornes, les champs
+accolés, l'effacement, les erreurs de saisie et les mods de l'offre au survol.
+Le clavier de test complet evdev est utilisé pour les raccourcis d'édition GTK.
+Les captures natives sont dans `dist/previews/0.27/` et utilisent des offres
+synthétiques. Le scénario complet conserve les tests de focus, de menus et de
+fermeture extérieure, avec un pointeur persistant.
+
+La consultation poe.ninja n'est plus demandée deux fois lors d'une recherche
+automatique après copie, ce qui évite l'annulation de la première consultation.
+
+## Ajouts de la version 0.26
+
 
 La version 0.26 ajoute les panneaux par famille et un résumé poe.ninja sans
 courbe. Les monnaies ne lancent aucune recherche Trade. Les gemmes exposent

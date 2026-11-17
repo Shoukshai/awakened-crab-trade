@@ -16,6 +16,7 @@ mod icons;
 mod item_filters_panel;
 mod listings_panel;
 mod mercenary_panel;
+mod roll_slider;
 mod settings_panel;
 mod stat_row;
 mod summary_panel;
@@ -532,13 +533,13 @@ impl Ui {
         });
     }
     fn price_after_copy(&self) {
-        self.request_quote();
         if self
             .item
             .borrow()
             .as_ref()
             .is_some_and(|i| i.family() == crate::item::Family::Currency)
         {
+            self.request_quote();
             self.text.set_text("");
             return;
         }
@@ -553,6 +554,7 @@ impl Ui {
         if self.settings.borrow().automatic_search && !manual_rare {
             self.search();
         } else {
+            self.request_quote();
             self.text.set_text("");
             self.economy_panel.not_requested();
             self.economy_panel.container.hide();
@@ -962,9 +964,6 @@ impl Ui {
         }
         // Commit text still being edited before incrementing the request generation.
         // Any value-change event queued by GTK then belongs to the previous generation.
-        for row in self.stat_rows.borrow().iter() {
-            row.commit();
-        }
         self.item_filters.commit();
         // Even a locally rejected edit supersedes pending results. Otherwise an
         // older response could replace the validation error with stale prices.
@@ -978,6 +977,12 @@ impl Ui {
         self.economy_panel.reset();
         self.economy_panel.container.hide();
         self.economy_panel.show(&Ok(Report::default()));
+        for row in self.stat_rows.borrow().iter() {
+            if let Err(error) = row.validate() {
+                self.text.set_text(&error);
+                return;
+            }
+        }
         let mut settings = self.settings.borrow().clone();
         settings.league = self.league.text().trim().to_string();
         settings.filters.online = self.online.is_active();

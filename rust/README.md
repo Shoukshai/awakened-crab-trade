@@ -68,7 +68,7 @@ l’installer. Les dépendances Cargo doivent être disponibles localement
 
 ```sh
 cargo test --locked -j 3
-python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs dist/price-checker-lifecycle-0.26.json
+python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs dist/price-checker-lifecycle-0.27.json
 ```
 
 Le bloc supérieur affiche l’image et la cote poe.ninja, sans courbe. Les monnaies

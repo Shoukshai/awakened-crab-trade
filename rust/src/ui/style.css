@@ -65,3 +65,8 @@ menuitem label { color: inherit; }
 
 #apt-offer-details .rarity-gem { color: #1ba29b; }
 #apt-offer-details .rarity-currency { color: #aa9e82; }
+
+#apt-native .mod-bounds entry { min-height: 20px; padding: 4px; border-radius: 4px; }
+#apt-native .mod-bounds entry.bound-min { border-top-right-radius: 0px; border-bottom-right-radius: 0px; }
+#apt-native .mod-bounds entry.bound-max { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left-width: 0px; }
+#apt-native entry.error { border-color: #bc6262; }

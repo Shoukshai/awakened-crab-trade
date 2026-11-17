@@ -56,9 +56,7 @@ fn properties(value: &Value) -> Vec<String> {
 }
 impl OfferedItem {
     pub fn from_api(value: &Value) -> Option<Self> {
-        if !value.is_object() {
-            return None;
-        }
+        let fields = value.as_object()?;
         let name = value["name"].as_str().unwrap_or("").to_string();
         let base = value["typeLine"]
             .as_str()
@@ -68,7 +66,7 @@ impl OfferedItem {
         if name.is_empty() && base.is_empty() {
             return None;
         }
-        let mods = [
+        const MOD_FIELDS: [&str; 10] = [
             "implicitMods",
             "explicitMods",
             "craftedMods",
@@ -79,22 +77,30 @@ impl OfferedItem {
             "mutatedMods",
             "utilityMods",
             "veiledMods",
-        ]
-        .into_iter()
-        .filter_map(|kind| {
-            let lines: Vec<_> = value[kind]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect();
-            (!lines.is_empty()).then(|| ModGroup {
-                kind: kind.into(),
-                lines,
+        ];
+        let mods = MOD_FIELDS
+            .into_iter()
+            .chain(
+                fields
+                    .keys()
+                    .map(String::as_str)
+                    .filter(|key| key.ends_with("Mods") && !MOD_FIELDS.contains(key)),
+            )
+            .filter_map(|kind| {
+                let lines: Vec<_> = value[kind]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|entry| entry.as_str().or_else(|| entry["description"].as_str()))
+                    .filter(|text| !text.trim().is_empty())
+                    .map(str::to_string)
+                    .collect();
+                (!lines.is_empty()).then(|| ModGroup {
+                    kind: kind.into(),
+                    lines,
+                })
             })
-        })
-        .collect();
+            .collect();
         let numeric = |name: &str| {
             value["properties"]
                 .as_array()?
@@ -129,6 +135,24 @@ impl OfferedItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn current_structured_mods_and_legacy_strings_keep_displayed_rolls() {
+        let item = OfferedItem::from_api(&serde_json::json!({
+            "typeLine":"Spiraled Wand", "ilvl":72,
+            "implicitMods":[{"description":"30% increased Spell Damage","hash":"stat.implicit.stat_2974417149","mods":[{"magnitudes":[{"min":"30","max":"34"}]}]}],
+            "explicitMods":[{"description":"+21 to Intelligence","mods":[{"name":"of the Prodigy","tier":"S7","magnitudes":[{"min":"18","max":"22"}]}]},"+100 to maximum Mana",{},null,{"description":""}],
+            "craftedMods":[{"description":"+16% to Chaos Resistance"}],
+            "desecratedMods":[{"description":"+30 to maximum Life"}]
+        })).unwrap();
+        assert_eq!(item.mods[0].lines, ["30% increased Spell Damage"]);
+        assert_eq!(
+            item.mods[1].lines,
+            ["+21 to Intelligence", "+100 to maximum Mana"]
+        );
+        assert_eq!(item.mods[2].lines, ["+16% to Chaos Resistance"]);
+        assert_eq!(item.mods[3].kind, "desecratedMods");
+        assert_eq!(item.mods[3].lines, ["+30 to maximum Life"]);
+    }
     #[test]
     fn offered_values_are_preserved_separately_from_the_searched_item() {
         let item=OfferedItem::from_api(&serde_json::json!({"name":"Fixture seller's ring","typeLine":"Gold Ring","ilvl":84,"frameType":2,"properties":[{"name":"Quality","values":[["+20%",1]]}],"requirements":[{"name":"Level","values":[["64",0]]}],"implicitMods":["12% increased Rarity of Items found"],"explicitMods":["+110 to maximum Life","+42% to Fire Resistance"],"craftedMods":["+16% to Chaos Resistance"],"corrupted":true})).unwrap();

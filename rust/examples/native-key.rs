@@ -90,9 +90,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let action = std::env::args()
         .nth(1)
-        .ok_or("usage: native-key ctrl-v|escape|shift-space")?;
+        .ok_or("usage: native-key ctrl-v|ctrl-a|backspace|delete|escape|shift-space")?;
     let (code, mods) = match action.as_str() {
         "ctrl-v" => (47, 4),
+        "ctrl-a" => (30, 4),
+        "backspace" => (14, 0),
+        "delete" => (111, 0),
         "escape" => (1, 0),
         "shift-space" => (57, 1),
         _ => return Err("unsupported fixture action".into()),
