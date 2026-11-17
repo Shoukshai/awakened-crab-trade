@@ -30,7 +30,7 @@ fn attach<A, R>(
     connection: u64,
 ) -> Result<Arc<Backend>, String>
 where
-    A: Fn(&'static str) + Clone + Send + 'static,
+    A: Fn(crate::hotkeys::Action) + Clone + Send + 'static,
     R: Fn(Update) + Clone + Send + 'static,
 {
     // Start the listener before any proposed keys are acquired. Even a slow
@@ -54,7 +54,7 @@ pub fn run<A, R>(
     actions: A,
     reports: R,
 ) where
-    A: Fn(&'static str) + Clone + Send + 'static,
+    A: Fn(crate::hotkeys::Action) + Clone + Send + 'static,
     R: Fn(Update) + Clone + Send + 'static,
 {
     let mut connection = 1;

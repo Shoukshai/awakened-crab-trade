@@ -2,6 +2,23 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Action {
+    Command(&'static str),
+    StopwatchToggle(u64),
+    StopwatchReset(u64),
+}
+impl Action {
+    pub fn is_copy(self) -> bool {
+        matches!(self, Self::Command("copy" | "inspect-copy"))
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StopwatchKeys {
+    pub id: u64,
+    pub toggle: Option<String>,
+    pub reset: Option<String>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct Hotkeys {
@@ -14,6 +31,8 @@ pub struct Hotkeys {
     pub catalogue: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delve: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stopwatch_keys: Vec<StopwatchKeys>,
 }
 impl Default for Hotkeys {
     fn default() -> Self {
@@ -25,6 +44,7 @@ impl Default for Hotkeys {
             settings: None,
             catalogue: None,
             delve: None,
+            stopwatch_keys: Vec::new(),
         }
     }
 }
@@ -209,23 +229,33 @@ impl Hotkeys {
             settings: None,
             catalogue: None,
             delve: None,
+            stopwatch_keys: Vec::new(),
         }
     }
     pub fn is_default(&self) -> bool {
         self == &Self::default()
     }
-    pub fn bindings(&self) -> Result<Vec<(Hotkey, &'static str)>, String> {
+    pub fn bindings(&self) -> Result<Vec<(Hotkey, Action)>, String> {
         let mut seen = HashSet::new();
         let mut bindings = Vec::new();
-        for (value, command) in [
-            (&self.price, "copy"),
-            (&self.inspect, "inspect-copy"),
-            (&self.interact, "interact"),
-            (&self.hide, "hide"),
-            (&self.settings, "settings"),
-            (&self.catalogue, "catalogue"),
-            (&self.delve, "delve"),
-        ] {
+        let mut raw = vec![
+            (&self.price, Action::Command("copy")),
+            (&self.inspect, Action::Command("inspect-copy")),
+            (&self.interact, Action::Command("interact")),
+            (&self.hide, Action::Command("hide")),
+            (&self.settings, Action::Command("settings")),
+            (&self.catalogue, Action::Command("catalogue")),
+            (&self.delve, Action::Command("delve")),
+        ];
+        let mut ids = HashSet::new();
+        for keys in &self.stopwatch_keys {
+            if keys.id == 0 || keys.id > 9_007_199_254_740_991 || !ids.insert(keys.id) {
+                return Err("Identifiant de raccourci chronomètre invalide ou dupliqué.".into());
+            }
+            raw.push((&keys.toggle, Action::StopwatchToggle(keys.id)));
+            raw.push((&keys.reset, Action::StopwatchReset(keys.id)));
+        }
+        for (value, command) in raw {
             if let Some(value) = value {
                 let key = Hotkey::parse(value)?;
                 let canonical = key.text();
@@ -276,6 +306,20 @@ impl Hotkeys {
             settings: normalize(&self.settings)?,
             catalogue: normalize(&self.catalogue)?,
             delve: normalize(&self.delve)?,
+            stopwatch_keys: self
+                .stopwatch_keys
+                .iter()
+                .map(|k| {
+                    Ok(StopwatchKeys {
+                        id: k.id,
+                        toggle: normalize(&k.toggle)?,
+                        reset: normalize(&k.reset)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?
+                .into_iter()
+                .filter(|k| k.toggle.is_some() || k.reset.is_some())
+                .collect(),
         })
     }
 }
@@ -339,6 +383,7 @@ mod tests {
             settings: None,
             catalogue: None,
             delve: None,
+            stopwatch_keys: Vec::new(),
         };
         assert!(h.bindings().unwrap().is_empty());
         assert!(Hotkeys::default().normalized().unwrap().is_default());

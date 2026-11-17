@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
     let scroll = match args.get(4).map(String::as_str) {
-        None | Some("--click") => None,
+        None | Some("--click" | "--hold" | "--drag-to") => None,
         Some("--scroll") => {
             let value: f64 = args.get(5).ok_or("--scroll requires pixels")?.parse()?;
             if !value.is_finite() || value.abs() > 1000. {
@@ -57,6 +57,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => return Err("unknown pointer action".into()),
     };
+    let private_action = args
+        .get(4)
+        .is_some_and(|a| matches!(a.as_str(), "--hold" | "--drag-to"));
+    if private_action
+        && !std::env::var("XDG_RUNTIME_DIR")
+            .unwrap_or_default()
+            .starts_with("/tmp/apt-overlay-desktop-")
+    {
+        return Err("hold/drag are restricted to the private test compositor".into());
+    }
     let c = Connection::connect_to_env()?;
     let mut q = c.new_event_queue();
     let mut s = State { manager: None };
@@ -76,10 +86,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     p.frame();
     q.roundtrip(&mut s)?;
-    if args.get(4).is_some_and(|s| s == "--click") {
+    if args
+        .get(4)
+        .is_some_and(|s| matches!(s.as_str(), "--click" | "--hold" | "--drag-to"))
+    {
         p.button(timestamp(), 0x110, wl_pointer::ButtonState::Pressed);
         p.frame();
         q.roundtrip(&mut s)?;
+        if args[4] == "--hold" {
+            let delay: u64 = args.get(5).ok_or("hold requires milliseconds")?.parse()?;
+            if delay > 2000 {
+                return Err("hold limited to two seconds".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(delay));
+        }
+        if args[4] == "--drag-to" {
+            let x: u32 = args
+                .get(5)
+                .ok_or("drag requires destination X Y")?
+                .parse()?;
+            let y: u32 = args
+                .get(6)
+                .ok_or("drag requires destination X Y")?
+                .parse()?;
+            std::thread::sleep(std::time::Duration::from_millis(80));
+            p.motion_absolute(timestamp(), x, y, args[2].parse()?, args[3].parse()?);
+            p.frame();
+            q.roundtrip(&mut s)?;
+            std::thread::sleep(std::time::Duration::from_millis(80));
+        }
         p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released);
         p.frame();
         q.roundtrip(&mut s)?;

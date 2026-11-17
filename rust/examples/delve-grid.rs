@@ -33,6 +33,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "toggle" => {
                             active = false;
                             p.context(true, true, false, false, exclusive);
+                            if !p.requested() {
+                                exclusive = false;
+                            }
                             p.toggle(true, false);
                         }
                         "focus" => {

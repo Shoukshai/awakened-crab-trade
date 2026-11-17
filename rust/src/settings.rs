@@ -12,6 +12,8 @@ pub struct Settings {
     pub map_check: crate::inspection::MapConfig,
     #[serde(skip_serializing_if = "crate::hotkeys::Hotkeys::is_default")]
     pub hotkeys: crate::hotkeys::Hotkeys,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stopwatches: Vec<crate::stopwatch::Config>,
 }
 fn is_true(value: &bool) -> bool {
     *value
@@ -26,6 +28,7 @@ impl Default for Settings {
             automatic_search: true,
             map_check: crate::inspection::MapConfig::default(),
             hotkeys: crate::hotkeys::Hotkeys::default(),
+            stopwatches: Vec::new(),
         }
     }
 }
@@ -52,6 +55,24 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         self.map_check.validate()?;
         self.hotkeys.bindings()?;
+        if self.stopwatches.len() > crate::stopwatch::MAX_INSTANCES {
+            return Err("Au plus 32 chronomètres peuvent être configurés.".into());
+        }
+        let mut ids = std::collections::HashSet::new();
+        for c in &self.stopwatches {
+            c.validate()?;
+            if !ids.insert(c.id) {
+                return Err("Identifiant de chronomètre dupliqué.".into());
+            }
+        }
+        if self
+            .hotkeys
+            .stopwatch_keys
+            .iter()
+            .any(|k| !ids.contains(&k.id))
+        {
+            return Err("Raccourci associé à un chronomètre absent.".into());
+        }
         if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
             return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());
         }
@@ -134,6 +155,39 @@ mod tests {
         assert!(s.validate().is_err());
         s.scale = 1.;
         s.search_range = 101.;
+        assert!(s.validate().is_err());
+    }
+}
+
+#[cfg(test)]
+mod stopwatch_tests {
+    use super::*;
+    #[test]
+    fn timer_keys_require_valid_unique_instances_and_share_global_reservations() {
+        let mut s = Settings::default();
+        s.hotkeys
+            .stopwatch_keys
+            .push(crate::hotkeys::StopwatchKeys {
+                id: 7,
+                toggle: Some("Ctrl + J".into()),
+                reset: None,
+            });
+        assert!(s.validate().is_err());
+        s.stopwatches.push(crate::stopwatch::Config {
+            id: 7,
+            ..Default::default()
+        });
+        s.validate().unwrap();
+        let bindings = s.hotkeys.bindings().unwrap();
+        assert!(bindings
+            .iter()
+            .any(|(_, a)| *a == crate::hotkeys::Action::StopwatchToggle(7)));
+        s.hotkeys.stopwatch_keys[0].toggle = Some("Ctrl + D".into());
+        assert!(s.validate().is_err());
+        s.hotkeys.stopwatch_keys[0].toggle = Some("Ctrl + Alt + C".into());
+        assert!(s.validate().is_err());
+        s.hotkeys.stopwatch_keys[0].toggle = None;
+        s.stopwatches.push(s.stopwatches[0].clone());
         assert!(s.validate().is_err());
     }
 }

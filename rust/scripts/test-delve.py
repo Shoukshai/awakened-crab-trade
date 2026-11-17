@@ -115,6 +115,9 @@ try:
     command('interact');wait_for(lambda:state(state='Interactive'),'main interaction');assert not grid()['visible'] and grid()['policy']['last_hide']=='Interactive'
     command('hide');focus_game();assert not grid()['visible']
     report['exclusive_suppression_nonexclusive_restore_and_hide_on_interaction']=True
+    command('demo');wait_for(lambda:state(state='Passive',rendered=True),'exclusive price before new grid request')
+    command('delve');wait_for(lambda:state(state='Hidden',game_active=True) and visible(),'new grid request dismisses exclusive panel')
+    command('delve-hide');report['new_grid_request_dismisses_exclusive_panel']=True
     # Exercise explicit native-button handoff repeatedly, not only IPC or keyboard.
     for _ in range(20):
         command('demo');wait_for(lambda:state(state='Passive',rendered=True) and status()['delve_button']['width']>5,'main panel for grid button')

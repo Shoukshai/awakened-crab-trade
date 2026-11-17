@@ -18,6 +18,8 @@ const toggle=evaluate(`(function(props,wm,Host,e){return (${eventCallback(gridAs
 const focus=evaluate(`(function(active,gameFocused,widgets,hide,state){return (${eventCallback(overlayAst,'MAIN->OVERLAY::focus-change')})(state);})`);
 let visibilityBody;function captureVisibility(n){if(ts.isVariableDeclaration(n)&&n.name.getText(overlayAst)==='visibilityState')visibilityBody=n.initializer.arguments[0].getText(overlayAst);ts.forEachChild(n,captureVisibility);}captureVisibility(overlayAst);assert(visibilityBody);
 const visibility=evaluate(`(function(AppConfig,hideUI,active){return (${visibilityBody})();})`);
+const showBody=find(overlayAst,n=>ts.isFunctionDeclaration(n)&&n.name.text==='show');
+const show=evaluate(`(function(widgets,bringToTop,topmostOrExclusiveWidget,hide,id){${showBody};show(id);})`);
 const viewports=[];
 for(let h=1;h<=4320;h++)for(const ratio of [4/3,16/9,21/9])viewports.push([Math.max(1,Math.round(h*ratio)),h]);
 for(const [w,h] of [[2560,1600],[1280,800],[1920,1080],[3840,2160],[1707,1067],[5120,1440]])viewports.push([w,h]);
@@ -33,7 +35,7 @@ for(let i=0;i<viewports.length;i++)try{
  assert.equal(g.grid_left,g.left+(a.width-a.cell*11)/2);assert(Math.abs(g.grid_top-(g.top+(a.height-a.cell*9)/2))<1e-8);
 }catch(e){mismatch_count++;if(failures.length<10)failures.push({viewport:viewports[i],error:e.message});}
 for(let i=0;i<sequences.length;i++)try{
- const config={wmId:1,wmWants:'hide',wmZorder:null,wmFlags:['hide-on-focus','menu::skip']},exclusive={wmId:2,wmWants:'hide',wmZorder:'exclusive',wmFlags:[]},props={config},wm={show(){config.wmWants='show';},hide(){config.wmWants='hide';}},active={value:false},gameFocused={value:true},widgets={value:[config,exclusive]},expected=[];
+ const config={wmId:1,wmWants:'hide',wmZorder:null,wmFlags:['hide-on-focus','menu::skip']},exclusive={wmId:2,wmWants:'hide',wmZorder:'exclusive',wmFlags:[]},props={config},wm={show(){show(widgets,()=>{}, {value:exclusive.wmWants==='show'?exclusive:config},id=>{widgets.value.find(w=>w.wmId===id).wmWants='hide';},1);},hide(){config.wmWants='hide';}},active={value:false},gameFocused={value:true},widgets={value:[config,exclusive]},expected=[];
  for(const action of sequences[i]){
   if(action==='toggle'){if(active.value)focus(active,gameFocused,widgets,()=>wm.hide(),{overlay:false,game:true});toggle(props,wm,{isElectron:true},{target:'delve-grid'});}
   else if(action==='focus'||action==='blur')focus(active,gameFocused,widgets,()=>wm.hide(),{overlay:action==='focus',game:action==='blur'});
@@ -47,5 +49,5 @@ for(let i=0;i<sequences.length;i++)try{
 const color=require(path.join(root,'renderer/tailwind.config.js')).theme.colors.gray[600];assert.deepEqual(native.border_rgb,[1,3,5].map(offset=>parseInt(color.slice(offset,offset+2),16)));
 assert(read(gridFile).includes("background: 'rgba(255,255,255,0.1)'"));
 const sources=[gridFile,overlayFile,'renderer/tailwind.config.js'];
-const report={geometry_cases:viewports.length,visibility_sequences:sequences.length,visibility_steps:sequences.reduce((s,v)=>s+v.length,0),mismatch_count,failures,upstream_commit:'3188208957422b21b69b12083a03edf3d1bac187',scope:'Unchanged WidgetDelveGrid anchor callback, palette and toggle handler; unchanged overlay focus-change and visibilityState callbacks for hide-on-focus and generic exclusive-widget suppression. Toggle events occur in game context. Geometry formulas, wanted-state and visible-state parity only, no raster or desktop/backend equivalence claimed. Extra Linux context-loss guards tested separately.',source_sha256:Object.fromEntries(sources.map(p=>[p,crypto.createHash('sha256').update(read(p)).digest('hex')]))};
+const report={geometry_cases:viewports.length,visibility_sequences:sequences.length,visibility_steps:sequences.reduce((s,v)=>s+v.length,0),mismatch_count,failures,upstream_commit:'3188208957422b21b69b12083a03edf3d1bac187',scope:'Unchanged WidgetDelveGrid anchor callback, palette and toggle handler; unchanged overlay show function, focus-change and visibilityState callbacks for hide-on-focus and generic exclusive-widget suppression. Toggle events occur in game context. Geometry formulas, wanted-state and visible-state parity only, no raster or desktop/backend equivalence claimed. Extra Linux context-loss guards tested separately.',source_sha256:Object.fromEntries(sources.map(p=>[p,crypto.createHash('sha256').update(read(p)).digest('hex')]))};
 if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));if(mismatch_count)process.exitCode=1;

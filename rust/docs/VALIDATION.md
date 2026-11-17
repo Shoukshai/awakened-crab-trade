@@ -1,4 +1,4 @@
-# État de validation — 16 novembre 2026
+# État de validation — 17 novembre 2026
 
 L'objectif global n'est **pas achevé**. Ce document distingue le premier parcours
 utilisable des fonctionnalités et configurations encore à porter.
@@ -1139,3 +1139,75 @@ L’alignement avec la véritable interface Delve du jeu n’est pas vérifié. 
 réglages d’écran du vrai PoE, plusieurs sorties, d’autres compositeurs, X11 natif
 ou Windows. La réduction réelle du jeu et les autres widgets restent dans
 l’inventaire des vérifications/portages restants.
+
+## Jalon 0.17 : chronomètres natifs multiples
+
+### Comparaisons et tests automatisés
+
+`cargo test --offline --locked` : **115 tests réussis**. Clippy sur toutes les
+cibles passe avec `-D warnings`. [stopwatch-parity.json](stopwatch-parity.json)
+compare 129 séquences, **12 296 étapes**, avec les fonctions inchangées de
+`WidgetTimer.vue` et le format calculé par Luxon : aucun écart. Trois instances
+indépendantes, temps monotones simulés, arrêts à 999/1000 ms, remise à zéro pendant
+la marche et longues durées. La politique de temps monotone en production évite
+les variations d’horloge murale ; ce n’est pas une équivalence de bureau.
+
+[stopwatch-lifecycle-0.17.json](stopwatch-lifecycle-0.17.json) exécute les contrôles
+GTK dans un River headless privé avec faux PoE et réseau bloqué : deux instances,
+raccourcis ciblés, remise à zéro, pause, clic traversant passif, contrôles au
+survol, déplacement central visible et persisté, suppression annulée au relâchement
+puis confirmée après maintien d’une seconde. Il vérifie aussi l’ajout au gestionnaire,
+la capture clavier par instance, le refus d’un doublon global, un vrai refus
+d’écriture du profil et l’application du nouveau raccourci sans redémarrage.
+
+Les transferts de focus entre gestionnaire et HUD, cinq passages par le bouton de
+réglages du widget et l’interaction différée jusqu’au premier rendu passent. Une
+autre application masque les widgets et leurs entrées ; leur retour est passif,
+sans réouverture du panneau principal. Les chronomètres continuent par calcul
+lorsqu’ils sont masqués, sans échéance périodique. Le scénario vérifie aussi la
+position dessinée à 1920×1080, puis 2560×1600 au facteur 2 et au facteur 1.
+
+Ce test a révélé deux problèmes GTK corrigés : la durée de vie du contrôleur de
+déplacement, puis le repositionnement demandé pendant l’allocation du parent.
+Le contrôleur reste maintenant possédé par le runtime ; le redimensionnement des
+enfants est différé après l’allocation. Les assertions portent sur la géométrie
+réelle du widget et la position sauvegardée.
+
+[delve-parity.json](delve-parity.json) rejoue les 12 966 géométries et 3 840
+transitions avec, en plus, la fonction upstream `show` inchangée. Une nouvelle
+demande de grille ferme désormais le panneau exclusif existant. Le scénario
+[delve-lifecycle-0.17.json](delve-lifecycle-0.17.json) couvre cette ouverture,
+les pixels, les clics traversants, vingt passages par le bouton et les changements
+de sortie. Les scénarios [réglages](settings-0.17.json),
+[cycle de vie](overlay-lifecycle-0.17.json) et
+[recherche Heist](item-search-lifecycle-0.17.json) passent également.
+
+### Observations sur le vrai PoE
+
+[stopwatch-real-0.17.json](stopwatch-real-0.17.json) décrit le binaire release
+sur Artix/River/XWayland, sortie 2560×1600 au facteur 1 : deux chronomètres créés
+par le gestionnaire natif, démarrés indépendamment, affichés avec clavier None
+et focus resté dans PoE. Capture inspectée. Le bouton du HUD met une instance en
+pause après interaction explicite ; les contrôles du jeu ne sont jamais cliqués.
+Les chronomètres de test sont retirés par l’éditeur natif, puis le profil
+d’origine est comparé et retrouvé intégralement.
+
+Deux chronomètres en marche avec leur gestionnaire passif : **6 ticks CPU / 3 s**
+à 100 ticks/s, six frames sur la période, **86 820 Kio RSS**. Toutes les surfaces
+masquées, durées encore en mémoire : **0 tick CPU / 3 s**, aucun nouveau rendu,
+aucune échéance de chronomètre, **69 684 Kio RSS**. Mesures courtes de ce processus,
+pas une promesse de consommation universelle ni une comparaison Electron.
+
+Nouvelle copie réelle : Driftwood Wand, **11 DPS physiques** en évaluation locale ;
+recherche Trade en `Covens` : **507 résultats, 10 offres, 615 ms réseau**. Le dernier
+parcours local mesure 51 ms capture/parsing, 5 ms préparation, 5 ms premier rendu.
+Le jeu et River restent ouverts, le service finit masqué, les réglages sont restaurés.
+Le changement volontaire d’application qui masque le panneau de prix est aussi
+confirmé par l’utilisateur.
+
+Déplacements, maintien de suppression, clics traversants, touches des chronomètres
+et changements de sortie sont testés sur le bureau isolé. Ils ne sont pas tous
+revendiqués sur le vrai jeu. L’ordre de superposition persistant, les autres widgets,
+la réduction réelle, plusieurs moniteurs, les autres compositeurs et Windows
+restent non validés ou à porter. L’interface des commandes est adaptée à GTK ;
+pas de parité visuelle pixel à pixel revendiquée.

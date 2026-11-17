@@ -24,7 +24,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | grille Delve sur une couche séparée, toujours passive ; raccourci et bascule native | 12 966 géométries et 3 840 transitions comparées ; pixels, quatre clics traversants, vingt passages par le bouton et changement de sortie/facteur 2 sur River privé | alignement dans la vraie interface Delve ; minuteurs, images et menu de widgets |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples natifs, contrôles, déplacement, maintien pour supprimer, noms/positions/raccourcis par instance | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres comparées ; scénarios GTK sur River privé | alignement dans la vraie interface Delve ; ordre de superposition persistant, images et menu général de widgets |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
@@ -316,3 +316,36 @@ VALIDATION. Les changements de résolution et facteur 2 concernent un serveur
 privé, pas l’écran réel du jeu. L’alignement avec la véritable interface Delve,
 plusieurs moniteurs et les autres backends restent à valider. Les autres widgets
 restent à porter.
+
+## Jalon 0.17 : chronomètres multiples
+
+`stopwatch.rs` porte les transitions de `WidgetTimer.vue`, avec un temps monotone
+fourni par le backend. La pause sous une seconde, la remise à zéro à une seconde
+en marche et le format d’heures non limité à 24 sont conservés. Chaque instance
+a un identifiant stable et deux actions de raccourci typées. Les durées restent
+en mémoire ; les noms, centres en pourcentage et demandes d’affichage sont
+persistés dans le profil, ainsi que les raccourcis.
+
+`ui/stopwatch_panel.rs` rassemble les widgets dans une seule surface RGBA
+layer-shell. En mode passif, région d’entrée vide et clavier None ; en interaction,
+union des rectangles visibles et OnDemand après un premier rendu réel. Le panneau
+principal et cette surface comptent comme propriétaires du focus lors du contrôle
+différé. Un changement d’application gagne toujours. Le retour du jeu autorise
+seulement le HUD passif des chronomètres persistants, sans rouvrir le panneau.
+
+Le gestionnaire et le quatrième onglet de réglages permettent de créer plusieurs
+instances et de configurer leurs champs. Les mutations utilisent la transaction
+existante des réglages : nouvelles réservations, écriture, publication puis
+libération des anciennes réservations ; le lecteur d’événements ne bloque pas sur
+l’écriture. Un échec rétablit aussi la position prévisualisée pendant un déplacement.
+La suppression au maintien reste révocable par relâchement, sortie ou perte du
+contexte. Un widget masqué continue à compter sans délai périodique programmé.
+
+La comparaison de la grille exécute désormais aussi la fonction upstream `show` :
+une nouvelle demande d’affichage ferme la vue exclusive existante. Une grille déjà
+demandée reste seulement supprimée visuellement pendant une vue exclusive.
+
+L’interface GTK adapte la présentation des commandes ; les mesures ne prouvent
+pas une identité de pixels avec le navigateur upstream. L’ordre de superposition
+persistant, les widgets d’images, le menu général et les autres environnements de
+bureau restent dans l’inventaire. La limite native de 32 chronomètres est explicite.

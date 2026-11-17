@@ -132,7 +132,7 @@ uniques utilise les données et facteurs upstream. Wiki, PoEDB et import Craft o
 Exile s’ouvrent sur clic explicite ; le panneau se ferme avant le navigateur.
 L’import CoE est désactivé pour les objets corrompus ou mirrored. Ce mode ne
 consulte ni Trade ni poe.ninja. **Consulter les prix** revient à la recherche.
-Les images de cartes, la recherche coffre et les widgets restent à porter.
+Les images de cartes, la recherche coffre et les autres widgets restent à porter.
 
 Le bouton **Cibles Heist** ouvre la recherche native du catalogue upstream :
 répliques d’uniques et anciennes gemmes à qualité alternative. Tous les mots
@@ -167,6 +167,33 @@ ne lance aucun réseau et ne programme pas de rendu périodique. L’alignement 
 l’interface Delve du jeu reste à vérifier ; les proportions, la traversée des
 clics et des changements de sortie sont testés séparément.
 
+**Chronos** ouvre le gestionnaire natif de chronomètres ; `stopwatches` l’ouvre
+également en mode passif. Ajouter une instance, puis **Maj+Espace** autorise les
+contrôles de ses widgets. Chaque instance a son propre démarrage/pause et sa
+remise à zéro. En marche, la remise à zéro affiche une seconde, conformément au
+widget upstream ; en pause, elle revient à zéro. Les durées ne sont pas sauvegardées
+entre deux lancements.
+
+Les widgets en marche et ceux arrêtés après au moins une seconde restent visibles
+passivement dans PoE. Les widgets à zéro ou arrêtés avant une seconde apparaissent
+pendant l’interaction. Survoler un widget interactif expose ses commandes ;
+**Déplacer** active sa poignée centrale. **Supprimer** demande un maintien d’une
+seconde, annulé au relâchement ou à la sortie. **Réglages → Chronomètres** permet
+de changer les noms, positions et deux raccourcis par instance, ou de retirer une
+instance au brouillon. Enregistrer applique ces champs et les raccourcis ensemble ;
+un conflit ou un refus d’écriture conserve l’ancien profil. Limite native : 32
+instances. La disposition des commandes est adaptée à GTK ; la persistance de
+l’ordre de superposition des widgets reste à porter.
+
+Les chronomètres partagent une seule surface transparente et une seule échéance
+de mise à jour. Aucun réveil périodique n’est programmé lorsque tous les widgets
+et le gestionnaire sont masqués ; les durées en marche continuent par calcul à la
+réouverture. Une autre application masque la surface et révoque ses entrées.
+Revenir dans PoE peut restaurer les chronomètres persistants, passivement ; cela
+ne rouvre pas le panneau de prix. `hide` masque toutes les surfaces jusqu’à une
+nouvelle action explicite. Les vues prix, évaluation et réglages masquent les
+chronomètres pendant leur affichage.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -178,6 +205,7 @@ Commandes utiles depuis un outil qui garde PoE actif :
 
 ```sh
 ./target/release/awakened-poe-trade-rs status
+./target/release/awakened-poe-trade-rs stopwatches
 ./target/release/awakened-poe-trade-rs league Covens
 ./target/release/awakened-poe-trade-rs check  # après Ctrl+Alt+C manuel
 ./target/release/awakened-poe-trade-rs catalogue # recherche des cibles Heist, passive
@@ -206,7 +234,7 @@ et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
 ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
-marchands, regroupement, profil de carte et sept raccourcis. **Annuler** ne
+marchands, regroupement, profil de carte et sept raccourcis globaux et les chronomètres. **Annuler** ne
 persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
 l’application, puis masque le panneau ; cela ne lance aucune recherche.
 Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
@@ -235,7 +263,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.16.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.17.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -274,8 +302,8 @@ node scripts/compare-unidentified.cjs
 node scripts/compare-hotkeys.cjs target/debug/examples/hotkeys docs/hotkeys-0.14.json
 node scripts/compare-item-search.cjs target/debug/examples/item-search docs/item-search-0.15.json
 python3 scripts/test-item-search.py target/release/awakened-poe-trade-rs docs/item-search-lifecycle-0.15.json
-node scripts/compare-delve.cjs target/debug/examples/delve-grid docs/delve-0.16.json
-python3 scripts/test-delve.py target/release/awakened-poe-trade-rs docs/delve-lifecycle-0.16.json
+node scripts/compare-delve.cjs target/debug/examples/delve-grid docs/delve-parity.json
+python3 scripts/test-delve.py target/release/awakened-poe-trade-rs docs/delve-lifecycle-0.17.json
 sh scripts/test-shortcut-replay.sh
 python3 scripts/test-settings.py target/release/awakened-poe-trade-rs docs/settings-0.14.json
 python3 scripts/test-overlay-lifecycle.py target/release/awakened-poe-trade-rs
@@ -328,3 +356,16 @@ les sources Cargo locales et `share/doc/rust/COPYRIGHT-library.html` du sysroot 
 les compléments GTK sont fournis avec leurs références exactes dans `packaging/`.
 Catalogue et traductions de stats réutilisés
 depuis upstream ; pas de service web embarqué dans l'interface Rust.
+
+Validation des chronomètres et du bureau isolé :
+
+```sh
+cargo build --locked --examples
+node scripts/compare-stopwatch.cjs
+node scripts/compare-delve.cjs
+python3 scripts/test-stopwatch.py
+```
+
+Les deux comparaisons exigent les dépendances Node upstream dans `renderer/`.
+Elles ne sont pas utilisées à l’exécution du programme natif. Le test graphique
+crée son propre River headless et son faux jeu, sans toucher au PoE réel.

@@ -1,5 +1,5 @@
 //! XWayland-only shortcuts. Changes acquire new grabs before releasing old ones.
-use crate::hotkeys::Hotkeys;
+use crate::hotkeys::{Action, Hotkeys};
 use std::{
     collections::{HashMap, HashSet},
     sync::{
@@ -17,7 +17,7 @@ use x11rb::{
     rust_connection::RustConnection,
     CURRENT_TIME,
 };
-type Binding = (u8, ModMask, &'static str);
+type Binding = (u8, ModMask, Action);
 struct Bindings {
     revision: u64,
     keys: Vec<Binding>,
@@ -189,23 +189,15 @@ impl Backend {
         }
         Ok(value)
     }
-    pub fn listen(
-        &self,
-        active: Arc<AtomicBool>,
-        send: impl Fn(&'static str),
-    ) -> Result<(), String> {
+    pub fn listen(&self, active: Arc<AtomicBool>, send: impl Fn(Action)) -> Result<(), String> {
         let result = self.listen_inner(active, send);
         self.alive.store(false, Ordering::Release);
         result
     }
-    fn listen_inner(
-        &self,
-        active: Arc<AtomicBool>,
-        send: impl Fn(&'static str),
-    ) -> Result<(), String> {
+    fn listen_inner(&self, active: Arc<AtomicBool>, send: impl Fn(Action)) -> Result<(), String> {
         let mut armed = None;
         let mut last_revision = 0;
-        let mut last_copy: HashMap<&'static str, Instant> = HashMap::new();
+        let mut last_copy: HashMap<Action, Instant> = HashMap::new();
         loop {
             match self
                 .connection
@@ -255,13 +247,13 @@ impl Backend {
                             if state.revision == revision
                                 && active.load(Ordering::Acquire)
                                 && focused_game(&self.connection)
-                                && (!command.ends_with("copy")
-                                    || last_copy.get(command).is_none_or(|last| {
+                                && (!command.is_copy()
+                                    || last_copy.get(&command).is_none_or(|last| {
                                         last.elapsed() >= Duration::from_millis(300)
                                     }))
                             {
                                 send(command);
-                                if command.ends_with("copy") {
+                                if command.is_copy() {
                                     last_copy.insert(command, Instant::now());
                                 }
                             }
@@ -291,7 +283,7 @@ fn keycode(connection: &impl Connection, symbol: u32) -> Result<u8, String> {
 #[allow(dead_code)] // Standalone entry point retained for the isolated regression probe.
 pub fn run(
     active: Arc<AtomicBool>,
-    send: impl Fn(&'static str),
+    send: impl Fn(Action),
     ready: impl FnOnce(),
 ) -> Result<(), String> {
     let backend = Backend::new(&Hotkeys::default())?;

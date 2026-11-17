@@ -164,6 +164,9 @@ impl Grid {
         });
         Ok(grid)
     }
+    pub fn requested(&self) -> bool {
+        self.policy.borrow().requested()
+    }
     pub fn toggle(&self, allowed: bool, wait_for_game: bool) {
         let requested = self.policy.borrow_mut().toggle(allowed, wait_for_game);
         if requested {

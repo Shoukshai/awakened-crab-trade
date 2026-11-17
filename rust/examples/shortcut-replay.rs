@@ -177,6 +177,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (action_tx, action_rx) = mpsc::channel();
     std::thread::spawn(move || {
         if let Err(e) = worker.listen(worker_active, move |command| {
+            let hotkeys::Action::Command(command) = command else {
+                panic!("unexpected timer in global probe")
+            };
             let _ = action_tx.send(command);
         }) {
             eprintln!("probe shortcuts: {e}");

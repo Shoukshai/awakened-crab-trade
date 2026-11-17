@@ -72,6 +72,13 @@ impl Overlay {
             self.state = State::Passive;
         }
     }
+    /// An auxiliary surface has independently produced its first frame.
+    pub fn auxiliary_painted(&mut self) {
+        if self.state == State::Hidden && self.game_active {
+            self.state = State::Passive;
+            self.rendered = true;
+        }
+    }
     pub fn interact(&mut self) -> bool {
         if self.state == State::Passive && self.rendered && self.game_active {
             self.state = State::Interactive;
@@ -328,5 +335,24 @@ mod popup_focus_tests {
         o.painted();
         o.interact();
         assert!(!o.should_hide_after_focus_loss(token, false, false));
+    }
+}
+
+#[cfg(test)]
+mod auxiliary_tests {
+    use super::*;
+    #[test]
+    fn auxiliary_frame_permits_only_explicit_interaction_in_the_game() {
+        let mut o = Overlay::default();
+        o.auxiliary_painted();
+        assert!(!o.interact());
+        o.game_active = true;
+        o.auxiliary_painted();
+        assert_eq!(o.state, State::Passive);
+        assert!(o.interact());
+        let token = o.focus_lost().unwrap();
+        assert!(!o.should_hide_after_focus_loss(token, true, false));
+        o.hide(HideReason::OtherApplication);
+        assert!(!o.interact());
     }
 }
