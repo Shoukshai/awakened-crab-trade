@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-crab-trade
-pkgver=0.31.0
+pkgver=0.31.1
 pkgrel=1
 provides=("awakened-poe-trade-rs=$pkgver")
 conflicts=('awakened-poe-trade-rs')

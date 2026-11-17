@@ -164,9 +164,9 @@ try:
             subprocess.run(['grim',str(runtime/'slider-colors.png')],env=env,check=True)
             picture=Image.open(runtime/'slider-colors.png').convert('RGB');y=o['y']+slider['y']+7
             gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
-            yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
-            assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
-            report['slider_integer_thresholds_and_yellow_gray_colors']={'gray':gray,'yellow':yellow}
+            cyan=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
+            assert max(gray)<80 and cyan[0]<150 and cyan[1]>180 and cyan[2]>180,(gray,cyan)
+            report['slider_integer_thresholds_and_cyan_gray_colors']={'gray':gray,'cyan':cyan}
             for field,text in [(row['min'],'9'),(row['max'],'40')]:
                 click(field);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--',text],env=env,check=True)
             report['slider_click_drag_both_handles_and_joined_fields']=True

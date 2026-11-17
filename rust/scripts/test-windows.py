@@ -148,10 +148,10 @@ try:
     time.sleep(.1);st=status();o=st['origin'];slider=st['stat_controls'][0]['slider']
     subprocess.run(['grim',str(root/'slider-colors.png')],env=env,check=True)
     picture=Image.open(root/'slider-colors.png').convert('RGB');y=int(o['y']+slider['y']+7)
-    yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),y))
+    cyan=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),y))
     gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),y))
-    assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
-    report['slider_fill_yellow_left_gray_right']={'yellow':yellow,'gray':gray}
+    assert max(gray)<80 and cyan[0]<150 and cyan[1]>180 and cyan[2]>180,(gray,cyan)
+    report['slider_fill_cyan_left_gray_right']={'cyan':cyan,'gray':gray}
     shot('wand-slider-'+__import__('tomllib').loads((r/'Cargo.toml').read_text())['package']['version']+'.png')
     control(status()['stat_controls'][0]['min'])
     subprocess.run(['xdotool','key','--clearmodifiers','ctrl+a'],env=env,check=True)

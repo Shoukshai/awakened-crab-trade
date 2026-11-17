@@ -1,0 +1,35 @@
+{
+  "version": "0.31.1",
+  "change": "Replace stat slider gold fill and focus indicator with the crab theme cyan.",
+  "fill": "#5ad7e8",
+  "inactive": "#262b33",
+  "fill_direction": "Below the minimum threshold, unchanged.",
+  "thresholds": "Integer, unchanged.",
+  "linux_pixel_verification": {
+    "gray": [
+      38,
+      43,
+      51
+    ],
+    "cyan": [
+      90,
+      215,
+      232
+    ]
+  },
+  "windows_pixel_verification": {
+    "cyan": [
+      90,
+      215,
+      232
+    ],
+    "gray": [
+      38,
+      43,
+      51
+    ]
+  },
+  "linux_packaged_core_tests": 130,
+  "clippy": true,
+  "portable_sha256": "7b9200a9576f03f85ff7fc4af570abc417eecbbde85831044a8211916f96eb82"
+}

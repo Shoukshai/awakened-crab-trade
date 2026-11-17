@@ -1,6 +1,6 @@
 [package]
 name = "awakened-poe-trade-portable"
-version = "0.31.0"
+version = "0.31.1"
 edition = "2021"
 license = "MIT"
 

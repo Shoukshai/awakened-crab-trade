@@ -1,9 +1,9 @@
 {
-  "saved_at": "2026-11-17T22:14:30.302930+00:00",
-  "status": "crab_theme_0.31_validated",
+  "saved_at": "2026-11-17T22:25:20.344736+00:00",
+  "status": "crab_cyan_slider_0.31.1_validated",
   "branch": "main",
-  "linux_version": "0.31.0",
-  "linux_binary": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.31/usr/bin/awakened-poe-trade-rs",
+  "linux_version": "0.31.1",
+  "linux_binary": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.31.1/usr/bin/awakened-poe-trade-rs",
   "request": "Build a Windows version of the validated price checker. User uses Windows 11 and Steam and wants broad compatibility. Preserve the validated interface; Linux backend must keep working.",
   "approach": "Reuse shared GTK3 UI and Rust engine. Add Win32 integration, target x86_64-pc-windows-gnullvm with LLVM-MinGW UCRT and MSYS2 UCRT64 GTK3 runtime. Deliver portable ZIP when validated.",
   "completed": [
@@ -21,7 +21,8 @@
     "Linux 0.29 Arch package and source archive built; 130 packaged core tests passed, plus packaged Wand slider and real Sirens Tentacle UI tests.",
     "0.29.1: reversed slider colour zones per user feedback; yellow below Min, dark grey above. Actual pixels, integer dragging, both handles and query bounds verified on Linux; packaged Windows single EXE verified under Wine with Wand and inside/outside/menu/focus lifecycle.",
     "Awakened Crab Trade name and supplied crab artwork used for window, Windows tray, EXE/portable resources, Linux desktop and notifications. English ASCII root README; private GitHub origin/main configured.",
-    "0.31: navy/cyan/copper crab theme, header identity mark, matching controls/menus/tooltips. Preserved validated yellow/grey integer sliders and PoE rarity colours. Native full lifecycle and packaged Windows Wand/settings lifecycle passed."
+    "0.31: navy/cyan/copper crab theme, header identity mark, matching controls/menus/tooltips. Preserved validated yellow/grey integer sliders and PoE rarity colours. Native full lifecycle and packaged Windows Wand/settings lifecycle passed.",
+    "0.31.1: user requested crab colour for stat slider; fill and focus now cyan #5ad7e8, same direction, dark grey remainder and integer thresholds. Verified rendered pixels under Linux and packaged Windows Wine."
   ],
   "incomplete": [
     "Actual PoE/Windows 11 Steam testing; standalone and mixed monitor DPI require Windows hardware."
@@ -44,16 +45,16 @@
     "Private Wine tests use their own OS-layout fixture and Win32 window management settings; neither is shipped or applied to the user system.",
     "Source, ZIP and reports are on disk. No remote publishing or upload performed."
   ],
-  "windows_version": "0.31.0",
-  "windows_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.0-windows-x64.zip",
-  "windows_zip_sha256": "335ecc494831c52ffe270b9fa0899c38c4a53ddb3c60206bd2eb402fa57984f0",
-  "windows_binary_sha256": "23cfb380f3f7d602e599f84bcf1f13f1c00ded0fcd5546e7e846594991427068",
-  "validation_report": "rust/docs/theme-windows-0.31.0.json",
-  "windows_portable_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.0-windows-x64-portable.exe",
-  "windows_portable_sha256": "9fcf4f3dc79781821e524ce861a76692283e4fe44f7126c73d95be19e8aed335",
-  "windows_portable_validation_report": "rust/docs/theme-windows-0.31.0.json",
+  "windows_version": "0.31.1",
+  "windows_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.1-windows-x64.zip",
+  "windows_zip_sha256": "cc18b2d80814a93f90d4140bc5447c4e1d7074fc1ffbaeff4e31bc21f8eee9f8",
+  "windows_binary_sha256": "eaa938f85ed61a2b644beee889e34c0d6cc63f9f2c63b90c9bedcda799d18cb5",
+  "validation_report": "rust/docs/slider-windows-0.31.1.json",
+  "windows_portable_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.1-windows-x64-portable.exe",
+  "windows_portable_sha256": "7b9200a9576f03f85ff7fc4af570abc417eecbbde85831044a8211916f96eb82",
+  "windows_portable_validation_report": "rust/docs/slider-windows-0.31.1.json",
   "previous_linux_validated_commit": "63320b7",
-  "linux_validation_report": "rust/docs/theme-linux-0.31.0.json",
+  "linux_validation_report": "rust/docs/slider-linux-0.31.1.json",
   "repository": "https://github.com/Shoukshai/awakened-crab-trade",
   "repository_private": true
 }

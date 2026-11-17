@@ -114,7 +114,7 @@ pub fn new(
                 })
                 .filter(|(l, r)| l <= r);
             if range.is_some() {
-                cr.set_source_rgb(0.84, 0.72, 0.36);
+                cr.set_source_rgb(90. / 255., 215. / 255., 232. / 255.);
             } else {
                 cr.set_source_rgb(0.15, 0.17, 0.20);
             }
@@ -140,16 +140,16 @@ pub fn new(
                 let _ = cr.stroke();
             }
             cr.set_font_size(11.);
-            let yellow_at =
+            let accent_at =
                 |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);
-            if yellow_at(0.02) {
+            if accent_at(0.02) {
                 cr.set_source_rgb(0.09, 0.10, 0.12);
             }
             cr.move_to(10., h / 2. + 4.);
             let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
             let text = super::economy_panel::format_amount(bounds.max);
             if let Ok(size) = cr.text_extents(&text) {
-                if yellow_at(0.98) {
+                if accent_at(0.98) {
                     cr.set_source_rgb(0.09, 0.10, 0.12);
                 } else {
                     cr.set_source_rgb(0.9, 0.91, 0.93);
@@ -158,7 +158,7 @@ pub fn new(
                 let _ = cr.show_text(&text);
             }
             if area.has_focus() {
-                cr.set_source_rgb(0.84, 0.72, 0.36);
+                cr.set_source_rgb(90. / 255., 215. / 255., 232. / 255.);
                 cr.rectangle(3., 1., w + 6., h - 2.);
                 let _ = cr.stroke();
             }
