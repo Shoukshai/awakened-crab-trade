@@ -36,6 +36,7 @@ struct Stat {
     matchers: Vec<Matcher>,
     trade: Trade,
     #[serde(rename = "fromAreaMods")]
+    #[allow(dead_code)] // Map-profile migration diagnostics.
     area_kind: Option<String>,
     #[serde(rename = "jewelleryQuality", default)]
     jewellery_quality: Option<serde_json::Value>,
@@ -244,6 +245,7 @@ pub fn max_lines() -> usize {
 pub fn has_matcher(text: &str) -> bool {
     lookup(text).is_some()
 }
+#[allow(dead_code)] // Used by standalone map-profile migration probes.
 pub fn area_matchers() -> Vec<(String, String)> {
     let mut out = Vec::new();
     for record in &database().records {

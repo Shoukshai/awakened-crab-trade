@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Awakened PoE Trade Rust (preview)
+Name=Awakened PoE Trade — Price checker (Linux preview)
 Comment=Native price overlay for PoE on River/XWayland
 Exec=awakened-poe-trade-rs-launch
 Icon=awakened-poe-trade-rs

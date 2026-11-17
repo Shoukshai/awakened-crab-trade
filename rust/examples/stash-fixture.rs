@@ -80,8 +80,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .contains(gdk::ModifierType::CONTROL_MASK | gdk::ModifierType::MOD1_MASK)
                 && e.keyval() == gdk::keys::constants::c
             {
-                gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
-                    .set_text(include_str!("../src/fixtures/driftwood-wand.txt"));
+                let item = if std::env::var("APT_FIXTURE_ITEM").as_deref() == Ok("ring") {
+                    include_str!("../src/fixtures/synthetic-calculated-ring.txt")
+                } else {
+                    include_str!("../src/fixtures/driftwood-wand.txt")
+                };
+                gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).set_text(item);
                 return glib::Propagation::Stop;
             }
             if e.state().contains(gdk::ModifierType::CONTROL_MASK)

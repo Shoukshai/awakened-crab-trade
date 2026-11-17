@@ -1,9 +1,6 @@
 //! Settings are edited in a detached draft. Only the explicit Apply action
 //! submits them to the desktop transaction worker.
-use crate::{
-    hotkeys::{Hotkey, Hotkeys},
-    settings::Settings,
-};
+use crate::{hotkeys::Hotkey, settings::Settings};
 use gtk::{gdk, prelude::*};
 use std::{
     cell::{Cell, RefCell},
@@ -16,27 +13,21 @@ pub struct Panel {
     pub reset: gtk::Button,
     form: gtk::Notebook,
     general_scroll: gtk::ScrolledWindow,
-    shortcuts_scroll: gtk::ScrolledWindow,
     league: gtk::Entry,
+    automatic_league: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
     range: gtk::SpinButton,
     automatic: gtk::CheckButton,
     restore_clipboard: gtk::CheckButton,
-    stash_scroll: gtk::CheckButton,
     merchant: gtk::CheckButton,
     collapse: gtk::CheckButton,
     stock: gtk::CheckButton,
     price_currency: gtk::ComboBoxText,
     bulk_currency: gtk::ComboBoxText,
-    profile: gtk::SpinButton,
-    show_new: gtk::CheckButton,
     keys: Vec<gtk::Entry>,
     record: Vec<gtk::Button>,
     capture: Rc<Cell<Option<usize>>>,
-    pub stopwatches: Rc<super::stopwatch_settings::Editor>,
-    pub images: Rc<super::image_settings::Editor>,
-    pub stash: Rc<super::stash_settings::Editor>,
     message: gtk::Label,
     base: RefCell<Settings>,
 }
@@ -69,13 +60,18 @@ impl Panel {
         let league = gtk::Entry::new();
         league.set_hexpand(true);
         league.set_max_length(100);
-        row(&general, 0, "Ligue", &league);
+        let automatic_league =
+            gtk::CheckButton::with_label("Sélectionner automatiquement la ligue actuelle");
+        general.attach(&automatic_league, 0, 0, 2, 1);
+        row(&general, 1, "Ligue", &league);
+        let entry = league.clone();
+        automatic_league.connect_toggled(move |c| entry.set_sensitive(!c.is_active()));
         let scale = gtk::SpinButton::with_range(0.75, 2.5, 0.05);
         short_number(&scale);
-        row(&general, 1, "Échelle de l’interface", &scale);
+        row(&general, 2, "Échelle de l’interface", &scale);
         let range = gtk::SpinButton::with_range(0., 100., 1.);
         short_number(&range);
-        row(&general, 2, "Plage suggérée ± %", &range);
+        row(&general, 3, "Plage suggérée ± %", &range);
         let price_currency = gtk::ComboBoxText::new();
         price_currency.append(Some("any"), "Automatique (selon l’objet)");
         price_currency.append(Some("chaos_divine"), "Chaos ou Divine");
@@ -84,13 +80,10 @@ impl Panel {
             price_currency.append(Some(tag), name);
             bulk_currency.append(Some(tag), name);
         }
-        row(&general, 3, "Devise des prix par défaut", &price_currency);
-        row(&general, 4, "Paiement des échanges", &bulk_currency);
+        row(&general, 4, "Devise des prix par défaut", &price_currency);
+        row(&general, 5, "Paiement des échanges", &bulk_currency);
         let restore_clipboard =
             gtk::CheckButton::with_label("Restaurer le texte du presse-papiers après une action");
-        let stash_scroll =
-            gtk::CheckButton::with_label("Défiler les onglets du coffre avec Ctrl + molette");
-        stash_scroll.set_sensitive(false);
         let online = gtk::CheckButton::with_label("Rechercher en ligne");
         let automatic = gtk::CheckButton::with_label("Rechercher automatiquement après la copie");
         let merchant = gtk::CheckButton::with_label("Offres disponibles auprès des marchands");
@@ -104,12 +97,11 @@ impl Panel {
             &collapse,
             &stock,
             &restore_clipboard,
-            &stash_scroll,
         ]
         .into_iter()
         .enumerate()
         {
-            general.attach(w, 0, 5 + index as i32, 2, 1);
+            general.attach(w, 0, 6 + index as i32, 2, 1);
         }
         let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
@@ -124,13 +116,10 @@ impl Panel {
         shortcuts.set_border_width(10);
         let labels = [
             "Consulter les prix",
-            "Évaluation locale",
+            "Prix — panneau interactif",
             "Autoriser les clics",
             "Masquer le panneau",
             "Ouvrir les réglages",
-            "Rechercher une cible Heist",
-            "Afficher ou masquer la grille Delve",
-            "Copier et rechercher un objet similaire dans le coffre",
         ];
         let mut keys = Vec::new();
         for (i, name) in labels.into_iter().enumerate() {
@@ -141,7 +130,9 @@ impl Panel {
             entry.set_tooltip_text(Some(
                 "Exemple : Ctrl + D. Vider le champ désactive ce raccourci.",
             ));
-            row(&shortcuts, i as i32, name, &entry);
+            if i < 5 {
+                row(&shortcuts, i as i32, name, &entry);
+            }
             keys.push(entry);
         }
         let record = keys
@@ -149,14 +140,16 @@ impl Panel {
             .enumerate()
             .map(|(i, _)| {
                 let button = gtk::Button::with_label("Capturer");
-                shortcuts.attach(&button, 2, i as i32, 1, 1);
+                if i < 5 {
+                    shortcuts.attach(&button, 2, i as i32, 1, 1);
+                }
                 button
             })
             .collect();
         let hint=gtk::Label::new(Some("Les raccourcis agissent lorsque PoE a le clavier. Les combinaisons réservées au jeu et les doublons sont refusés. Si tous les raccourcis sont désactivés, les commandes settings et interact restent disponibles."));
         hint.set_line_wrap(true);
         hint.set_xalign(0.);
-        shortcuts.attach(&hint, 0, 7, 2, 1);
+        shortcuts.attach(&hint, 0, 5, 3, 1);
         // Capture buttons are wired by the owner using arm_capture().
         let shortcuts_scroll =
             gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
@@ -169,29 +162,7 @@ impl Panel {
             &shortcuts_scroll,
             Some(&gtk::Label::new(Some("Raccourcis"))),
         );
-        let maps = gtk::Grid::new();
-        maps.set_row_spacing(12);
-        maps.set_column_spacing(12);
-        maps.set_border_width(10);
-        let profile = gtk::SpinButton::with_range(1., 3., 1.);
-        row(&maps, 0, "Profil des mods de zone", &profile);
-        let show_new = gtk::CheckButton::with_label("Signaler les nouveaux mods");
-        maps.attach(&show_new, 0, 1, 2, 1);
-        let note=gtk::Label::new(Some("Les décisions par mod se configurent dans Évaluer → Configurer les mods de zone. Changer ces champs conserve les règles des trois profils."));
-        note.set_line_wrap(true);
-        note.set_xalign(0.);
-        maps.attach(&note, 0, 2, 2, 1);
-        form.append_page(&maps, Some(&gtk::Label::new(Some("Cartes"))));
         let capture = Rc::new(Cell::new(None));
-        let stopwatches = super::stopwatch_settings::Editor::new(capture.clone());
-        form.append_page(
-            &stopwatches.container,
-            Some(&gtk::Label::new(Some("Chronomètres"))),
-        );
-        let images = super::image_settings::Editor::new();
-        form.append_page(&images.container, Some(&gtk::Label::new(Some("Images"))));
-        let stash = super::stash_settings::Editor::new(capture.clone());
-        form.append_page(&stash.container, Some(&gtk::Label::new(Some("Coffre"))));
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
         message.set_line_wrap(true);
@@ -212,27 +183,21 @@ impl Panel {
             reset,
             form,
             general_scroll: scroll,
-            shortcuts_scroll,
             league,
+            automatic_league,
             online,
             scale,
             range,
             automatic,
             restore_clipboard,
-            stash_scroll,
             merchant,
             collapse,
             stock,
             price_currency,
             bulk_currency,
-            profile,
-            show_new,
             keys,
             record,
             capture,
-            stopwatches,
-            images,
-            stash,
             message,
             base: RefCell::new(Settings::default()),
         }
@@ -243,10 +208,6 @@ impl Panel {
             .set_size_request(-1, (60. * settings.scale) as i32);
         self.general_scroll.vadjustment().set_value(0.);
         self.fill(settings);
-        self.stopwatches
-            .fill(&settings.stopwatches, &settings.hotkeys.stopwatch_keys);
-        self.images.fill(&settings.image_strips);
-        self.stash.fill(&settings.stash_searches);
         self.capture.set(None);
         self.message
             .set_text("Les modifications restent en brouillon jusqu’à Enregistrer.");
@@ -254,12 +215,20 @@ impl Panel {
         self.form.set_current_page(Some(0));
         self.container.show_all();
     }
+    pub fn detected_league(&self, id: &str) {
+        if self.automatic_league.is_active() {
+            self.league.set_text(id);
+        }
+    }
     pub fn defaults(&self) {
         self.fill(&Settings::default());
-        self.message.set_text("Valeurs par défaut dans ce brouillon. Les règles avancées, les décisions par mod et les chronomètres sont conservés.");
+        self.message
+            .set_text("Valeurs par défaut dans ce brouillon. Les filtres avancés sont conservés.");
     }
     fn fill(&self, s: &Settings) {
         self.league.set_text(&s.league);
+        self.automatic_league.set_active(s.automatic_league);
+        self.league.set_sensitive(!s.automatic_league);
         self.online.set_active(s.filters.online);
         self.scale.set_value(s.scale);
         self.scale.set_text(&s.scale.to_string());
@@ -267,7 +236,6 @@ impl Panel {
         self.range.set_text(&s.search_range.to_string());
         self.automatic.set_active(s.automatic_search);
         self.restore_clipboard.set_active(s.restore_clipboard);
-        self.stash_scroll.set_active(s.stash_scroll);
         self.merchant.set_active(s.filters.merchant_only);
         self.collapse.set_active(s.filters.collapse_listings);
         self.stock.set_active(s.filters.activate_stock_filter);
@@ -275,17 +243,12 @@ impl Panel {
             .set_active_id(Some(s.filters.default_currency.as_deref().unwrap_or("any")));
         self.bulk_currency
             .set_active_id(Some(&s.filters.bulk_currency));
-        self.profile.set_value(s.map_check.profile as f64);
-        self.show_new.set_active(s.map_check.show_new_stats);
         for (entry, key) in self.keys.iter().zip([
             &s.hotkeys.price,
             &s.hotkeys.inspect,
             &s.hotkeys.interact,
             &s.hotkeys.hide,
             &s.hotkeys.settings,
-            &s.hotkeys.catalogue,
-            &s.hotkeys.delve,
-            &s.hotkeys.similar,
         ]) {
             entry.set_text(key.as_deref().unwrap_or(""));
         }
@@ -293,15 +256,14 @@ impl Panel {
     pub fn read(&self) -> Result<Settings, String> {
         self.scale.update();
         self.range.update();
-        self.profile.update();
         let mut s = self.base.borrow().clone();
         s.league = self.league.text().trim().into();
+        s.automatic_league = self.automatic_league.is_active();
         s.filters.online = self.online.is_active();
         s.scale = self.scale.value();
         s.search_range = self.range.value();
         s.automatic_search = self.automatic.is_active();
         s.restore_clipboard = self.restore_clipboard.is_active();
-        s.stash_scroll = self.stash_scroll.is_active();
         s.filters.merchant_only = self.merchant.is_active();
         s.filters.collapse_listings = self.collapse.is_active();
         s.filters.activate_stock_filter = self.stock.is_active();
@@ -315,8 +277,6 @@ impl Panel {
             .active_id()
             .ok_or("Choisissez une devise d’échange.")?
             .to_string();
-        s.map_check.profile = self.profile.value_as_int() as u8;
-        s.map_check.show_new_stats = self.show_new.is_active();
         let values: Vec<_> = self
             .keys
             .iter()
@@ -325,27 +285,20 @@ impl Panel {
                 (!text.is_empty()).then_some(text)
             })
             .collect();
-        s.hotkeys = Hotkeys {
-            stash_keys: Vec::new(),
-            stash_scroll: false,
+        let normalized = crate::hotkeys::Hotkeys {
             price: values[0].clone(),
             inspect: values[1].clone(),
             interact: values[2].clone(),
             hide: values[3].clone(),
             settings: values[4].clone(),
-            catalogue: values[5].clone(),
-            delve: values[6].clone(),
-            similar: values[7].clone(),
-            stopwatch_keys: s.hotkeys.stopwatch_keys.clone(),
-        };
-        let (configs, keys) = self.stopwatches.read()?;
-        s.image_strips = self.images.read()?;
-        s.stash_searches = self.stash.read()?;
-        s.stopwatches = configs;
-        s.hotkeys.stopwatch_keys = keys;
-        // Removing a draft instance also removes its saved stacking reference.
-        s.widget_order = crate::widget_order::saved(&s.widget_order, &s.widget_keys());
-        s.hotkeys = s.hotkeys.normalized()?;
+            ..crate::hotkeys::Hotkeys::disabled()
+        }
+        .normalized()?;
+        s.hotkeys.price = normalized.price;
+        s.hotkeys.inspect = normalized.inspect;
+        s.hotkeys.interact = normalized.interact;
+        s.hotkeys.hide = normalized.hide;
+        s.hotkeys.settings = normalized.settings;
         s.validate()?;
         Ok(s)
     }
@@ -362,27 +315,15 @@ impl Panel {
         self.busy(false);
         self.message.set_text(error);
     }
-    pub fn wheel_capability(&self, result: &Result<(), String>) {
-        self.stash_scroll.set_sensitive(result.is_ok());
-        self.stash_scroll.set_tooltip_text(Some(match result {
-            Ok(()) => "XRecord sur XWayland ; la molette originale reste au jeu.",
-            Err(e) => e,
-        }));
-    }
     pub fn arm_capture(&self, index: usize) {
-        self.stash.cancel_capture();
-        self.stopwatches.cancel_capture();
         self.capture.set(Some(index));
         self.message
             .set_text("Appuyez sur le raccourci voulu ; Retour arrière efface ce champ.");
     }
     pub fn capture_key(&self, event: &gdk::EventKey) -> bool {
         let Some(index) = self.capture.get() else {
-            return self.stopwatches.capture_key(event);
+            return false;
         };
-        if index == super::stash_settings::CAPTURE {
-            return self.stash.capture_key(event);
-        }
         if event.keyval() == gdk::keys::constants::BackSpace {
             self.keys[index].set_text("");
             self.capture.set(None);
@@ -414,28 +355,13 @@ impl Panel {
         self.record.clone()
     }
     pub fn cancel_capture(&self) {
-        self.stash.cancel_capture();
         self.capture.set(None);
-        self.stopwatches.cancel_capture();
-    }
-    pub fn open_images(&self, id: Option<u64>) {
-        self.form.set_current_page(Some(4));
-        if let Some(id) = id {
-            self.images.select(id);
-        }
-    }
-    pub fn open_stash(&self, id: u64) {
-        self.form.set_current_page(Some(5));
-        self.stash.select(id);
-    }
-    pub fn open_stopwatches(&self) {
-        self.form.set_current_page(Some(3));
     }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"stash_scroll":{"value":self.stash_scroll.is_active(),"sensitive":self.stash_scroll.is_sensitive(),"rect":rect(self.stash_scroll.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"stash":self.stash.diagnostics(window,self.form.current_page()==Some(5)),"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..6).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

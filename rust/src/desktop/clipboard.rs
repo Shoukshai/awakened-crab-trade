@@ -87,33 +87,3 @@ fn restore_if_unchanged(owned: &str, previous: Option<&str>) {
         }
     }
 }
-/// Explicit search only. The caller first hides the overlay and observes game focus.
-/// Hold the mutation gate for the upstream 120 ms throttling/restoration interval.
-pub fn stash_search(
-    text: &str,
-    restore: bool,
-    context: &super::game_input::Context<'_>,
-) -> Result<(), String> {
-    crate::stash_search::validate_text(text)?;
-    let _mutation = MUTATION
-        .try_lock()
-        .map_err(|_| "Une action de presse-papiers est déjà en cours.")?;
-    let guard = super::game_input::Guard::new(context)?;
-    let previous = if restore { read().ok() } else { None };
-    guard.check()?;
-    write(text)?;
-    let started = Instant::now();
-    let result = (|| {
-        guard.key("ctrl+f")?;
-        guard.key("ctrl+v")?;
-        guard.key("Return")
-    })();
-    if let Some(delay) = Duration::from_millis(120).checked_sub(started.elapsed()) {
-        std::thread::sleep(delay);
-    }
-    // Never overwrite a clipboard selection changed by the user in the meantime.
-    if restore {
-        restore_if_unchanged(text, previous.as_deref());
-    }
-    result
-}

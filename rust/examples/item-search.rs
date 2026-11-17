@@ -32,6 +32,8 @@ mod pseudo;
 #[allow(dead_code)]
 #[path = "../src/trade.rs"]
 mod trade;
+#[path = "../src/trade_item.rs"]
+mod trade_item;
 use serde::Deserialize;
 #[derive(Deserialize)]
 struct Search {

@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use x11rb::{
-    protocol::xproto::{AtomEnum, ConnectionExt, KeyButMask},
+    protocol::xproto::{AtomEnum, ConnectionExt},
     rust_connection::RustConnection,
 };
 pub struct Context<'a> {
@@ -88,49 +88,6 @@ impl<'a> Guard<'a> {
             Ok(())
         } else {
             Err("Échec de la saisie XWayland.".into())
-        }
-    }
-    pub fn scroll(&self, chord: crate::hotkeys::ScrollChord) -> Result<(), String> {
-        self.check()?;
-        use crate::hotkeys::TabDirection;
-        let pointer = self
-            .connection
-            .query_pointer(self.window)
-            .map_err(|e| e.to_string())?
-            .reply()
-            .map_err(|e| e.to_string())?;
-        let relevant =
-            KeyButMask::CONTROL | KeyButMask::SHIFT | KeyButMask::MOD1 | KeyButMask::MOD4;
-        let mut expected = KeyButMask::CONTROL;
-        for (yes, mask) in [
-            (chord.shift, KeyButMask::SHIFT),
-            (chord.alt, KeyButMask::MOD1),
-            (chord.super_key, KeyButMask::MOD4),
-        ] {
-            if yes {
-                expected |= mask;
-            }
-        }
-        if pointer.mask & relevant != expected {
-            return Err(
-                "Geste de molette terminé ou modificateurs modifiés ; défilement annulé.".into(),
-            );
-        }
-        self.check()?;
-        let key = match chord.direction {
-            TabDirection::Left => "Left",
-            TabDirection::Right => "Right",
-        };
-        // Keep the physically held modifiers. Toggling Ctrl for every wheel
-        // step makes subsequent XRecord events lose their original Ctrl state.
-        let status = Command::new("xdotool")
-            .args(["key", "--delay", "0", key])
-            .status()
-            .map_err(|e| e.to_string())?;
-        if status.success() {
-            Ok(())
-        } else {
-            Err("Échec du défilement d’onglet XWayland.".into())
         }
     }
 }

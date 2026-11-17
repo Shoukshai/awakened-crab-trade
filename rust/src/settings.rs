@@ -3,19 +3,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
-    pub stash_scroll: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub restore_clipboard: bool,
-    #[serde(
-        default = "crate::stash_search::defaults",
-        skip_serializing_if = "crate::stash_search::is_default"
-    )]
-    pub stash_searches: Vec<crate::stash_search::Config>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub widget_order: Vec<crate::widget_order::Key>,
-    #[serde(skip_serializing_if = "crate::widget_menu::Config::is_default")]
-    pub widget_menu: crate::widget_menu::Config,
+    #[serde(flatten)]
+    pub legacy: std::collections::BTreeMap<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "is_true")]
+    pub automatic_league: bool,
     pub league: String,
     pub filters: Filters,
     pub scale: f64,
@@ -25,28 +18,16 @@ pub struct Settings {
     pub map_check: crate::inspection::MapConfig,
     #[serde(skip_serializing_if = "crate::hotkeys::Hotkeys::is_default")]
     pub hotkeys: crate::hotkeys::Hotkeys,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub stopwatches: Vec<crate::stopwatch::Config>,
-    #[serde(
-        default = "crate::image_strip::defaults",
-        skip_serializing_if = "crate::image_strip::is_default"
-    )]
-    pub image_strips: Vec<crate::image_strip::Config>,
 }
 fn is_true(value: &bool) -> bool {
     *value
 }
-fn default_true() -> bool {
-    true
-}
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            stash_scroll: true,
             restore_clipboard: false,
-            stash_searches: crate::stash_search::defaults(),
-            widget_order: Vec::new(),
-            widget_menu: crate::widget_menu::Config::default(),
+            legacy: Default::default(),
+            automatic_league: true,
             league: "Standard".into(),
             filters: Filters::default(),
             scale: 1.0,
@@ -54,8 +35,6 @@ impl Default for Settings {
             automatic_search: true,
             map_check: crate::inspection::MapConfig::default(),
             hotkeys: crate::hotkeys::Hotkeys::default(),
-            stopwatches: Vec::new(),
-            image_strips: crate::image_strip::defaults(),
         }
     }
 }
@@ -79,77 +58,9 @@ impl Settings {
         settings.validate()?;
         Ok(settings)
     }
-    pub fn widget_keys(&self) -> Vec<crate::widget_order::Key> {
-        std::iter::once(crate::widget_order::Key::Menu)
-            .chain(
-                self.stopwatches
-                    .iter()
-                    .map(|c| crate::widget_order::Key::Stopwatch(c.id))
-                    .chain(
-                        self.image_strips
-                            .iter()
-                            .map(|c| crate::widget_order::Key::Image(c.id)),
-                    )
-                    .chain(
-                        self.stash_searches
-                            .iter()
-                            .map(|c| crate::widget_order::Key::Stash(c.id)),
-                    ),
-            )
-            .collect()
-    }
     pub fn validate(&self) -> Result<(), String> {
-        if self.stash_searches.len() > crate::stash_search::MAX_WIDGETS {
-            return Err("Au plus 16 recherches coffre.".into());
-        }
-        let mut stash_ids = std::collections::HashSet::new();
-        for c in &self.stash_searches {
-            c.validate()?;
-            if !stash_ids.insert(c.id) {
-                return Err("Identifiant de recherche coffre dupliqué.".into());
-            }
-        }
-        self.effective_hotkeys().bindings()?;
-        self.widget_menu.validate()?;
-        let keys = self.widget_keys();
-        let mut order_ids = std::collections::HashSet::new();
-        if self
-            .widget_order
-            .iter()
-            .any(|k| !keys.contains(k) || !order_ids.insert(k))
-        {
-            return Err("Ordre des widgets invalide ou dupliqué.".into());
-        }
-        if self.image_strips.len() > crate::image_strip::MAX_STRIPS {
-            return Err("Au plus 16 bandes d’images.".into());
-        }
-        let mut image_ids = std::collections::HashSet::new();
-        for c in &self.image_strips {
-            c.validate()?;
-            if !image_ids.insert(c.id) {
-                return Err("Identifiant de bande d’images dupliqué.".into());
-            }
-        }
+        self.checker_hotkeys().bindings()?;
         self.map_check.validate()?;
-        self.hotkeys.bindings()?;
-        if self.stopwatches.len() > crate::stopwatch::MAX_INSTANCES {
-            return Err("Au plus 32 chronomètres peuvent être configurés.".into());
-        }
-        let mut ids = std::collections::HashSet::new();
-        for c in &self.stopwatches {
-            c.validate()?;
-            if !ids.insert(c.id) {
-                return Err("Identifiant de chronomètre dupliqué.".into());
-            }
-        }
-        if self
-            .hotkeys
-            .stopwatch_keys
-            .iter()
-            .any(|k| !ids.contains(&k.id))
-        {
-            return Err("Raccourci associé à un chronomètre absent.".into());
-        }
         if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
             return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());
         }
@@ -193,19 +104,14 @@ impl Settings {
         .map_err(|e| e.to_string())?;
         std::fs::rename(tmp, path).map_err(|e| e.to_string())
     }
-    pub fn effective_hotkeys(&self) -> crate::hotkeys::Hotkeys {
-        let mut h = self.hotkeys.clone();
-        h.stash_scroll = self.stash_scroll;
-        h.stash_keys = self
-            .stash_searches
-            .iter()
-            .filter(|c| c.enable_hotkeys)
-            .flat_map(|c| {
-                c.entries
-                    .iter()
-                    .filter_map(move |e| e.hotkey.as_ref().map(|h| (c.id, e.id, h.clone())))
-            })
-            .collect();
+    /// Install only price-checker actions while preserving historical preferences.
+    pub fn checker_hotkeys(&self) -> crate::hotkeys::Hotkeys {
+        let mut h = crate::hotkeys::Hotkeys::disabled();
+        h.price = self.hotkeys.price.clone();
+        h.inspect = self.hotkeys.inspect.clone();
+        h.interact = self.hotkeys.interact.clone();
+        h.hide = self.hotkeys.hide.clone();
+        h.settings = self.hotkeys.settings.clone();
         h
     }
 }
@@ -213,27 +119,24 @@ impl Settings {
 mod tests {
     use super::*;
     #[test]
-    fn legacy_profiles_keep_stash_defaults_and_enabled_keys_share_global_reservations() {
-        let mut s: Settings = serde_json::from_str("{}").unwrap();
+    fn historical_widget_data_is_preserved_without_installing_its_shortcuts() {
+        let input = serde_json::json!({"widget_order":[{"type":"image","id":3}],"stash_scroll":true,"stopwatches":[{"id":999}],"hotkeys":{"delve":"Ctrl + D","similar":"Ctrl + K"}});
+        let s: Settings = serde_json::from_value(input.clone()).unwrap();
         s.validate().unwrap();
-        let value = serde_json::to_value(&s).unwrap();
-        assert!(value.get("stash_searches").is_none());
-        assert!(value.get("restore_clipboard").is_none());
-        s.stash_searches[0].entries[0].hotkey = Some("Ctrl + J".into());
-        s.validate().unwrap();
-        assert!(s
-            .effective_hotkeys()
-            .bindings()
-            .unwrap()
+        let output = serde_json::to_value(&s).unwrap();
+        for field in ["widget_order", "stash_scroll", "stopwatches"] {
+            assert_eq!(output[field], input[field]);
+        }
+        let bindings = s.checker_hotkeys().bindings().unwrap();
+        assert!(bindings.iter().all(|(_, a)| matches!(
+            a,
+            crate::hotkeys::Action::Command(
+                "copy" | "locked-copy" | "interact" | "hide" | "settings"
+            )
+        )));
+        assert!(bindings
             .iter()
-            .any(|(_, a)| *a == crate::hotkeys::Action::StashSearch(1, 1)));
-        s.stash_searches[0].entries[1].hotkey = Some("Ctrl + D".into());
-        assert!(s.validate().is_err());
-        s.stash_searches[0].enable_hotkeys = false;
-        s.validate().unwrap();
-        assert!(s.effective_hotkeys().stash_keys.is_empty());
-        s.stash_searches.push(s.stash_searches[0].clone());
-        assert!(s.validate().is_err());
+            .any(|(_, a)| *a == crate::hotkeys::Action::Command("locked-copy")));
     }
     #[test]
     fn version_01_settings_keep_new_exchange_defaults() {
@@ -270,58 +173,6 @@ mod tests {
         assert!(s.validate().is_err());
         s.scale = 1.;
         s.search_range = 101.;
-        assert!(s.validate().is_err());
-    }
-}
-
-#[cfg(test)]
-mod stopwatch_tests {
-    use super::*;
-    #[test]
-    fn widget_order_is_optional_and_rejects_dangling_or_duplicate_keys() {
-        use crate::widget_order::Key;
-        let mut s = Settings::default();
-        assert!(serde_json::to_value(&s)
-            .unwrap()
-            .get("widget_order")
-            .is_none());
-        s.stopwatches.push(crate::stopwatch::Config::default());
-        s.widget_order = vec![Key::Image(1), Key::Stopwatch(1)];
-        s.validate().unwrap();
-        let roundtrip: Settings =
-            serde_json::from_value(serde_json::to_value(&s).unwrap()).unwrap();
-        assert_eq!(roundtrip.widget_order, s.widget_order);
-        s.widget_order.push(Key::Image(1));
-        assert!(s.validate().is_err());
-        s.widget_order = vec![Key::Stopwatch(2)];
-        assert!(s.validate().is_err());
-    }
-    #[test]
-    fn timer_keys_require_valid_unique_instances_and_share_global_reservations() {
-        let mut s = Settings::default();
-        s.hotkeys
-            .stopwatch_keys
-            .push(crate::hotkeys::StopwatchKeys {
-                id: 7,
-                toggle: Some("Ctrl + J".into()),
-                reset: None,
-            });
-        assert!(s.validate().is_err());
-        s.stopwatches.push(crate::stopwatch::Config {
-            id: 7,
-            ..Default::default()
-        });
-        s.validate().unwrap();
-        let bindings = s.hotkeys.bindings().unwrap();
-        assert!(bindings
-            .iter()
-            .any(|(_, a)| *a == crate::hotkeys::Action::StopwatchToggle(7)));
-        s.hotkeys.stopwatch_keys[0].toggle = Some("Ctrl + D".into());
-        assert!(s.validate().is_err());
-        s.hotkeys.stopwatch_keys[0].toggle = Some("Ctrl + Alt + C".into());
-        assert!(s.validate().is_err());
-        s.hotkeys.stopwatch_keys[0].toggle = None;
-        s.stopwatches.push(s.stopwatches[0].clone());
         assert!(s.validate().is_err());
     }
 }

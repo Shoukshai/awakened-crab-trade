@@ -1,28 +1,26 @@
 mod calculated;
-mod delve;
 #[cfg(target_os = "linux")]
 mod desktop;
 mod economy;
 mod filters;
 mod hotkeys;
-mod image_strip;
+// Retained for local diagnostics and compatibility with earlier map profiles.
+#[allow(dead_code)]
 mod inspection;
 mod item;
 mod item_filters;
+mod leagues;
 mod modifiers;
 mod overlay;
 mod presets;
+mod price_layout;
 mod properties;
 mod pseudo;
 mod settings;
-mod stash_scroll;
-mod stash_search;
-mod stopwatch;
 mod trade;
+mod trade_item;
 #[cfg(target_os = "linux")]
 mod ui;
-mod widget_menu;
-mod widget_order;
 
 #[cfg(target_os = "linux")]
 fn main() {

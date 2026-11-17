@@ -17,6 +17,7 @@ pub struct ScrollChord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
+    #[allow(dead_code)] // Historical probe action; never installed by the checker.
     ScrollStash(ScrollChord),
     Command(&'static str),
     StopwatchToggle(u64),
@@ -27,7 +28,7 @@ impl Action {
     pub fn is_copy(self) -> bool {
         matches!(
             self,
-            Self::Command("copy" | "inspect-copy" | "similar-copy")
+            Self::Command("copy" | "inspect-copy" | "similar-copy" | "locked-copy")
         )
     }
 }
@@ -270,7 +271,7 @@ impl Hotkeys {
         let mut bindings = Vec::new();
         let mut raw = vec![
             (&self.price, Action::Command("copy")),
-            (&self.inspect, Action::Command("inspect-copy")),
+            (&self.inspect, Action::Command("locked-copy")),
             (&self.interact, Action::Command("interact")),
             (&self.hide, Action::Command("hide")),
             (&self.settings, Action::Command("settings")),

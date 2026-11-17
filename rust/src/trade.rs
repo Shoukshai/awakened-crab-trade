@@ -22,6 +22,8 @@ pub struct Listing {
     pub currency: String,
     pub seller: String,
     pub bulk: Option<BulkOffer>,
+    #[serde(default)]
+    pub item: Option<crate::trade_item::OfferedItem>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BulkOffer {
@@ -66,6 +68,36 @@ pub struct Trade {
 }
 impl Trade {
     pub fn new() -> Result<Self, String> {
+        let test_base = std::env::var("APT_RS_TEST_TRADE_BASE").ok();
+        let base = if let Some(value) = test_base {
+            let runtime = std::env::var("XDG_RUNTIME_DIR").map_err(|e| e.to_string())?;
+            let path = std::path::Path::new(&runtime);
+            let isolated = path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with("apt-overlay-desktop-"))
+                && std::fs::read_to_string(path.join("display"))
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    == std::env::var("DISPLAY").ok()
+                && std::fs::read_to_string(path.join("wayland"))
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    == std::env::var("WAYLAND_DISPLAY").ok();
+            let url = reqwest::Url::parse(&value).map_err(|e| e.to_string())?;
+            if !isolated
+                || url.scheme() != "http"
+                || url.host_str() != Some("127.0.0.1")
+                || !url.username().is_empty()
+                || url.password().is_some()
+                || url.query().is_some()
+                || url.path() != "/"
+            {
+                return Err("Loopback Trade fixture requires the private test compositor".into());
+            }
+            value.trim_end_matches('/').to_string()
+        } else {
+            "https://www.pathofexile.com".to_string()
+        };
         Ok(Self {
             client: Client::builder()
                 .user_agent(concat!(
@@ -77,7 +109,7 @@ impl Trade {
                 .timeout(Duration::from_secs(15))
                 .build()
                 .map_err(|e| e.to_string())?,
-            base: "https://www.pathofexile.com".into(),
+            base,
             next: Instant::now(),
             cache: HashMap::new(),
         })
@@ -261,6 +293,7 @@ impl Trade {
                             .unwrap_or("?")
                             .into(),
                         bulk: None,
+                        item: crate::trade_item::OfferedItem::from_api(&entry["item"]),
                     });
                 }
             }
@@ -329,6 +362,7 @@ fn decode_bulk(data: &Value, query: &Value) -> Result<Prices, String> {
                 .as_str()
                 .unwrap_or("?")
                 .into(),
+            item: None,
             bulk: Some(BulkOffer {
                 exchange_amount: paid,
                 item_amount: received,
@@ -486,7 +520,7 @@ mod tests {
         let thread = std::thread::spawn(move || {
             for response in [
                 r#"{"id":"H4s_abc-def","total":1,"result":["abc123"]}"#,
-                r#"{"result":[{"listing":{"price":{"amount":1.5,"currency":"divine"},"account":{"name":"example"}}}]}"#,
+                r#"{"result":[{"listing":{"price":{"amount":1.5,"currency":"divine"},"account":{"name":"example"}},"item":{"name":"Offered fixture","typeLine":"Gold Ring","ilvl":84,"explicitMods":["+110 to maximum Life"]}}]}"#,
             ] {
                 let (mut socket, _) = listener.accept().unwrap();
                 read_request(&mut socket);
@@ -504,6 +538,10 @@ mod tests {
         assert_eq!(p.total, 1);
         assert_eq!(p.listings[0].amount, 1.5);
         assert_eq!(p.listings[0].currency, "divine");
+        assert_eq!(
+            p.listings[0].item.as_ref().unwrap().mods[0].lines,
+            ["+110 to maximum Life"]
+        );
         assert!(p.url.contains("Hardcore%20Covens/H4s_abc-def"));
         thread.join().unwrap();
         assert!(

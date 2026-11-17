@@ -30,7 +30,6 @@ pub struct Backend {
     bindings: Mutex<Bindings>,
     update_gate: Mutex<()>,
     alive: Arc<AtomicBool>,
-    wheel: Result<super::wheel::Monitor, String>,
 }
 impl Backend {
     pub fn new(hotkeys: &Hotkeys) -> Result<Self, String> {
@@ -64,7 +63,6 @@ impl Backend {
             }),
             update_gate: Mutex::new(()),
             alive: Arc::new(AtomicBool::new(true)),
-            wheel: super::wheel::Monitor::new(),
         };
         backend.replace(hotkeys, || Ok(()))?;
         Ok(backend)
@@ -181,9 +179,6 @@ impl Backend {
             state.keys = keys;
             state.revision += 1;
             notify(&value, self.is_alive());
-            if let Ok(wheel) = &self.wheel {
-                wheel.enabled.store(hotkeys.stash_scroll, Ordering::Release);
-            }
             (state.revision, state.keys.len())
         };
         eprintln!("shortcuts backend=XWayland revision={revision} bindings={count} scope=X11-only replay_other_apps=true");
@@ -199,32 +194,8 @@ impl Backend {
         active: Arc<AtomicBool>,
         send: impl Fn(Action) + Clone + Send + 'static,
     ) -> Result<(), String> {
-        self.listen_with_wheel(active, send, |_| {})
-    }
-    pub fn listen_with_wheel(
-        &self,
-        active: Arc<AtomicBool>,
-        send: impl Fn(Action) + Clone + Send + 'static,
-        report: impl Fn(Result<(), String>) + Clone + Send + 'static,
-    ) -> Result<(), String> {
-        match &self.wheel {
-            Ok(w) => w.start(
-                active.clone(),
-                self.alive.clone(),
-                send.clone(),
-                report.clone(),
-            ),
-            Err(e) => {
-                eprintln!("wheel backend=XRecord unavailable: {e}");
-                report(Err(e.clone()));
-            }
-        }
         let result = self.listen_inner(active, send);
         self.alive.store(false, Ordering::Release);
-        report(Err("Connexion aux raccourcis XWayland interrompue".into()));
-        if let Ok(w) = &self.wheel {
-            w.enabled.store(false, Ordering::Release);
-        }
         result
     }
     fn listen_inner(&self, active: Arc<AtomicBool>, send: impl Fn(Action)) -> Result<(), String> {

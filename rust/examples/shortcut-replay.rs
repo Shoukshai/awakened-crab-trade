@@ -5,11 +5,6 @@
 mod hotkeys;
 #[path = "../src/desktop/xwayland_shortcuts.rs"]
 mod shortcuts;
-use shortcuts as xwayland_shortcuts;
-#[path = "../src/stash_scroll.rs"]
-mod stash_scroll;
-#[path = "../src/desktop/wheel.rs"]
-mod wheel;
 use std::{
     process::Command,
     sync::{
@@ -340,7 +335,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let actions: Vec<_> = (0..4)
         .map(|_| action_rx.recv_timeout(Duration::from_secs(1)).unwrap())
         .collect();
-    assert_eq!(actions, ["inspect-copy", "copy", "interact", "hide"]);
+    assert_eq!(actions, ["locked-copy", "copy", "interact", "hide"]);
     assert!(
         started.elapsed() < Duration::from_millis(250),
         "rapid sequence timing unverified"

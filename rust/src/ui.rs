@@ -10,25 +10,13 @@ use crate::{
     settings::Settings,
     trade::{Prices, SearchKind, Trade},
 };
-mod delve_grid;
 mod economy_panel;
-mod image_manager;
-mod image_panel;
-mod image_settings;
-mod inspection_panel;
 mod item_filters_panel;
-mod item_search_panel;
+mod listings_panel;
 mod mercenary_panel;
 mod settings_panel;
-mod stash_panel;
-mod stash_settings;
 mod stat_row;
-mod stopwatch_manager;
-mod stopwatch_panel;
-mod stopwatch_settings;
 mod unidentified_panel;
-mod widget_canvas;
-mod widget_menu;
 use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -47,35 +35,20 @@ type EconomyResult = Result<Report, String>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
     Price,
-    Inspection,
     Settings,
-    Catalogue,
-    Stopwatches,
-    Images,
-    Menu,
 }
 enum Event {
-    Stash(stash_panel::Action),
-    StashDone(u64, bool, Result<(), String>),
-    Menu(widget_menu::Action),
-    WidgetOrder,
-    Shortcut(&'static str),
+    Leagues(Result<crate::leagues::Selection, String>),
+    GameGeometry(u32, crate::price_layout::Rect),
     Hotkey(crate::hotkeys::Action),
-    Stopwatch(stopwatch_panel::Action),
-    StopwatchManager(stopwatch_manager::Action),
-    Image(image_panel::Action),
-    ImageManager(image_manager::Action),
     Windows(Snapshot),
     TrackerError(String),
-    Captured(u64, CaptureTarget, bool, Box<Result<(Item, u128), String>>),
+    Captured(u64, bool, Box<Result<(Item, u128), String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
-    MapSettings(u64, crate::inspection::Edit),
     Preferences(Box<crate::desktop::preferences::Update>),
     FiltersChanged(u64, String),
     IdentifyUnique(u64, String),
-    Catalogue(item_search_panel::Action),
-    CataloguePrices(u64, Box<Result<Vec<(usize, Report)>, String>>),
 }
 enum EconomyJob {
     Price {
@@ -83,92 +56,43 @@ enum EconomyJob {
         league: String,
         item: Box<Item>,
     },
-    Catalogue {
-        generation: u64,
-        league: String,
-        choices: Vec<crate::item::search::Choice>,
-    },
-}
-enum StashJob {
-    Search {
-        generation: u64,
-        text: String,
-        restore: bool,
-    },
-    Scroll {
-        generation: u64,
-        chord: crate::hotkeys::ScrollChord,
-    },
-}
-impl StashJob {
-    fn generation(&self) -> u64 {
-        match self {
-            Self::Search { generation, .. } | Self::Scroll { generation, .. } => *generation,
-        }
-    }
-}
-#[derive(Clone, Copy)]
-enum CaptureTarget {
-    Panel(View),
-    Similar,
 }
 struct CaptureJob {
-    restore: bool,
-    text: Option<String>,
     generation: u64,
     copy: bool,
-    target: CaptureTarget,
+    interactive: bool,
+    restore: bool,
 }
 struct Job {
     generation: u64,
     league: String,
     query: serde_json::Value,
 }
-#[derive(Clone)]
-enum MenuRoute {
-    Open(bool),
-    Settings,
-    Catalogue,
-    Paste(String),
-    Stash(String),
-    StashSettings(u64),
-}
 struct Ui {
-    stash: Result<Rc<stash_panel::Runtime>, String>,
-    stash_worker: SyncSender<StashJob>,
-    stash_pending: Cell<Option<u64>>,
-    scroll_pending: Cell<usize>,
-    scroll_dropped: Cell<u64>,
-    wheel_status: RefCell<Result<(), String>>,
-    wheel_connection: Cell<u64>,
-    stash_result: RefCell<Option<Result<(), String>>>,
-    menu: Result<Rc<widget_menu::Menu>, String>,
-    pending_menu: RefCell<Option<(u64, MenuRoute)>>,
-    deferred_menu: RefCell<std::collections::VecDeque<widget_menu::Action>>,
-    widget_canvas: Result<Rc<widget_canvas::Canvas>, String>,
     window: gtk::Window,
-    delve: Result<Rc<delve_grid::Grid>, String>,
-    stopwatches: Result<Rc<stopwatch_panel::Runtime>, String>,
-    stopwatch_manager: stopwatch_manager::Manager,
-    images: Result<Rc<image_panel::Runtime>, String>,
-    image_manager: image_manager::Panel,
-    pending_image_edit: Cell<Option<(u64, u64)>>,
-    widget_transaction: Cell<bool>,
-    order_transaction: Cell<bool>,
+    game_bounds: Cell<Option<crate::price_layout::Rect>>,
+    game_window: Cell<Option<u32>>,
+    panel_bounds: Cell<Option<crate::price_layout::Rect>>,
     pending_interaction: Cell<Option<u64>>,
-    pending_stopwatch_edit: Cell<Option<u64>>,
     started: Instant,
+    frames: Cell<u64>,
     desktop: RefCell<Snapshot>,
     title: gtk::Label,
     text: gtk::Label,
+    search_button: gtk::Button,
+    listings: listings_panel::Panel,
     hint: gtk::Label,
     league: gtk::Entry,
+    league_label: gtk::Label,
+    league_worker: SyncSender<()>,
+    league_ready: Cell<bool>,
+    league_error: RefCell<Option<String>>,
     online: gtk::CheckButton,
     search_range: gtk::SpinButton,
     currency: gtk::ComboBoxText,
+    bulk_row: gtk::Box,
     economy_panel: economy_panel::EconomyPanel,
     unidentified: unidentified_panel::Panel,
-    catalogue: Rc<item_search_panel::Panel>,
     identity_epoch: Cell<u64>,
     economy_worker: SyncSender<EconomyJob>,
     economy_result: RefCell<Option<(u64, EconomyResult)>>,
@@ -176,22 +100,19 @@ struct Ui {
     mod_scroll: gtk::ScrolledWindow,
     mod_expander: gtk::Expander,
     stack: gtk::Stack,
-    inspection: Rc<inspection_panel::Panel>,
-    inspection_result: RefCell<Option<crate::inspection::Report>>,
     view: Cell<View>,
     stat_rows: RefCell<Vec<stat_row::StatRow>>,
     mercenary_panel: RefCell<Option<mercenary_panel::Panel>>,
     preset: gtk::ComboBoxText,
     item_filters: Rc<item_filters_panel::Panel>,
     events: glib::Sender<Event>,
-    updating_preset: Cell<bool>,
     state: RefCell<Overlay>,
     settings: RefCell<Settings>,
+    updating_preset: Cell<bool>,
     preferences: settings_panel::Panel,
     preferences_worker: SyncSender<crate::desktop::preferences::Request>,
     preferences_pending: Cell<bool>,
     preferences_epoch: Cell<u64>,
-    preferences_return: Cell<View>,
     backend_connection: Cell<u64>,
     backend_status: RefCell<Result<(), String>>,
     updating_settings: Cell<bool>,
@@ -208,8 +129,8 @@ struct Ui {
     request: RefCell<Option<(u64, serde_json::Value)>>,
 }
 fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
-    window.set_size_request((620. * scale) as i32, (420. * scale) as i32);
-    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 10px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    window.set_size_request((480. * scale) as i32, 0);
+    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 0px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native .mod-row {{ border: 1px solid #59606b; border-radius: 4px; background-color: #1b2430; }} #apt-native .mod-row.selected {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row {{ border: 1px solid #4a515e; border-radius: 3px; background-color: #1b2430; }} #apt-native .trade-row:hover {{ border-color: #b99a5b; }} tooltip {{ background-color: #151b24; border: 1px solid #b99a5b; padding: 10px; }} tooltip label {{ color: #eeeeef; font: 14px Sans; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
     Ok(())
 }
 fn socket_path() -> Result<std::path::PathBuf, String> {
@@ -243,16 +164,7 @@ fn status_payload(value: &serde_json::Value) -> String {
     if encoded.len() <= 60 * 1024 {
         return encoded;
     }
-    // The local client reads one 64 KiB datagram. A large collection of widget
-    // controls must still produce a useful, valid response instead of EMSGSIZE.
-    serde_json::json!({
-        "diagnostics_truncated":true,"diagnostics_bytes":encoded.len(),
-        "state":value["state"],"view":value["view"],"game_active":value["game_active"],
-        "visible":value["visible"],"rendered":value["rendered"],"keyboard_mode":value["keyboard_mode"],
-        "generation":value["generation"],"origin":value["origin"],"width":value["width"],"height":value["height"],
-        "shortcut_backend":value["shortcut_backend"],"preferences_pending":value["preferences_pending"],
-        "counts":{"stash_searches":value["stash"]["rows"].as_array().map(Vec::len),"image_strips":value["images"]["rows"].as_array().map(Vec::len),"stopwatches":value["stopwatches"]["rows"].as_array().map(Vec::len),"stat_controls":value["stat_controls"].as_array().map(Vec::len)}
-    }).to_string()
+    serde_json::json!({"diagnostics_truncated":true,"state":value["state"],"view":value["view"],"game_active":value["game_active"],"visible":value["visible"],"generation":value["generation"],"query":value["query"]}).to_string()
 }
 fn belongs_to_window(widget: &gtk::Widget, window: &gtk::Window, depth: u8) -> bool {
     if widget == window.upcast_ref::<gtk::Widget>() {
@@ -308,414 +220,64 @@ fn dismiss_owned_popup(window: &gtk::Window) {
     }
 }
 impl Ui {
-    fn stash_search(&self, id: u64, entry: u64, hotkey: bool) {
-        if self.preferences_pending.get() || self.stash_pending.get().is_some() {
-            return;
-        }
-        if hotkey && !self.state.borrow().game_active {
-            return;
-        }
-        let text = {
-            let s = self.settings.borrow();
-            s.stash_searches
-                .iter()
-                .find(|c| c.id == id && (!hotkey || c.enable_hotkeys))
-                .and_then(|c| {
-                    c.entries
-                        .iter()
-                        .find(|e| e.id == entry && (!hotkey || e.hotkey.is_some()))
-                })
-                .map(|e| e.text.clone())
-        };
-        if let Some(text) = text {
-            self.route_menu(MenuRoute::Stash(text));
-        }
-    }
-    fn stash_action(&self, action: stash_panel::Action) {
-        use stash_panel::Action;
-        let Ok(r) = &self.stash else {
-            return;
-        };
-        let epoch = match &action {
-            Action::Escape(e)
-            | Action::Edit(e, _)
-            | Action::Hide(e, _)
-            | Action::Remove(e, _)
-            | Action::Search(e, _, _)
-            | Action::Enable(e, _, _)
-            | Action::Move(e, _) => *e,
-        };
-        if !r.accepts(epoch) {
-            return;
-        }
-        if matches!(action, Action::Escape(_)) {
-            self.hide(HideReason::Escape);
-            return;
-        }
-        if self.preferences_pending.get() {
-            return;
-        }
-        match action {
-            Action::Search(_, id, entry) => self.stash_search(id, entry, false),
-            Action::Edit(_, id) => self.route_menu(MenuRoute::StashSettings(id)),
-            Action::Hide(_, id) | Action::Remove(_, id) => {
-                let mut s = self.settings.borrow().clone();
-                if matches!(action, Action::Remove(..)) {
-                    s.stash_searches.retain(|c| c.id != id);
-                } else if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
-                    c.wanted = false;
-                }
-                self.commit_widgets(s);
-            }
-            Action::Enable(_, id, enable) => {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
-                    c.enable_hotkeys = enable;
-                }
-                self.commit_widgets(s);
-            }
-            Action::Move(_, config) => {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == config.id) {
-                    *c = config;
-                }
-                self.commit_widgets(s);
-            }
-            _ => (),
-        }
-    }
-    fn refresh_menu(&self) {
-        let Ok(menu) = &self.menu else {
-            return;
-        };
-        use crate::widget_menu::{Entry, Target};
+    fn refresh_league(&self) {
+        self.league_error.replace(None);
         let s = self.settings.borrow();
-        let mut entries = vec![
-            Entry {
-                target: Target::Settings,
-                id: 1,
-                title: "{icon=fa-cog}".into(),
-                wanted: self.view.get() == View::Settings && self.window.is_visible(),
-                skip: false,
-            },
-            Entry {
-                target: Target::Catalogue,
-                id: 2,
-                title: "{icon=fa-search}".into(),
-                wanted: self.view.get() == View::Catalogue && self.window.is_visible(),
-                skip: false,
-            },
-        ];
-        entries.extend(s.stopwatches.iter().map(|c| Entry {
-            target: Target::Stopwatch(c.id),
-            id: c.id,
-            title: c.title.clone(),
-            wanted: c.wanted,
-            skip: false,
-        }));
-        entries.extend(s.image_strips.iter().map(|c| Entry {
-            target: Target::Image(c.id),
-            id: c.id,
-            title: c.title.clone(),
-            wanted: c.wanted,
-            skip: false,
-        }));
-        entries.extend(s.stash_searches.iter().map(|c| Entry {
-            target: Target::Stash(c.id),
-            id: c.id,
-            title: c.title.clone(),
-            wanted: c.wanted,
-            skip: false,
-        }));
-        menu.reconcile(&s.widget_menu, &entries, s.scale);
-        let state = self.state.borrow();
-        let d = self.desktop.borrow();
-        let interactive = state.state == State::Interactive;
-        // The extra native managers have their own controls. They are not
-        // upstream widgets; keep the floating menu out of these editor panes.
-        let visible = d.game_present()
-            && !d.other_active()
-            && ((self.view.get() == View::Menu
-                && matches!(
-                    state.state,
-                    State::Preparing | State::Passive | State::Interactive
-                ))
-                || (interactive && self.view.get() == View::Catalogue));
-        menu.set_context(visible, interactive, state.generation);
-    }
-    fn start_menu(&self, activate: bool) {
-        if self.menu.is_err() {
-            eprintln!("menu unavailable");
-            return;
-        }
-        if self.view.get() == View::Menu && self.state.borrow().state != State::Hidden {
-            if activate {
-                self.command("interact");
-            }
-            return;
-        }
-        self.view.set(View::Menu);
-        let Some(token) = self.state.borrow_mut().show() else {
-            return;
-        };
-        self.sync_generation();
-        if activate {
-            self.pending_interaction.set(Some(token));
-        }
-        if let Ok(r) = &self.stopwatches {
-            r.resume();
-        }
-        if let Ok(r) = &self.images {
-            r.resume();
-        }
-        self.refresh_delve();
-        eprintln!(
-            "overlay state=Preparing view=Menu generation={token} activation_requested=false"
-        );
-    }
-    fn route_menu(&self, route: MenuRoute) {
-        if self.desktop.borrow().other_active() || !self.desktop.borrow().game_present() {
-            return;
-        }
-        self.hide(HideReason::Button);
-        if self.state.borrow().game_active {
-            self.finish_menu_route(route);
+        if s.automatic_league {
+            self.league_ready.set(false);
+            self.search_button.set_sensitive(false);
+            self.league_label.set_text("Détection de la ligue…");
+            let _ = self.league_worker.try_send(());
         } else {
-            self.pending_menu
-                .replace(Some((self.state.borrow().generation, route)));
+            self.league_ready.set(true);
+            self.search_button.set_sensitive(true);
+            self.league_label.set_text(&s.league);
         }
     }
-    fn finish_menu_route(&self, route: MenuRoute) {
-        if self.preferences_pending.get() {
-            self.pending_menu
-                .replace(Some((self.state.borrow().generation, route)));
-            return;
+
+    fn position_panel(&self, actual_width: Option<i32>) {
+        use crate::price_layout::Rect;
+        if let Some((id, bounds)) = crate::desktop::game_geometry::focused() {
+            self.game_bounds.set(Some(bounds));
+            self.game_window.set(Some(id));
         }
-        match route {
-            MenuRoute::Open(activate) => self.start_menu(activate),
-            MenuRoute::Settings | MenuRoute::Catalogue => {
-                if matches!(route, MenuRoute::Settings) {
-                    self.open_settings();
-                } else {
-                    self.open_catalogue();
-                }
-                if self.state.borrow().state == State::Preparing {
-                    self.pending_interaction
-                        .set(Some(self.state.borrow().generation));
-                }
-            }
-            MenuRoute::StashSettings(id) => {
-                self.open_settings();
-                self.preferences.open_stash(id);
-                if self.state.borrow().state == State::Preparing {
-                    self.pending_interaction
-                        .set(Some(self.state.borrow().generation));
-                }
-            }
-            MenuRoute::Stash(text) => {
-                let generation = self.state.borrow().generation;
-                let restore = self.settings.borrow().restore_clipboard;
-                self.stash_result.replace(None);
-                if self
-                    .stash_worker
-                    .try_send(StashJob::Search {
-                        generation,
-                        text,
-                        restore,
-                    })
-                    .is_ok()
-                {
-                    self.stash_pending.set(Some(generation));
-                } else {
-                    self.stash_result
-                        .replace(Some(Err("Une recherche coffre est déjà en cours.".into())));
-                }
-            }
-            MenuRoute::Paste(text) => {
-                let generation = self.state.borrow().generation;
-                if self
-                    .capture_worker
-                    .try_send(CaptureJob {
-                        restore: self.settings.borrow().restore_clipboard,
-                        generation,
-                        text: Some(text),
-                        copy: false,
-                        target: CaptureTarget::Panel(View::Price),
-                    })
-                    .is_err()
-                {
-                    eprintln!("menu paste refused: capture worker busy");
-                } else {
-                    self.capture_pending.set(Some(generation));
-                }
-            }
-        }
-    }
-    fn drain_menu(&self) {
-        while !self.preferences_pending.get() {
-            let action = self.deferred_menu.borrow_mut().pop_front();
-            let Some(action) = action else {
-                break;
-            };
-            self.menu_action(action);
-        }
-    }
-    fn drain_menu_route(&self) {
-        if !self.preferences_pending.get() && self.state.borrow().game_active {
-            let pending = self.pending_menu.borrow_mut().take();
-            if let Some((token, route)) = pending {
-                if token == self.state.borrow().generation {
-                    self.finish_menu_route(route);
-                }
-            }
-        }
-    }
-    fn menu_action(&self, action: widget_menu::Action) {
-        use widget_menu::Action;
-        let Ok(menu) = &self.menu else {
+        let Some(monitor) =
+            gtk::gdk::Display::default().and_then(|d| d.primary_monitor().or_else(|| d.monitor(0)))
+        else {
             return;
         };
-        if let Action::Painted(epoch) = action {
-            if self.view.get() == View::Menu
-                && epoch == self.state.borrow().generation
-                && self.state.borrow().state == State::Preparing
-            {
-                self.state.borrow_mut().painted();
-                eprintln!("overlay state=Passive view=Menu first_frame=painted activation_requested=false");
-                if self.pending_interaction.take() == Some(epoch) {
-                    self.command("interact");
-                }
-            }
-            return;
-        }
-        let epoch = match &action {
-            Action::Escape(e)
-            | Action::Toggle(e, _)
-            | Action::AddStash(e)
-            | Action::Add(e, _)
-            | Action::Configure(e, _)
-            | Action::Paste(e, _) => *e,
-            Action::Painted(_) => unreachable!(),
+        let g = monitor.geometry();
+        let output = Rect {
+            x: g.x(),
+            y: g.y(),
+            width: g.width(),
+            height: g.height(),
         };
-        if !menu.accepts(epoch) {
+        let factor = monitor.scale_factor().max(1);
+        let game = self
+            .game_bounds
+            .get()
+            .map(|b| Rect {
+                x: b.x / factor,
+                y: b.y / factor,
+                width: b.width / factor,
+                height: b.height / factor,
+            })
+            .unwrap_or(output);
+        let width = actual_width.unwrap_or((480. * self.settings.borrow().scale) as i32);
+        let p = crate::price_layout::beside_inventory(output, game, width);
+        if self.panel_bounds.get() == Some(p) {
             return;
         }
-        if matches!(action, Action::Escape(_)) {
-            self.hide(HideReason::Escape);
-            return;
-        }
-        if self.preferences_pending.get() {
-            let mut queue = self.deferred_menu.borrow_mut();
-            if queue.len() < 32 {
-                queue.push_back(action);
-            }
-            return;
-        }
-        use crate::{widget_menu::Target, widget_order::Key};
-        match action {
-            Action::Toggle(_, Target::Settings) => self.route_menu(MenuRoute::Settings),
-            Action::Toggle(_, Target::Catalogue) => {
-                if self.view.get() == View::Catalogue && self.window.is_visible() {
-                    self.route_menu(MenuRoute::Open(true));
-                } else {
-                    self.route_menu(MenuRoute::Catalogue);
-                }
-            }
-            Action::Toggle(_, Target::Stopwatch(id)) => {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
-                    c.wanted = !c.wanted;
-                    if c.wanted {
-                        if let Ok(canvas) = &self.widget_canvas {
-                            canvas.raise(Key::Stopwatch(id));
-                        }
-                        if let Ok(r) = &self.stopwatches {
-                            r.resume();
-                        }
-                    }
-                    self.commit_widgets(s);
-                }
-            }
-            Action::Toggle(_, Target::Image(id)) => {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
-                    c.wanted = !c.wanted;
-                    if c.wanted {
-                        if let Ok(canvas) = &self.widget_canvas {
-                            canvas.raise(Key::Image(id));
-                        }
-                        if let Ok(r) = &self.images {
-                            r.resume();
-                        }
-                    }
-                    self.commit_widgets(s);
-                }
-            }
-            Action::Toggle(_, Target::Stash(id)) => {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
-                    c.wanted = !c.wanted;
-                    if c.wanted {
-                        if let Ok(canvas) = &self.widget_canvas {
-                            canvas.raise(Key::Stash(id));
-                        }
-                    }
-                    self.commit_widgets(s);
-                }
-            }
-            Action::AddStash(_) => {
-                let mut s = self.settings.borrow().clone();
-                if s.stash_searches.len() >= crate::stash_search::MAX_WIDGETS {
-                    return;
-                }
-                let id = s.stash_searches.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-                s.stash_searches.push(crate::stash_search::Config::new(
-                    id,
-                    glib::random_double(),
-                    glib::random_double(),
-                ));
-                self.commit_widgets(s);
-            }
-            Action::Add(_, images) => {
-                let mut s = self.settings.borrow().clone();
-                if images {
-                    if s.image_strips.len() >= crate::image_strip::MAX_STRIPS {
-                        return;
-                    }
-                    let id = s.image_strips.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-                    s.image_strips.push(crate::image_strip::Config::new(
-                        id,
-                        glib::random_double(),
-                        glib::random_double(),
-                    ));
-                    if let Ok(r) = &self.images {
-                        r.resume();
-                    }
-                } else {
-                    if s.stopwatches.len() >= crate::stopwatch::MAX_INSTANCES {
-                        return;
-                    }
-                    let id = s.stopwatches.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-                    s.stopwatches.push(crate::stopwatch::Config::new(
-                        id,
-                        glib::random_double(),
-                        glib::random_double(),
-                    ));
-                    if let Ok(r) = &self.stopwatches {
-                        r.resume();
-                    }
-                }
-                self.commit_widgets(s);
-            }
-            Action::Configure(_, config) => {
-                let mut s = self.settings.borrow().clone();
-                s.widget_menu = config;
-                self.commit_widgets(s);
-            }
-            Action::Paste(_, text) => self.route_menu(MenuRoute::Paste(text)),
-            _ => (),
-        }
+        self.panel_bounds.set(Some(p));
+        self.window.set_monitor(&monitor);
+        self.window
+            .set_layer_shell_margin(Edge::Left, p.x - output.x);
+        self.window.set_layer_shell_margin(Edge::Top, 0);
+        self.window.set_layer_shell_margin(Edge::Bottom, 0);
+        eprintln!("price panel geometry={p:?} game={game:?}");
     }
+
     fn defer_focus_check(self: &Rc<Self>) {
         let Some(token) = self.state.borrow_mut().focus_lost() else {
             return;
@@ -725,16 +287,8 @@ impl Ui {
         // Observe settled state; never request activation or focus to compensate.
         glib::timeout_add_local_once(Duration::from_millis(30), move || {
             if let Some(ui) = weak.upgrade() {
-                let active = ui.window.is_active()
-                    || ui.menu.as_ref().is_ok_and(|m| m.owns_focus())
-                    || ui.stopwatches.as_ref().is_ok_and(|r| r.owns_focus())
-                    || ui.images.as_ref().is_ok_and(|r| r.owns_focus())
-                    || ui.stash.as_ref().is_ok_and(|r| r.owns_focus());
-                let popup = owned_popup(&ui.window).is_some()
-                    || ui
-                        .widget_canvas
-                        .as_ref()
-                        .is_ok_and(|c| owned_popup(&c.window).is_some());
+                let active = ui.window.is_active();
+                let popup = owned_popup(&ui.window).is_some();
                 let hide = ui
                     .state
                     .borrow()
@@ -746,139 +300,28 @@ impl Ui {
             }
         });
     }
-    fn refresh_delve(&self) {
-        if let Ok(r) = &self.stash {
-            let d = self.desktop.borrow();
-            r.set_context(
-                self.state.borrow().state == State::Interactive
-                    && d.game_present()
-                    && !d.other_active(),
-                self.window.is_visible()
-                    && matches!(
-                        self.view.get(),
-                        View::Price | View::Inspection | View::Settings
-                    ),
-                self.state.borrow().generation,
-            );
-        }
-        self.refresh_menu();
-        if let Ok(grid) = &self.delve {
-            let desktop = self.desktop.borrow();
-            grid.update(
-                desktop.game_present(),
-                desktop.game_active(),
-                desktop.other_active(),
-                self.state.borrow().state == State::Interactive,
-                self.window.is_visible()
-                    && matches!(
-                        self.view.get(),
-                        View::Price | View::Inspection | View::Settings
-                    ),
-            );
-        }
-        if let Ok(r) = &self.stopwatches {
-            let d = self.desktop.borrow();
-            r.set_context(
-                d.game_present() && d.game_active() && !d.other_active(),
-                self.state.borrow().state == State::Interactive
-                    && d.game_present()
-                    && !d.other_active(),
-                self.window.is_visible()
-                    && matches!(
-                        self.view.get(),
-                        View::Price | View::Inspection | View::Settings
-                    ),
-                self.window.is_visible() && self.view.get() == View::Stopwatches,
-            );
-        }
-        if let Ok(r) = &self.images {
-            let d = self.desktop.borrow();
-            r.set_context(
-                self.state.borrow().state == State::Interactive
-                    && d.game_present()
-                    && !d.other_active(),
-                self.window.is_visible()
-                    && matches!(
-                        self.view.get(),
-                        View::Price | View::Inspection | View::Settings
-                    ),
-            );
-        }
-    }
-
-    fn toggle_delve(&self) {
-        if self.preferences_pending.get() {
-            return;
-        }
-        let Ok(grid) = &self.delve else {
-            eprintln!("delve unavailable: {:?}", self.delve.as_ref().err());
-            return;
-        };
-        let (present, active, other) = {
-            let d = self.desktop.borrow();
-            (d.game_present(), d.game_active(), d.other_active())
-        };
-        let owned = self.window.is_visible() && self.state.borrow().state == State::Interactive;
-        let allowed = present && !other && (active || owned);
-        if allowed && !grid.requested() && self.window.is_visible() {
-            self.hide(HideReason::Button);
-        }
-        grid.toggle(allowed, owned);
-        self.refresh_delve();
-    }
-    fn hide_delve(&self, reason: crate::delve::Reason) {
-        if let Ok(grid) = &self.delve {
-            grid.hide(reason);
-        }
-    }
     fn sync_generation(&self) {
         let generation = self.state.borrow().generation;
-        if self.stash_pending.get().is_some_and(|g| g != generation) {
-            self.stash_pending.set(None);
-            self.scroll_pending.set(0);
+        if self.state.borrow().state == State::Preparing && self.pending_interaction.get().is_some()
+        {
+            self.pending_interaction.set(Some(generation));
         }
         if self.capture_pending.get().is_some_and(|g| g != generation) {
             self.capture_pending.set(None);
         }
-        self.current
-            .store(self.state.borrow().generation, Ordering::Release);
+        self.current.store(generation, Ordering::Release);
     }
     fn hide(&self, reason: HideReason) {
-        self.preferences.images.cancel_import();
         self.pending_interaction.set(None);
-        self.pending_image_edit.set(None);
-        self.pending_stopwatch_edit.set(None);
-        self.pending_menu.borrow_mut().take();
-        self.deferred_menu.borrow_mut().clear();
-        if matches!(reason, HideReason::Explicit | HideReason::Quit) {
-            if let Ok(r) = &self.stopwatches {
-                r.dismiss();
-            }
-            if let Ok(r) = &self.images {
-                r.dismiss();
-            }
-        }
-        match reason {
-            HideReason::OtherApplication => self.hide_delve(crate::delve::Reason::OtherApplication),
-            HideReason::GameGone | HideReason::GameMinimized => {
-                self.hide_delve(crate::delve::Reason::GameGone)
-            }
-            HideReason::GameInactive => self.hide_delve(crate::delve::Reason::GameInactive),
-            HideReason::TrackerFailure => self.hide_delve(crate::delve::Reason::TrackerFailure),
-            HideReason::Quit => self.hide_delve(crate::delve::Reason::Quit),
-            _ => (),
-        }
-        let previous = self.state.borrow().state;
-        let focused = self.window.is_active();
         self.state.borrow_mut().hide(reason);
         self.sync_generation();
         apply_input(&self.window, false);
         dismiss_owned_popup(&self.window);
         self.window.hide();
-        self.refresh_delve();
-        let state = self.state.borrow();
-        let desktop = self.desktop.borrow();
-        eprintln!("overlay state=Hidden reason={reason:?} previous={previous:?} generation={} elapsed_ms={} was_focused={focused} game_active={} game_exists={} game_visible={} other_active={} input=empty keyboard=None", state.generation,self.started.elapsed().as_millis(),state.game_active,desktop.game_exists(),desktop.game_present(),desktop.other_active());
+        eprintln!(
+            "overlay state=Hidden reason={reason:?} generation={} input=empty keyboard=None",
+            self.state.borrow().generation
+        );
     }
     fn show(&self) -> bool {
         let generation = self.state.borrow_mut().show();
@@ -888,9 +331,9 @@ impl Ui {
         }
         self.sync_generation();
         self.shown.replace(Some(Instant::now()));
+        self.position_panel(None);
         apply_input(&self.window, false);
         self.window.show_all();
-        self.refresh_delve();
         self.window.queue_draw();
         let settings = self.settings.borrow();
         self.hint.set_text(&format!(
@@ -913,432 +356,13 @@ impl Ui {
         self.state.borrow_mut().generation += 1;
         self.sync_generation();
         self.result.replace(None);
+        self.listings.clear();
         self.request.replace(None);
         self.url.replace(None);
         self.economy_result.replace(None);
         self.economy_panel.not_requested();
+        self.economy_panel.container.hide();
         self.state.borrow().generation
-    }
-    fn open_catalogue(&self) {
-        if self.preferences_pending.get()
-            || (self.view.get() == View::Catalogue && self.window.is_visible())
-        {
-            return;
-        }
-        let generation = self.invalidate_prices();
-        self.view.set(View::Catalogue);
-        self.title.set_text("Recherche des cibles de Heist");
-        self.catalogue
-            .show(&self.settings.borrow().league, generation);
-        self.stack.set_visible_child_name("catalogue");
-        self.refresh_delve();
-        if !self.window.is_visible() {
-            self.show();
-        }
-    }
-    fn catalogue_action(&self, action: item_search_panel::Action) {
-        if self.view.get() != View::Catalogue
-            || !self.window.is_visible()
-            || self.state.borrow().state != State::Interactive
-            || self.preferences_pending.get()
-            || action.session() != self.catalogue.session()
-        {
-            return;
-        }
-        use item_search_panel::Action;
-        match action {
-            Action::Select { revision, id, .. } => {
-                if self.catalogue.select(revision, id) {
-                    self.invalidate_prices();
-                    self.catalogue_prices();
-                }
-            }
-            Action::Refresh(_) => {
-                self.invalidate_prices();
-                self.catalogue.clear_quotes();
-                self.catalogue_prices();
-            }
-            Action::Reset(_) => {
-                self.invalidate_prices();
-                self.catalogue.reset();
-            }
-            Action::Close(_) => self.hide(HideReason::Button),
-            Action::Consult { id, .. } => {
-                let Some(choice) = self.catalogue.selected_choice(id) else {
-                    return;
-                };
-                match choice.trade_item() {
-                    Ok(item) => {
-                        let generation = self.invalidate_prices();
-                        self.prepare_item(item, View::Price, generation);
-                        self.search();
-                    }
-                    Err(error) => self.catalogue.show_quotes(Err(error)),
-                }
-            }
-        }
-    }
-    fn catalogue_prices(&self) {
-        let choices = self.catalogue.choices();
-        if choices.is_empty() {
-            return;
-        }
-        self.catalogue.loading();
-        let generation = self.state.borrow().generation;
-        let job = EconomyJob::Catalogue {
-            generation,
-            league: self.settings.borrow().league.clone(),
-            choices,
-        };
-        if self.economy_worker.try_send(job).is_err() {
-            self.catalogue
-                .show_quotes(Err("Une demande indicative est déjà en cours".into()));
-        } else {
-            eprintln!("catalogue economy generation={generation} trade_http=false");
-        }
-    }
-    fn open_images(&self) {
-        if self.preferences_pending.get() {
-            return;
-        }
-        self.invalidate_prices();
-        self.view.set(View::Images);
-        self.title.set_text("Bandes d’images");
-        self.stack.set_visible_child_name("images");
-        if let Ok(r) = &self.images {
-            r.resume();
-        }
-        if !self.window.is_visible() {
-            self.show();
-        }
-        self.refresh_delve();
-    }
-    fn image_manager_action(&self, action: image_manager::Action) {
-        if self.view.get() != View::Images
-            || !self.window.is_visible()
-            || self.state.borrow().state != State::Interactive
-            || self.preferences_pending.get()
-        {
-            return;
-        }
-        match action {
-            image_manager::Action::Edit(id) => {
-                if let Ok(r) = &self.images {
-                    r.prepare_edit(id);
-                }
-                self.open_settings();
-                self.preferences.open_images(Some(id));
-            }
-            image_manager::Action::Add => {
-                let mut s = self.settings.borrow().clone();
-                if s.image_strips.len() >= crate::image_strip::MAX_STRIPS {
-                    return;
-                }
-                let id = s.image_strips.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-                s.image_strips.push(crate::image_strip::Config::new(
-                    id,
-                    glib::random_double(),
-                    glib::random_double(),
-                ));
-                self.commit_widgets(s);
-            }
-            image_manager::Action::Wanted(id, wanted) => {
-                if wanted {
-                    if let Ok(c) = &self.widget_canvas {
-                        c.raise(crate::widget_order::Key::Image(id));
-                    }
-                }
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
-                    c.wanted = wanted;
-                    self.commit_widgets(s);
-                }
-            }
-        }
-    }
-    fn image_action(self: &Rc<Self>, action: image_panel::Action) {
-        let Ok(r) = &self.images else {
-            return;
-        };
-        use image_panel::Action;
-        match action {
-            Action::FocusChanged => {
-                if r.owns_focus() {
-                    self.state.borrow_mut().focus_restored();
-                } else {
-                    self.defer_focus_check();
-                }
-            }
-            Action::Escape(epoch) if r.accepts(epoch) => self.hide(HideReason::Escape),
-            Action::Edit(epoch, id) if r.accepts(epoch) && !self.preferences_pending.get() => {
-                r.prepare_edit(id);
-                self.hide(HideReason::Button);
-                if self.desktop.borrow().game_active() {
-                    self.open_settings();
-                    self.preferences.open_images(Some(id));
-                } else {
-                    self.pending_image_edit
-                        .set(Some((self.state.borrow().generation, id)));
-                }
-            }
-            Action::Hide(epoch, id) | Action::Remove(epoch, id)
-                if r.accepts(epoch) && !self.preferences_pending.get() =>
-            {
-                let remove = matches!(action, Action::Remove(..));
-                let mut s = self.settings.borrow().clone();
-                if remove {
-                    s.image_strips.retain(|c| c.id != id);
-                } else if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
-                    c.wanted = false;
-                }
-                self.commit_widgets(s);
-            }
-            Action::Move { epoch, config }
-                if r.accepts(epoch) && !self.preferences_pending.get() =>
-            {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == config.id) {
-                    *c = config;
-                    self.commit_widgets(s);
-                }
-            }
-            _ => (),
-        }
-    }
-    fn open_stopwatches(&self) {
-        if self.preferences_pending.get() {
-            return;
-        }
-        self.invalidate_prices();
-        self.view.set(View::Stopwatches);
-        self.title.set_text("Chronomètres");
-        self.stack.set_visible_child_name("stopwatches");
-        if let Ok(r) = &self.stopwatches {
-            r.resume();
-        }
-        self.update_stopwatch_manager();
-        if !self.window.is_visible() {
-            self.show();
-        }
-        self.refresh_delve();
-    }
-    fn update_stopwatch_manager(&self) {
-        if let Ok(r) = &self.stopwatches {
-            self.stopwatch_manager.update(&r.readings());
-        }
-    }
-    fn stopwatch_time(&self, id: u64, reset: bool) {
-        let d = self.desktop.borrow();
-        if !d.game_present()
-            || d.other_active()
-            || !(d.game_active() || self.state.borrow().state == State::Interactive)
-        {
-            return;
-        }
-        drop(d);
-        if let Ok(r) = &self.stopwatches {
-            r.time_action(id, reset);
-        }
-        self.update_stopwatch_manager();
-    }
-    fn save_widget_order(&self) {
-        if !self.preferences_pending.get() && self.widget_canvas.as_ref().is_ok_and(|c| c.dirty()) {
-            let settings = self.settings.borrow().clone();
-            self.commit_widgets(settings);
-        }
-    }
-    fn commit_widgets(&self, mut candidate: Settings) {
-        if let Ok(canvas) = &self.widget_canvas {
-            candidate.widget_order =
-                crate::widget_order::saved(&canvas.order(), &candidate.widget_keys());
-        }
-        if self.preferences_pending.get() {
-            return;
-        }
-        if let Err(e) = candidate.validate() {
-            if let Ok(r) = &self.stash {
-                let s = self.settings.borrow();
-                r.reconcile(&s.stash_searches, s.scale);
-            }
-            if let Ok(m) = &self.menu {
-                m.error(&e);
-            }
-            self.stopwatch_manager.message(&e);
-            return;
-        }
-        self.preferences_epoch.set(self.preferences_epoch.get() + 1);
-        self.preferences_pending.set(true);
-        self.widget_transaction.set(true);
-        let order_only = {
-            let old = self.settings.borrow();
-            candidate.stopwatches == old.stopwatches
-                && candidate.image_strips == old.image_strips
-                && candidate.widget_menu == old.widget_menu
-                && candidate.stash_searches == old.stash_searches
-        };
-        self.order_transaction.set(order_only);
-        if !order_only {
-            if let Ok(r) = &self.stash {
-                r.set_busy(true);
-            }
-            if let Ok(m) = &self.menu {
-                m.set_busy(true);
-            }
-            self.stopwatch_manager.busy(true);
-            self.image_manager.busy(true);
-            if let Ok(r) = &self.images {
-                r.set_busy(true);
-            }
-            if let Ok(r) = &self.stopwatches {
-                r.set_busy(true);
-            }
-        }
-        if let Err(e) = self
-            .preferences_worker
-            .try_send(crate::desktop::preferences::Request {
-                epoch: self.preferences_epoch.get(),
-                settings: candidate,
-            })
-        {
-            self.preferences_pending.set(false);
-            self.widget_transaction.set(false);
-            if let Ok(c) = &self.widget_canvas {
-                let s = self.settings.borrow();
-                c.rollback(&s.widget_order, &s.widget_keys());
-            }
-            if self.order_transaction.replace(false) {
-                self.stopwatch_manager
-                    .message(&format!("Modifications non enregistrées : {e}"));
-                self.image_manager
-                    .message(&format!("Modifications non enregistrées : {e}"));
-                return;
-            }
-            if let Ok(r) = &self.stash {
-                r.set_busy(false);
-                let s = self.settings.borrow();
-                r.reconcile(&s.stash_searches, s.scale);
-            }
-            if let Ok(m) = &self.menu {
-                m.set_busy(false);
-            }
-            self.refresh_menu();
-            self.stopwatch_manager.busy(false);
-            self.image_manager.busy(false);
-            self.image_manager.message(&e.to_string());
-            if let Ok(r) = &self.images {
-                r.set_busy(false);
-                r.reconcile(
-                    &self.settings.borrow().image_strips,
-                    self.settings.borrow().scale,
-                );
-            }
-            self.stopwatch_manager.message(&e.to_string());
-            if let Ok(r) = &self.stopwatches {
-                r.set_busy(false);
-                r.reconcile(
-                    &self.settings.borrow().stopwatches,
-                    self.settings.borrow().scale,
-                );
-            }
-        }
-    }
-    fn stopwatch_manager_action(&self, action: stopwatch_manager::Action) {
-        if self.view.get() != View::Stopwatches
-            || !self.window.is_visible()
-            || self.state.borrow().state != State::Interactive
-            || self.preferences_pending.get()
-        {
-            return;
-        }
-        use stopwatch_manager::Action;
-        match action {
-            Action::Toggle(id) => self.stopwatch_time(id, false),
-            Action::Reset(id) => self.stopwatch_time(id, true),
-            Action::Edit => {
-                self.open_settings();
-                self.preferences.open_stopwatches();
-            }
-            Action::Add => {
-                let mut s = self.settings.borrow().clone();
-                if s.stopwatches.len() >= crate::stopwatch::MAX_INSTANCES {
-                    return;
-                }
-                let id = s
-                    .stopwatches
-                    .iter()
-                    .map(|c| c.id)
-                    .max()
-                    .unwrap_or(0)
-                    .saturating_add(1);
-                s.stopwatches.push(crate::stopwatch::Config::new(
-                    id,
-                    glib::random_double(),
-                    glib::random_double(),
-                ));
-                self.commit_widgets(s);
-            }
-            Action::Wanted(id, wanted) => {
-                if wanted {
-                    if let Ok(c) = &self.widget_canvas {
-                        c.raise(crate::widget_order::Key::Stopwatch(id));
-                    }
-                }
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
-                    c.wanted = wanted;
-                    self.commit_widgets(s);
-                }
-            }
-        }
-    }
-    fn stopwatch_action(self: &Rc<Self>, action: stopwatch_panel::Action) {
-        use stopwatch_panel::Action;
-        let Ok(r) = &self.stopwatches else {
-            return;
-        };
-        match action {
-            Action::Tick => self.update_stopwatch_manager(),
-            Action::Escape(epoch) if r.accepts(epoch) => self.hide(HideReason::Escape),
-            Action::FocusChanged => {
-                if r.owns_focus() {
-                    self.state.borrow_mut().focus_restored();
-                } else {
-                    self.defer_focus_check();
-                }
-            }
-            Action::Toggle(epoch, id) if r.accepts(epoch) => self.stopwatch_time(id, false),
-            Action::Reset(epoch, id) if r.accepts(epoch) => self.stopwatch_time(id, true),
-            Action::Edit(epoch, id) if r.accepts(epoch) && !self.preferences_pending.get() => {
-                eprintln!("stopwatch edit id={id}");
-                // Release this surface before opening an exclusive editor. Wait for
-                // the compositor's game-focus snapshot; never request activation.
-                self.hide(HideReason::Button);
-                if self.desktop.borrow().game_active() {
-                    self.open_settings();
-                    self.preferences.open_stopwatches();
-                } else {
-                    self.pending_stopwatch_edit
-                        .set(Some(self.state.borrow().generation));
-                }
-            }
-            Action::Remove(epoch, id) if r.accepts(epoch) && !self.preferences_pending.get() => {
-                let mut s = self.settings.borrow().clone();
-                s.stopwatches.retain(|c| c.id != id);
-                s.hotkeys.stopwatch_keys.retain(|c| c.id != id);
-                self.commit_widgets(s);
-            }
-            Action::Move { epoch, id, x, y }
-                if r.accepts(epoch) && !self.preferences_pending.get() =>
-            {
-                let mut s = self.settings.borrow().clone();
-                if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
-                    c.x = x;
-                    c.y = y;
-                    self.commit_widgets(s);
-                }
-            }
-            _ => (),
-        }
     }
     fn open_settings(&self) {
         if self.preferences_pending.get()
@@ -1346,22 +370,12 @@ impl Ui {
         {
             return;
         }
-        if self.view.get() != View::Settings {
-            self.preferences_return.set(self.view.get());
-        }
         self.preferences_epoch.set(self.preferences_epoch.get() + 1);
-        self.state.borrow_mut().generation += 1;
-        self.sync_generation();
-        self.result.replace(None);
-        self.request.replace(None);
-        self.url.replace(None);
-        self.economy_result.replace(None);
-        self.economy_panel.not_requested();
+        self.invalidate_prices();
         self.preferences.show(&self.settings.borrow());
         self.view.set(View::Settings);
-        self.title.set_text("Réglages");
+        self.title.set_text("Réglages du price checker");
         self.stack.set_visible_child_name("settings");
-        self.refresh_delve();
         if !self.window.is_visible() {
             self.show();
         }
@@ -1370,46 +384,19 @@ impl Ui {
         if self.preferences_pending.get() {
             return;
         }
-        self.preferences.images.cancel_import();
-        let view = self.preferences_return.get();
-        self.view.set(view);
-        if view == View::Menu {
-            self.route_menu(MenuRoute::Open(true));
-            return;
-        }
-        if view == View::Images {
-            self.open_images();
-            return;
-        }
-        if view == View::Stopwatches {
-            self.open_stopwatches();
-            return;
-        }
-        if view == View::Catalogue {
-            self.title.set_text("Recherche des cibles de Heist");
-            self.stack.set_visible_child_name("catalogue");
-            self.refresh_delve();
-            return;
-        }
-        let item = self.item.borrow();
-        self.title.set_text(
-            &item
-                .as_ref()
-                .map(Item::description)
-                .unwrap_or_else(|| "AWAKENED POE TRADE · RUST".into()),
-        );
-        self.stack.set_visible_child_name(
-            if item.as_ref().is_some_and(Item::needs_unique_identity) {
-                "identify"
-            } else if view == View::Inspection {
-                "inspection"
-            } else {
-                "price"
-            },
-        );
-        if view == View::Price && item.is_some() {
+        self.view.set(View::Price);
+        if let Some(item) = self.item.borrow().as_ref() {
+            self.title.set_text(&item.description());
+            self.stack
+                .set_visible_child_name(if item.needs_unique_identity() {
+                    "identify"
+                } else {
+                    "price"
+                });
             self.text
                 .set_text("Réglages annulés. Cliquez Rechercher pour consulter les prix.");
+        } else {
+            self.hide(HideReason::Button);
         }
     }
     fn save_settings(&self) {
@@ -1419,113 +406,43 @@ impl Ui {
         {
             return;
         }
-        let mut candidate = match self.preferences.read() {
+        let candidate = match self.preferences.read() {
             Ok(s) => s,
             Err(e) => {
                 self.preferences.error(&e);
                 return;
             }
         };
-        if let Ok(canvas) = &self.widget_canvas {
-            candidate.widget_order =
-                crate::widget_order::saved(&canvas.order(), &candidate.widget_keys());
-        }
-        self.widget_transaction.set(false);
         self.preferences_pending.set(true);
         self.preferences.busy(true);
         self.stack.set_sensitive(false);
-        let request = crate::desktop::preferences::Request {
-            epoch: self.preferences_epoch.get(),
-            settings: candidate,
-        };
-        if let Err(e) = self.preferences_worker.try_send(request) {
+        if let Err(e) = self
+            .preferences_worker
+            .try_send(crate::desktop::preferences::Request {
+                epoch: self.preferences_epoch.get(),
+                settings: candidate,
+            })
+        {
             self.preferences_pending.set(false);
             self.stack.set_sensitive(true);
-            self.preferences
-                .error(&format!("Service de réglages indisponible : {e}"));
+            self.preferences.error(&e.to_string());
         }
     }
     fn preferences_update(&self, update: crate::desktop::preferences::Update) {
         use crate::desktop::preferences::Update;
         match update {
-            Update::Wheel { connection, result } => {
-                if connection
-                    < self
-                        .backend_connection
-                        .get()
-                        .max(self.wheel_connection.get())
-                {
-                    return;
-                }
-                self.wheel_connection.set(connection);
-                self.preferences.wheel_capability(&result);
-                let _ = self.wheel_status.replace(result);
-            }
             Update::Backend { connection, result } => {
                 if connection < self.backend_connection.get() {
                     return;
                 }
                 self.backend_connection.set(connection);
-                if let Err(e) = &result {
-                    eprintln!("shortcuts unavailable: {e}");
-                    if self.view.get() == View::Settings && !self.preferences_pending.get() {
-                        self.preferences.error(e);
-                    }
-                }
                 let _ = self.backend_status.replace(result);
             }
             Update::Failed { epoch, error } => {
                 self.preferences_pending.set(false);
                 self.stack.set_sensitive(true);
-                eprintln!("settings transaction rejected epoch={epoch} error={error}");
-                if let Ok(m) = &self.menu {
-                    m.error(&format!("Modifications non enregistrées : {error}"));
-                }
-                if let Ok(c) = &self.widget_canvas {
-                    let s = self.settings.borrow();
-                    c.rollback(&s.widget_order, &s.widget_keys());
-                }
-                if self.order_transaction.replace(false) {
-                    self.widget_transaction.set(false);
-                    self.stopwatch_manager
-                        .message(&format!("Modifications non enregistrées : {error}"));
-                    self.image_manager
-                        .message(&format!("Modifications non enregistrées : {error}"));
-                    return;
-                }
-                if let Ok(r) = &self.stash {
-                    r.set_busy(false);
-                    let s = self.settings.borrow();
-                    r.reconcile(&s.stash_searches, s.scale);
-                }
-                if let Ok(m) = &self.menu {
-                    m.set_busy(false);
-                }
-                self.refresh_menu();
-                if self.widget_transaction.replace(false) {
-                    self.image_manager.busy(false);
-                    self.image_manager
-                        .message(&format!("Modifications non enregistrées : {error}"));
-                    if let Ok(r) = &self.images {
-                        r.set_busy(false);
-                        r.reconcile(
-                            &self.settings.borrow().image_strips,
-                            self.settings.borrow().scale,
-                        );
-                    }
-                    self.stopwatch_manager.busy(false);
-                    self.stopwatch_manager
-                        .message(&format!("Modifications non enregistrées : {error}"));
-                    if let Ok(r) = &self.stopwatches {
-                        r.set_busy(false);
-                        r.reconcile(
-                            &self.settings.borrow().stopwatches,
-                            self.settings.borrow().scale,
-                        );
-                    }
-                } else if epoch == self.preferences_epoch.get() {
-                    self.preferences
-                        .error(&format!("Modifications non enregistrées : {error}"));
+                if epoch == self.preferences_epoch.get() {
+                    self.preferences.error(&error);
                 }
             }
             Update::Applied {
@@ -1534,63 +451,17 @@ impl Ui {
                 connection,
                 available,
             } => {
-                let settings = *settings;
                 self.preferences_pending.set(false);
                 self.stack.set_sensitive(true);
                 self.backend_connection.set(connection);
                 let _ = self.backend_status.replace(if available {
                     Ok(())
                 } else {
-                    Err("Réglages enregistrés, mais la connexion aux raccourcis est perdue.".into())
+                    Err("Connexion aux raccourcis perdue".into())
                 });
-                self.settings.replace(settings.clone());
-                if let Ok(m) = &self.menu {
-                    m.error("");
-                }
-                if let Ok(c) = &self.widget_canvas {
-                    c.configure(&settings.widget_order, &settings.widget_keys());
-                    c.ack(&settings.widget_order);
-                }
-                if self.order_transaction.replace(false) {
-                    self.widget_transaction.set(false);
-                    eprintln!("widgets order saved epoch={epoch} activation_requested=false");
-                    return;
-                }
-                if let Ok(r) = &self.stash {
-                    r.set_busy(false);
-                    let s = self.settings.borrow();
-                    r.reconcile(&s.stash_searches, s.scale);
-                }
-                if let Ok(m) = &self.menu {
-                    m.set_busy(false);
-                }
-                self.refresh_menu();
-                if let Ok(r) = &self.images {
-                    r.set_busy(false);
-                    r.reconcile(&settings.image_strips, settings.scale);
-                }
-                self.image_manager.configure(&settings.image_strips);
-                self.image_manager.busy(false);
-                if let Ok(r) = &self.stopwatches {
-                    r.set_busy(false);
-                    r.reconcile(&settings.stopwatches, settings.scale);
-                }
-                self.stopwatch_manager.configure(&settings.stopwatches);
-                self.stopwatch_manager.busy(false);
-                if self.widget_transaction.replace(false) {
-                    self.stopwatch_manager.message("Widgets enregistrés.");
-                    self.image_manager.message("Widgets enregistrés.");
-                    self.update_stopwatch_manager();
-                    self.refresh_delve();
-                    return;
-                }
-                self.state.borrow_mut().generation += 1;
-                self.sync_generation();
-                self.result.replace(None);
-                self.request.replace(None);
-                self.url.replace(None);
-                self.economy_result.replace(None);
-                self.economy_panel.not_requested();
+                self.settings.replace(*settings.clone());
+                self.refresh_league();
+                self.invalidate_prices();
                 self.updating_settings.set(true);
                 self.league.set_text(&settings.league);
                 self.online.set_active(settings.filters.online);
@@ -1599,191 +470,91 @@ impl Ui {
                     .set_active_id(Some(&settings.filters.bulk_currency));
                 self.updating_settings.set(false);
                 if let Err(e) = set_style(&self.window, &self.css, settings.scale) {
-                    eprintln!("settings style error: {e}");
+                    eprintln!("style: {e}");
                 }
-                eprintln!("settings committed epoch={epoch} scale={} shortcuts_available={available} automatic_http=false",settings.scale);
-                let current_item = self.item.borrow().clone();
-                let generation = self.state.borrow().generation;
+                eprintln!("settings committed epoch={epoch} automatic_http=false");
                 if self.view.get() == View::Settings && epoch == self.preferences_epoch.get() {
-                    if self.window.is_visible() {
-                        self.hide(HideReason::Button);
-                    }
-                } else if let Some(item) = current_item
-                    .filter(|_| matches!(self.view.get(), View::Price | View::Inspection))
-                {
-                    self.prepare_item(item, self.view.get(), generation);
-                    if self.view.get() == View::Price {
-                        self.text.set_text(
-                            "Réglages appliqués. Vérifiez les filtres puis cliquez Rechercher.",
-                        );
-                    }
+                    self.hide(HideReason::Button);
                 }
             }
         }
     }
     fn price_after_copy(&self) {
-        if self.settings.borrow().automatic_search {
+        // Rare equipment needs explicit stat selection before a meaningful comparison.
+        let manual_rare = self.item.borrow().as_ref().is_some_and(|i| {
+            i.rarity == crate::item::Rarity::Rare
+                && !matches!(
+                    i.category.as_deref(),
+                    Some("map" | "heistcontract" | "heistblueprint")
+                )
+        });
+        if self.settings.borrow().automatic_search && !manual_rare {
             self.search();
         } else {
             self.text
-                .set_text("Objet copié. Vérifiez les filtres puis cliquez Rechercher.");
+                .set_text("Sélectionnez les stats et leurs bornes, puis cliquez Rechercher.");
             self.economy_panel.not_requested();
-            eprintln!("price automatic_search=false automatic_http=false");
+            self.economy_panel.container.hide();
         }
     }
     fn command(&self, command: &str) {
-        if let Some(value) = command.strip_prefix("catalogue ") {
-            let (kind, query) = value.split_once(' ').unwrap_or((value, ""));
-            let kind = match kind {
-                "replica" => crate::item::search::Kind::Replica,
-                "gem" => crate::item::search::Kind::Gem,
-                _ => {
-                    eprintln!("catalogue requires gem or replica");
-                    return;
-                }
-            };
-            if query.chars().count() > 256 || self.preferences_pending.get() {
-                eprintln!("catalogue query refused");
-                return;
-            }
-            self.open_catalogue();
-            self.catalogue.set_search(kind, query);
-            return;
-        }
         if let Some(league) = command.strip_prefix("league ") {
             if self.preferences_pending.get() {
-                eprintln!("league update refused: settings transaction pending");
                 return;
             }
-            let mut settings = self.settings.borrow().clone();
-            settings.league = league.trim().to_string();
-            match settings.save() {
+            let mut s = self.settings.borrow().clone();
+            s.league = league.trim().into();
+            match s.save() {
                 Ok(()) => {
-                    self.league.set_text(&settings.league);
-                    self.settings.replace(settings);
-                    if self.view.get() == View::Catalogue {
-                        let generation = self.invalidate_prices();
-                        self.catalogue
-                            .show(&self.settings.borrow().league, generation);
-                    }
-                    eprintln!("league updated");
+                    self.league.set_text(&s.league);
+                    self.settings.replace(s);
                 }
-                Err(e) => eprintln!("settings error={e}"),
-            }
+                Err(e) => eprintln!("settings: {e}"),
+            };
             return;
         }
         match command {
-            "demo" => {
-                self.view.set(View::Price);
-                self.stack.set_visible_child_name("price");
-                self.inspection_result.replace(None);
-                self.item.replace(None);
-                self.preset.hide();
-                self.item_filters.container.hide();
-                self.url.replace(None);
-                self.economy_panel.reset();
-                self.economy_panel.show(&Ok(Report::default()));
-                self.title.set_text("AWAKENED POE TRADE · RUST");
-                self.text.set_text("Panneau natif de validation\n\nClavier et clics restent au jeu.\nAucun prix simulé n'est affiché.");
-                self.show();
-            }
-            "check" | "copy" | "inspect-check" | "inspect-copy" | "similar-copy"
-            | "similar-check" => {
+            "check" | "copy" | "locked-check" | "locked-copy" => {
                 if !self.state.borrow().game_active {
-                    eprintln!("capture refused: PoE is not active");
                     return;
                 }
                 self.hide(HideReason::Capture);
                 let generation = self.state.borrow().generation;
-                if let Err(e) = self.capture_worker.try_send(CaptureJob {
-                    restore: self.settings.borrow().restore_clipboard,
-                    generation,
-                    text: None,
-                    copy: command.ends_with("copy"),
-                    target: if command.starts_with("similar-") {
-                        CaptureTarget::Similar
-                    } else {
-                        CaptureTarget::Panel(if command.starts_with("inspect-") {
-                            View::Inspection
-                        } else {
-                            View::Price
-                        })
-                    },
-                }) {
-                    eprintln!("capture worker busy: {e}");
-                } else {
+                if self
+                    .capture_worker
+                    .try_send(CaptureJob {
+                        generation,
+                        copy: command.ends_with("copy"),
+                        interactive: command.starts_with("locked-"),
+                        restore: self.settings.borrow().restore_clipboard,
+                    })
+                    .is_ok()
+                {
                     self.capture_pending.set(Some(generation));
                 }
             }
             "interact" => {
-                if self.state.borrow().state == State::Hidden && self.state.borrow().game_active {
-                    self.start_menu(true);
-                    return;
-                }
                 if self.state.borrow_mut().interact() {
-                    self.hide_delve(crate::delve::Reason::Interactive);
                     apply_input(&self.window, self.window.is_visible());
-                    self.refresh_delve();
-                    self.hint.set_text(
-                        "Interactif · cliquez dans le panneau · Échap ou Fermer pour quitter",
-                    );
-                    eprintln!("overlay state=Interactive keyboard=OnDemand explicit=true");
-                } else {
-                    eprintln!("interact refused: first frame not ready or PoE inactive");
+                    self.hint
+                        .set_text("Modifiez les filtres puis Rechercher · Échap pour fermer");
                 }
             }
-            "hide" => {
-                self.hide_delve(crate::delve::Reason::Explicit);
-                self.hide(HideReason::Explicit);
-            }
-            "delve" => self.toggle_delve(),
-            "delve-hide" => self.hide_delve(crate::delve::Reason::Explicit),
-            "menu" => self.route_menu(MenuRoute::Open(false)),
             "settings" => self.open_settings(),
-            "catalogue" => self.open_catalogue(),
-            "stopwatches" => self.open_stopwatches(),
-            "images" => self.open_images(),
-            "evaluate" => self.change_view(View::Inspection),
-            "prices" => self.change_view(View::Price),
+            "hide" => self.hide(HideReason::Explicit),
             "quit" => {
                 self.hide(HideReason::Quit);
                 gtk::main_quit();
             }
-            _ => eprintln!("unknown command: {command}"),
-        }
-    }
-    fn change_view(&self, view: View) {
-        let Some(item) = self.item.borrow().clone() else {
-            return;
-        };
-        self.state.borrow_mut().generation += 1;
-        self.sync_generation();
-        self.request.replace(None);
-        self.url.replace(None);
-        self.view.set(view);
-        if item.needs_unique_identity() {
-            self.stack.set_visible_child_name("identify");
-            if !self.window.is_visible() {
+            "demo" => {
+                self.view.set(View::Price);
+                self.stack.set_visible_child_name("price");
+                self.title.set_text("Price checker");
+                self.text
+                    .set_text("Copiez un objet depuis PoE avec Ctrl+D.");
                 self.show();
             }
-            return;
-        }
-        if view == View::Inspection {
-            let report = crate::inspection::report(&item, &self.settings.borrow().map_check);
-            self.inspection
-                .show(report.clone(), &self.settings.borrow().map_check);
-            self.inspection_result.replace(Some(report));
-            self.stack.set_visible_child_name("inspection");
-        } else {
-            self.inspection_result.replace(None);
-            self.stack.set_visible_child_name("price");
-        }
-        self.refresh_delve();
-        if !self.window.is_visible() && !self.show() {
-            return;
-        }
-        if view == View::Price {
-            self.search();
+            _ => eprintln!("Unsupported price-checker command"),
         }
     }
     fn prepare_item(&self, mut item: Item, view: View, epoch: u64) {
@@ -1799,11 +570,12 @@ impl Ui {
             }
         }
         self.result.replace(None);
+        self.listings.clear();
         self.request.replace(None);
         self.url.replace(None);
         self.economy_result.replace(None);
         self.economy_panel.reset();
-        self.inspection_result.replace(None);
+        self.economy_panel.container.hide();
         if item.needs_unique_identity() {
             self.title.set_text(&item.description());
             self.view.set(view);
@@ -1823,6 +595,14 @@ impl Ui {
         }
         self.title.set_text(&item.description());
         self.currency.set_sensitive(item.trade_tag.is_some());
+        if item.trade_tag.is_some() {
+            for child in self.bulk_row.children() {
+                child.show_all();
+            }
+            self.bulk_row.show();
+        } else {
+            self.bulk_row.hide();
+        }
         if item.trade_tag.as_deref() == self.currency.active_id().as_deref() {
             self.currency
                 .set_active_id(Some(if item.trade_tag.as_deref() == Some("chaos") {
@@ -1848,25 +628,7 @@ impl Ui {
         self.reset_item_filters(&item);
         self.item.replace(Some(item));
         self.view.set(view);
-        if view == View::Inspection {
-            let report = crate::inspection::report(
-                self.item.borrow().as_ref().unwrap(),
-                &self.settings.borrow().map_check,
-            );
-            eprintln!(
-                "inspection prepared map_like={} stats={} unknown={} offline=true",
-                report.map_like,
-                report.stats.len(),
-                report.unknown.len()
-            );
-            self.inspection
-                .show(report.clone(), &self.settings.borrow().map_check);
-            self.inspection_result.replace(Some(report));
-            self.stack.set_visible_child_name("inspection");
-        } else {
-            self.inspection_result.replace(None);
-            self.stack.set_visible_child_name("price");
-        }
+        self.stack.set_visible_child_name("price");
     }
     fn identify_unique(&self, epoch: u64, reference: &str) {
         if epoch != self.identity_epoch.get()
@@ -1986,7 +748,7 @@ impl Ui {
         }
         self.mod_scroll.vadjustment().set_value(0.);
         self.mod_scroll
-            .set_min_content_height(if candidates.len() > 2 { 300 } else { 180 });
+            .set_min_content_height(if candidates.len() > 2 { 240 } else { 100 });
         self.mod_expander.set_label(Some(&format!(
             "Filtres · {} actifs",
             candidates.iter().filter(|c| !c.disabled).count()
@@ -2031,6 +793,7 @@ impl Ui {
         }
         self.sync_generation();
         self.request.replace(None);
+        self.listings.clear();
         self.url.replace(None);
         if origin == "league" {
             self.economy_result.replace(None);
@@ -2068,6 +831,7 @@ impl Ui {
         self.state.borrow_mut().generation += 1;
         self.sync_generation();
         self.request.replace(None);
+        self.listings.clear();
         self.url.replace(None);
         self.build_stat_rows(&item);
         self.reset_item_filters(&item);
@@ -2080,6 +844,14 @@ impl Ui {
         );
     }
     fn search(&self) {
+        if !self.league_ready.get() {
+            self.text.set_text(if self.league_error.borrow().is_some() {
+                "La ligue actuelle n’a pas pu être détectée. Choisissez une ligue dans Réglages."
+            } else {
+                "Détection de la ligue actuelle en cours. Vous pouvez déjà choisir les stats."
+            });
+            return;
+        }
         if self.view.get() != View::Price || self.preferences_pending.get() {
             return;
         }
@@ -2090,14 +862,22 @@ impl Ui {
             eprintln!("search refused: unresolved unique identity; automatic_http=false");
             return;
         }
+        // Commit text still being edited before incrementing the request generation.
+        // Any value-change event queued by GTK then belongs to the previous generation.
+        for row in self.stat_rows.borrow().iter() {
+            row.commit();
+        }
         // Even a locally rejected edit supersedes pending results. Otherwise an
         // older response could replace the validation error with stale prices.
         self.state.borrow_mut().generation += 1;
         self.sync_generation();
         let generation = self.state.borrow().generation;
+        self.listings.clear();
         self.url.replace(None);
         self.request.replace(None);
+        self.listings.clear();
         self.economy_panel.reset();
+        self.economy_panel.container.hide();
         self.economy_panel.show(&Ok(Report::default()));
         let mut settings = self.settings.borrow().clone();
         settings.league = self.league.text().trim().to_string();
@@ -2159,6 +939,7 @@ impl Ui {
             .replace(crate::trade::query_link(&settings.league, &query).ok());
         self.request.replace(Some((generation, query.clone())));
         self.economy_panel.reset();
+        self.economy_panel.container.hide();
         if self
             .economy_worker
             .try_send(EconomyJob::Price {
@@ -2189,238 +970,114 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
-            Event::Stash(action) => self.stash_action(action),
-            Event::StashDone(generation, scroll, result) => {
-                if self.stash_pending.get() == Some(generation) {
-                    if scroll {
-                        self.scroll_pending
-                            .set(self.scroll_pending.get().saturating_sub(1));
-                    }
-                    if !scroll || self.scroll_pending.get() == 0 {
-                        self.stash_pending.set(None);
-                    }
-                }
-                eprintln!(
-                    "stash action finished generation={generation} current={} success={}",
-                    self.state.borrow().generation,
-                    result.is_ok()
-                );
-                if generation == self.state.borrow().generation {
-                    self.stash_result.replace(Some(result));
-                }
-            }
-            Event::Hotkey(crate::hotkeys::Action::ScrollStash(chord)) => {
-                if self.settings.borrow().stash_scroll
-                    && self.wheel_status.borrow().is_ok()
-                    && self.state.borrow().game_active
-                    && self.capture_pending.get().is_none()
-                    && (self.stash_pending.get().is_none() || self.scroll_pending.get() > 0)
-                {
-                    let generation = self.state.borrow().generation;
-                    if self
-                        .stash_worker
-                        .try_send(StashJob::Scroll { generation, chord })
-                        .is_ok()
-                    {
-                        self.scroll_pending.set(self.scroll_pending.get() + 1);
-                        self.stash_pending.set(Some(generation));
-                    } else {
-                        self.scroll_dropped.set(self.scroll_dropped.get() + 1);
+            Event::GameGeometry(id, bounds) => {
+                if self.game_window.get() == Some(id) {
+                    self.game_bounds.set(Some(bounds));
+                    if self.window.is_visible() {
+                        self.position_panel(Some(self.window.allocated_width()));
                     }
                 }
             }
-            Event::Hotkey(crate::hotkeys::Action::StashSearch(id, entry)) => {
-                self.stash_search(id, entry, true)
+            Event::Leagues(result) => {
+                if !self.settings.borrow().automatic_league {
+                    return;
+                }
+                let was_waiting = !self.league_ready.get();
+                match result {
+                    Ok(selection) => {
+                        self.league_error.replace(None);
+                        self.league_ready.set(true);
+                        self.search_button.set_sensitive(true);
+                        self.league_label.set_text(&selection.id);
+                        self.league_label
+                            .set_tooltip_text(Some("Ligue actuelle, sélection automatique"));
+                        self.league.set_text(&selection.id);
+                        self.settings.borrow_mut().league = selection.id.clone();
+                        self.preferences.detected_league(&selection.id);
+                        eprintln!(
+                            "league automatic=true id={:?} cached={}",
+                            selection.id, selection.from_cache
+                        );
+                        if was_waiting
+                            && self.window.is_visible()
+                            && self.view.get() == View::Price
+                            && self.item.borrow().is_some()
+                        {
+                            self.price_after_copy();
+                        }
+                    }
+                    Err(error) => {
+                        self.league_error.replace(Some(error.clone()));
+                        self.league_label.set_text("Ligue indisponible — Réglages");
+                        self.league_label.set_tooltip_text(Some(&error));
+                        self.text.set_text("La ligue actuelle n’a pas pu être détectée. Choisissez une ligue dans Réglages.");
+                        eprintln!("league automatic failed: {error}");
+                    }
+                }
             }
-            Event::Menu(action) => self.menu_action(action),
-            Event::WidgetOrder => self.save_widget_order(),
-            Event::Shortcut(command) => self.command(command),
             Event::Hotkey(crate::hotkeys::Action::Command(command)) => self.command(command),
-            Event::Hotkey(crate::hotkeys::Action::StopwatchToggle(id)) => {
-                self.stopwatch_time(id, false)
-            }
-            Event::Hotkey(crate::hotkeys::Action::StopwatchReset(id)) => {
-                self.stopwatch_time(id, true)
-            }
-            Event::Stopwatch(action) => self.stopwatch_action(action),
-            Event::StopwatchManager(action) => self.stopwatch_manager_action(action),
-            Event::Image(action) => self.image_action(action),
-            Event::ImageManager(action) => self.image_manager_action(action),
-            Event::Catalogue(action) => self.catalogue_action(action),
-            Event::CataloguePrices(generation, result) => {
-                if self.view.get() == View::Catalogue && self.state.borrow().accepts(generation) {
-                    self.catalogue.show_quotes(*result);
-                } else {
-                    eprintln!("discarded catalogue economy generation={generation}");
-                }
-            }
-            Event::Preferences(update) => {
-                self.preferences_update(*update);
-                self.save_widget_order();
-                self.drain_menu();
-                self.drain_menu_route();
-            }
+            Event::Hotkey(_) => {}
+            Event::FiltersChanged(generation, origin) => self.filters_changed(generation, &origin),
             Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
-            Event::Windows(s) => {
-                let active = s.game_active();
-                if !active
-                    && (self.capture_pending.get().is_some() || self.stash_pending.get().is_some())
-                {
-                    self.capture_pending.set(None);
-                    self.stash_pending.set(None);
-                    self.scroll_pending.set(0);
+            Event::Preferences(update) => self.preferences_update(*update),
+            Event::Windows(snapshot) => {
+                let active = snapshot.game_active();
+                if !active && self.capture_pending.take().is_some() {
                     self.state.borrow_mut().generation += 1;
                     self.sync_generation();
-                    eprintln!("capture cancelled on game context loss");
-                }
-                if self.state.borrow().game_active != active {
-                    eprintln!(
-                        "game active={active} present={} other_active={}",
-                        s.game_present(),
-                        s.other_active()
-                    );
                 }
                 let reason = self.state.borrow_mut().desktop_changed(DesktopState {
-                    game_exists: s.game_exists(),
-                    game_visible: s.game_present(),
+                    game_exists: snapshot.game_exists(),
+                    game_visible: snapshot.game_present(),
                     game_active: active,
-                    other_active: s.other_active(),
+                    other_active: snapshot.other_active(),
                 });
-                if s.other_active() || !s.game_present() {
-                    self.pending_stopwatch_edit.set(None);
-                    self.pending_image_edit.set(None);
+                if snapshot.other_active() || !snapshot.game_present() {
                     self.pending_interaction.set(None);
-                    self.pending_menu.borrow_mut().take();
                 }
                 self.game_active.store(active, Ordering::Release);
-                self.desktop.replace(s);
-                self.refresh_delve();
+                self.desktop.replace(snapshot);
                 if let Some(reason) = reason {
                     self.hide(reason);
                 }
-                if active {
-                    let pending = self.pending_menu.borrow_mut().take();
-                    if let Some((token, route)) = pending {
-                        if token == self.state.borrow().generation {
-                            self.finish_menu_route(route);
-                        }
-                    }
-                    if let Some((token, id)) = self.pending_image_edit.get() {
-                        if token == self.state.borrow().generation {
-                            self.pending_image_edit.set(None);
-                            self.open_settings();
-                            self.preferences.open_images(Some(id));
-                        }
-                    }
-                }
-                if active
-                    && self.pending_stopwatch_edit.get() == Some(self.state.borrow().generation)
-                {
-                    self.pending_stopwatch_edit.set(None);
-                    self.open_settings();
-                    self.preferences.open_stopwatches();
-                }
             }
-            Event::TrackerError(e) => {
+            Event::TrackerError(error) => {
                 self.game_active.store(false, Ordering::Release);
                 self.state.borrow_mut().game_active = false;
                 self.hide(HideReason::TrackerFailure);
                 self.state.borrow_mut().fail();
-                eprintln!("tracker error={e}");
+                eprintln!("tracker: {error}");
             }
-            Event::Captured(generation, target, focus, result) => {
+            Event::Captured(generation, interactive, result) => {
                 if self.capture_pending.get() == Some(generation) {
                     self.capture_pending.set(None);
                 }
                 if generation != self.state.borrow().generation || !self.state.borrow().game_active
                 {
-                    eprintln!("discarded capture generation={generation}");
                     return;
                 }
-                if matches!(target, CaptureTarget::Similar) {
-                    match *result {
-                        Ok((item, _)) => self.finish_menu_route(MenuRoute::Stash(
-                            crate::stash_search::similar_filter(&item.market.name),
-                        )),
-                        Err(e) => {
-                            eprintln!("similar item capture failed: {e}");
-                            self.stash_result.replace(Some(Err(e)));
-                        }
-                    }
-                    return;
-                }
-                let CaptureTarget::Panel(view) = target else {
-                    unreachable!()
-                };
                 match *result {
                     Ok((item, elapsed)) => {
-                        let filters_started = Instant::now();
-                        eprintln!(
-                            "capture parsed processing_ms={elapsed} clipboard_before_overlay=true"
-                        );
-                        self.prepare_item(item, view, generation);
-                        eprintln!(
-                            "filters prepared count={} ui_ms={}",
-                            self.stat_rows.borrow().len(),
-                            filters_started.elapsed().as_millis()
-                        );
+                        eprintln!("capture processing_ms={elapsed} clipboard_before_overlay=true");
+                        self.prepare_item(item, View::Price, generation);
                         if self.show() {
-                            if focus {
+                            self.price_after_copy();
+                            if interactive {
                                 self.pending_interaction
                                     .set(Some(self.state.borrow().generation));
                             }
-                            if view == View::Price {
-                                self.price_after_copy();
-                            }
                         }
                     }
-                    Err(e) => {
+                    Err(error) => {
                         self.view.set(View::Price);
                         self.stack.set_visible_child_name("price");
-                        self.inspection_result.replace(None);
+                        self.title.set_text("Copie de l’objet impossible");
+                        self.text.set_text(&error);
                         self.item.replace(None);
-                        self.preset.hide();
                         self.item_filters.container.hide();
-                        self.economy_panel.reset();
-                        self.economy_panel.show(&Ok(Report::default()));
-                        self.title.set_text("Impossible de lire l'objet");
-                        self.text.set_text(&e);
-                        eprintln!("capture error={e}");
-                        if self.show() && focus {
-                            self.pending_interaction
-                                .set(Some(self.state.borrow().generation));
-                        }
+                        self.mod_expander.hide();
+                        self.show();
                     }
-                }
-            }
-            Event::FiltersChanged(generation, origin) => self.filters_changed(generation, &origin),
-            Event::MapSettings(observed, edit) => {
-                if self.view.get() != View::Inspection
-                    || self.preferences_pending.get()
-                    || observed != self.state.borrow().generation
-                {
-                    eprintln!("discarded map settings callback");
-                    return;
-                }
-                let mut settings = self.settings.borrow().clone();
-                let old = settings.map_check.clone();
-                if let Err(e) = settings.map_check.edit(edit) {
-                    self.inspection.error(&e);
-                    return;
-                }
-                if old == settings.map_check {
-                    return;
-                }
-                if let Err(e) = settings.save() {
-                    self.inspection.error(&e);
-                    return;
-                }
-                self.settings.replace(settings);
-                if let Some(item) = self.item.borrow().as_ref() {
-                    let report = crate::inspection::report(item, &self.settings.borrow().map_check);
-                    self.inspection
-                        .show(report.clone(), &self.settings.borrow().map_check);
-                    self.inspection_result.replace(Some(report));
                 }
             }
             Event::Prices(generation, result) => {
@@ -2431,24 +1088,18 @@ impl Ui {
                 self.result.replace(Some((generation, result.clone())));
                 match result {
                     Ok(p) => {
-                        let rows = p
-                            .listings
-                            .iter()
-                            .map(|l| match &l.bulk {
-                                Some(b) => format!(
-                                    "{} {}/objet · {} pour {} · stock {} · {}",
-                                    economy_panel::format_amount(l.amount),
-                                    l.currency,
-                                    b.exchange_amount,
-                                    b.item_amount,
-                                    b.stock,
-                                    l.seller
-                                ),
-                                None => format!("{:>8} {:<16} {}", l.amount, l.currency, l.seller),
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        self.text.set_text(&format!("{} · {} résultats · {} offres\n{}\n\n{}\n\n{}",if p.kind==SearchKind::Bulk {"Échange en gros"} else {"Recherche d'objet"},p.total,p.listings.len(),if p.cached {"Cache (< 60 s)".into()} else {format!("Réseau : {} ms",p.network_ms)},if rows.is_empty() {"Aucune offre avec prix."} else {&rows},if p.kind==SearchKind::Bulk {"Prix par objet, lot et stock conservés. Vérifiez la devise choisie."} else {"Comparaison selon la portée et les filtres sélectionnés. Vérifiez les mods avant d'estimer un rare."}));
+                        self.listings.show(&p);
+                        self.text.set_text(&format!(
+                            "{} · {} résultats · {} offres{}",
+                            if p.kind == SearchKind::Bulk {
+                                "Échange en gros"
+                            } else {
+                                "Recherche Trade"
+                            },
+                            p.total,
+                            p.listings.len(),
+                            if p.cached { " · cache" } else { "" }
+                        ));
                         self.url.replace(Some(p.url));
                         eprintln!(
                             "trade result generation={generation} total={} network_ms={} cached={}",
@@ -2481,6 +1132,16 @@ impl Ui {
                     );
                 }
                 self.economy_panel.show(&result);
+                if result.as_ref().is_ok_and(|r| {
+                    r.quote.is_some()
+                        || r.related.is_some()
+                        || r.stack.is_some()
+                        || r.warning.is_some()
+                }) {
+                    self.economy_panel.container.show();
+                } else {
+                    self.economy_panel.container.hide();
+                }
                 self.economy_result.replace(Some((generation, result)));
             }
         }
@@ -2573,7 +1234,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|menu|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|similar-copy|similar-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|check|copy|locked-check|locked-copy|settings|interact|hide|quit|status|league NAME|inspect FILE|lookup FILE [LEAGUE]]\nCtrl+D: price check. Ctrl+Alt+D: interactive price check after first paint.");
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -2600,29 +1261,19 @@ pub fn run() -> Result<(), String> {
             "demo"
                 | "check"
                 | "copy"
-                | "inspect-check"
-                | "similar-copy"
-                | "similar-check"
-                | "inspect-copy"
-                | "evaluate"
-                | "prices"
+                | "locked-check"
+                | "locked-copy"
                 | "hide"
                 | "interact"
                 | "quit"
                 | "league"
                 | "settings"
-                | "catalogue"
-                | "delve"
-                | "delve-hide"
-                | "stopwatches"
-                | "images"
-                | "menu"
         )
     }) {
         UnixDatagram::unbound()
             .map_err(|e| e.to_string())?
             .send_to(
-                if command == "league" || command == "catalogue" {
+                if command == "league" {
                     args.join(" ")
                 } else {
                     command.to_string()
@@ -2630,7 +1281,7 @@ pub fn run() -> Result<(), String> {
                 .as_bytes(),
                 socket_path()?,
             )
-            .map_err(|e| format!("start the daemon first: {e}"))?;
+            .map_err(|e| format!("start daemon first: {e}"))?;
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "windows") {
@@ -2672,10 +1323,7 @@ pub fn run() -> Result<(), String> {
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
     window.set_title("Awakened PoE Trade — Rust");
     window.set_widget_name("apt-native");
-    window.set_size_request(
-        (620.0 * settings.scale) as i32,
-        (420.0 * settings.scale) as i32,
-    );
+    window.set_size_request((480.0 * settings.scale) as i32, 0);
     if let Some(visual) = GtkWindowExt::screen(&window).and_then(|s| s.rgba_visual()) {
         window.set_visual(Some(&visual));
     }
@@ -2684,11 +1332,11 @@ pub fn run() -> Result<(), String> {
     window.set_layer(Layer::Overlay);
     window.set_anchor(Edge::Top, true);
     window.set_anchor(Edge::Left, true);
-    window.set_layer_shell_margin(Edge::Top, 100);
-    window.set_layer_shell_margin(Edge::Left, 50);
+    window.set_anchor(Edge::Bottom, true);
+    window.set_layer_shell_margin(Edge::Top, 0);
+    window.set_layer_shell_margin(Edge::Left, 0);
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::None);
-    let delve = delve_grid::Grid::new();
     let css = gtk::CssProvider::new();
     set_style(&window, &css, settings.scale)?;
     gtk::StyleContext::add_provider_for_screen(
@@ -2697,84 +1345,26 @@ pub fn run() -> Result<(), String> {
         gtk::STYLE_PROVIDER_PRIORITY_USER + 1,
     );
     let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
-    let order_sender = sender.clone();
-    let close_sender = sender.clone();
-    let widget_canvas = widget_canvas::Canvas::new(
-        move || {
-            let _ = order_sender.send(Event::WidgetOrder);
-        },
-        move || {
-            let _ = close_sender.send(Event::Shortcut("hide"));
-        },
-    );
-    if let Ok(c) = &widget_canvas {
-        c.configure(&settings.widget_order, &settings.widget_keys());
-    }
-    let stopwatch_sender = sender.clone();
-    let stopwatches = widget_canvas
-        .as_ref()
-        .map_err(Clone::clone)
-        .and_then(|canvas| {
-            stopwatch_panel::Runtime::new(canvas.clone(), move |action| {
-                let _ = stopwatch_sender.send(Event::Stopwatch(action));
-            })
-        });
-    if let Ok(r) = &stopwatches {
-        r.reconcile(&settings.stopwatches, settings.scale);
-    }
-    let manager_sender = sender.clone();
-    let stopwatch_manager = stopwatch_manager::Manager::new(move |action| {
-        let _ = manager_sender.send(Event::StopwatchManager(action));
-    });
-    stopwatch_manager.configure(&settings.stopwatches);
-    let image_sender = sender.clone();
-    let stash = widget_canvas
-        .as_ref()
-        .map_err(Clone::clone)
-        .and_then(|canvas| {
-            let sender = sender.clone();
-            stash_panel::Runtime::new(canvas.clone(), move |a| {
-                let _ = sender.send(Event::Stash(a));
-            })
-        });
-    if let Ok(r) = &stash {
-        r.reconcile(&settings.stash_searches, settings.scale);
-    }
-    let images = widget_canvas
-        .as_ref()
-        .map_err(Clone::clone)
-        .and_then(|canvas| {
-            image_panel::Runtime::new(canvas.clone(), move |action| {
-                let _ = image_sender.send(Event::Image(action));
-            })
-        });
-    if let Ok(r) = &images {
-        r.reconcile(&settings.image_strips, settings.scale);
-    }
-    let manager_sender = sender.clone();
-    let image_manager = image_manager::Panel::new(move |action| {
-        let _ = manager_sender.send(Event::ImageManager(action));
-    });
-    image_manager.configure(&settings.image_strips);
-    let menu_sender = sender.clone();
-    let menu = widget_canvas.as_ref().map_err(Clone::clone).and_then(|c| {
-        widget_menu::Menu::new(c.clone(), move |action| {
-            let _ = menu_sender.send(Event::Menu(action));
-        })
-    });
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     content.set_border_width(20);
     let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
     title.set_xalign(0.);
     title.set_line_wrap(true);
+    title.set_max_width_chars(28);
     let text = gtk::Label::new(None);
     text.set_xalign(0.);
     text.set_yalign(0.);
     text.set_line_wrap(true);
     text.set_selectable(false);
     let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    scroll.set_min_content_height(200);
-    scroll.add(&text);
+    scroll.set_min_content_height(160);
+    scroll.set_vexpand(true);
+    scroll.set_propagate_natural_height(true);
+    let listings = listings_panel::Panel::new();
+    let result_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    result_box.pack_start(&text, false, false, 0);
+    result_box.pack_start(&listings.container, false, false, 0);
+    scroll.add(&result_box);
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let league = gtk::Entry::new();
     league.set_text(&settings.league);
@@ -2782,8 +1372,9 @@ pub fn run() -> Result<(), String> {
     league.set_placeholder_text(Some("Ligue"));
     let online = gtk::CheckButton::with_label("En ligne");
     online.set_active(settings.filters.online);
-    row.pack_start(&gtk::Label::new(Some("Ligue")), false, false, 0);
-    row.pack_start(&league, true, true, 0);
+    let league_label = gtk::Label::new(Some("Détection de la ligue…"));
+    league_label.set_xalign(0.);
+    row.pack_start(&league_label, true, true, 0);
     row.pack_start(&online, false, false, 0);
     let range_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let search_range = gtk::SpinButton::with_range(0., 100., 1.);
@@ -2799,6 +1390,7 @@ pub fn run() -> Result<(), String> {
     );
     let mod_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
     let bulk_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    bulk_row.set_no_show_all(true);
     let currency = gtk::ComboBoxText::new();
     for &(id, label) in filters::PAYMENT_CURRENCIES {
         currency.append(Some(id), label);
@@ -2813,14 +1405,20 @@ pub fn run() -> Result<(), String> {
     );
     bulk_row.pack_start(&currency, true, true, 0);
     let economy_panel = economy_panel::EconomyPanel::new();
+    economy_panel.container.set_no_show_all(true);
+    for child in economy_panel.container.children() {
+        child.show_all();
+    }
     let mod_scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
     mod_scroll.set_min_content_height(180);
-    mod_scroll.set_max_content_height(300);
+    mod_scroll.set_vexpand(false);
+    mod_scroll.set_max_content_height(380);
     mod_scroll.set_propagate_natural_height(true);
     mod_scroll.add(&mod_box);
     let mod_expander =
         gtk::Expander::new(Some("Mods reconnus — cochez un filtre, puis Rechercher"));
     mod_expander.add(&mod_scroll);
+    mod_expander.set_expanded(true);
     let preset = gtk::ComboBoxText::new();
     preset.set_no_show_all(true);
     let current = Arc::new(AtomicU64::new(0));
@@ -2840,8 +1438,7 @@ pub fn run() -> Result<(), String> {
     let search = gtk::Button::with_label("Rechercher");
     let browser = gtk::Button::with_label("Ouvrir Trade");
     let close = gtk::Button::with_label("Fermer");
-    let evaluate = gtk::Button::with_label("Évaluer");
-    for b in [&search, &browser, &evaluate, &close] {
+    for b in [&search, &browser, &close] {
         actions.pack_start(b, true, true, 0);
     }
     let hint = gtk::Label::new(None);
@@ -2850,113 +1447,38 @@ pub fn run() -> Result<(), String> {
     let unidentified = unidentified_panel::Panel::new();
     let close_sender = sender.clone();
     unidentified.close.connect_clicked(move |_| {
-        let _ = close_sender.send(Event::Shortcut("hide"));
+        let _ = close_sender.send(Event::Hotkey(crate::hotkeys::Action::Command("hide")));
     });
     let preferences = settings_panel::Panel::new();
-    let catalogue_sender = sender.clone();
-    let catalogue = item_search_panel::Panel::new(move |action| {
-        let _ = catalogue_sender.send(Event::Catalogue(action));
-    });
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
     let price_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    price_content.pack_start(&scroll, true, true, 0);
     price_content.pack_start(&row, false, false, 0);
-    price_content.pack_start(&range_row, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     price_content.pack_start(&economy_panel.container, false, false, 0);
     price_content.pack_start(&preset, false, false, 0);
     price_content.pack_start(&item_filters.container, false, false, 0);
     price_content.pack_start(&mod_expander, false, false, 0);
     price_content.pack_start(&actions, false, false, 0);
-    let inspection_sender = sender.clone();
-    let inspection_generation = current.clone();
-    let inspection = inspection_panel::Panel::new(move |edit| {
-        let _ = inspection_sender.send(Event::MapSettings(
-            inspection_generation.load(Ordering::Acquire),
-            edit,
-        ));
-    });
-    stack.add_named(&image_manager.container, "images");
-    image_manager.container.show_all();
-    stack.add_named(&stopwatch_manager.container, "stopwatches");
-    stopwatch_manager.container.show_all();
-    stack.add_named(&catalogue.container, "catalogue");
-    catalogue.container.show_all();
+    price_content.pack_start(&scroll, true, true, 0);
     stack.add_named(&preferences.container, "settings");
     preferences.container.show_all();
     stack.add_named(&unidentified.container, "identify");
     unidentified.container.show_all();
     stack.add_named(&price_content, "price");
-    stack.add_named(&inspection.container, "inspection");
-    // GtkStack ignores requests for an invisible child. Make both pages
-    // available before selecting the first captured item's view.
     price_content.show_all();
-    inspection.container.show_all();
     stack.set_visible_child_name("price");
-    let header = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    header.pack_start(&title, false, false, 0);
-    let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let menu_open = gtk::Button::with_label("Menu");
-    menu_open.set_sensitive(menu.is_ok());
-    let image_open = gtk::Button::with_label("Images");
-    image_open.set_sensitive(images.is_ok());
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    title.set_hexpand(true);
     let preferences_open = gtk::Button::with_label("Réglages");
-    let catalogue_open = gtk::Button::with_label("Cibles Heist");
-    let stopwatch_open = gtk::Button::with_label("Chronos");
-    stopwatch_open.set_sensitive(stopwatches.is_ok());
-    let delve_open = gtk::Button::with_label("Grille Delve");
-    delve_open.set_sensitive(delve.is_ok());
-    delve_open.set_tooltip_text(Some(
-        "Ferme ce panneau et affiche une grille passive ; configurez son raccourci dans Réglages.",
-    ));
-    heading.pack_start(&menu_open, false, false, 0);
-    heading.pack_start(&image_open, false, false, 0);
-    heading.pack_start(&stopwatch_open, false, false, 0);
-    heading.pack_start(&delve_open, false, false, 0);
-    heading.pack_start(&catalogue_open, false, false, 0);
-    heading.pack_start(&preferences_open, false, false, 0);
-    header.pack_start(&heading, false, false, 0);
+    header.pack_start(&title, true, true, 0);
+    header.pack_start(&preferences_open, false, false, 0);
     content.pack_start(&header, false, false, 0);
     content.pack_start(&stack, true, true, 0);
     content.pack_start(&hint, false, false, 0);
     window.add(&content);
-
     let game_active = Arc::new(AtomicBool::new(false));
-
-    let (stash_worker, stash_jobs) = mpsc::sync_channel::<StashJob>(32);
-    {
-        let sender = sender.clone();
-        let current = current.clone();
-        let active = game_active.clone();
-        std::thread::spawn(move || {
-            while let Ok(job) = stash_jobs.recv() {
-                let generation = job.generation();
-                let context = crate::desktop::game_input::Context {
-                    active: &active,
-                    generation: &current,
-                    token: generation,
-                };
-                let scroll = matches!(job, StashJob::Scroll { .. });
-                let result = match job {
-                    StashJob::Search { text, restore, .. } => {
-                        clipboard::stash_search(&text, restore, &context)
-                    }
-                    StashJob::Scroll { chord, .. } => {
-                        crate::desktop::game_input::Guard::new(&context)
-                            .and_then(|g| g.scroll(chord))
-                    }
-                };
-                if sender
-                    .send(Event::StashDone(generation, scroll, result))
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        });
-    }
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
     {
         let sender = sender.clone();
@@ -2968,10 +1490,8 @@ pub fn run() -> Result<(), String> {
                     continue;
                 }
                 let started = Instant::now();
-                let focus = job.text.is_some();
-                let result = (if let Some(text) = job.text {
-                    Ok(text)
-                } else if job.copy {
+                let focus = job.interactive;
+                let result = (if job.copy {
                     clipboard::copy_from_game(
                         &crate::desktop::game_input::Context {
                             active: &active,
@@ -2986,12 +1506,7 @@ pub fn run() -> Result<(), String> {
                 .and_then(|text| Item::parse(&text))
                 .map(|item| (item, started.elapsed().as_millis()));
                 if sender
-                    .send(Event::Captured(
-                        job.generation,
-                        job.target,
-                        focus,
-                        Box::new(result),
-                    ))
+                    .send(Event::Captured(job.generation, focus, Box::new(result)))
                     .is_err()
                 {
                     break;
@@ -3034,24 +1549,6 @@ pub fn run() -> Result<(), String> {
                             .and_then(|e| e.report(&league, &item, generation, &current));
                         Event::Economy(generation, Box::new(result))
                     }
-                    EconomyJob::Catalogue {
-                        generation,
-                        league,
-                        choices,
-                    } => {
-                        let result = economy.as_mut().map_err(|e| e.clone()).and_then(|economy| {
-                            choices
-                                .into_iter()
-                                .map(|choice| {
-                                    let item = choice.trade_item()?;
-                                    economy
-                                        .report(&league, &item, generation, &current)
-                                        .map(|r| (choice.id, r))
-                                })
-                                .collect::<Result<Vec<_>, String>>()
-                        });
-                        Event::CataloguePrices(generation, Box::new(result))
-                    }
                 };
                 if sender.send(event).is_err() {
                     break;
@@ -3059,43 +1556,46 @@ pub fn run() -> Result<(), String> {
             }
         });
     }
+    let (league_worker, league_jobs) = mpsc::sync_channel::<()>(1);
+    {
+        let sender = sender.clone();
+        std::thread::spawn(move || {
+            while league_jobs.recv().is_ok() {
+                if sender
+                    .send(Event::Leagues(crate::leagues::resolve()))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+    }
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
-        stash,
-        stash_worker,
-        stash_pending: Cell::new(None),
-        scroll_pending: Cell::new(0),
-        scroll_dropped: Cell::new(0),
-        wheel_status: RefCell::new(Err("Initialisation XRecord en cours".into())),
-        wheel_connection: Cell::new(0),
-        stash_result: RefCell::new(None),
-        menu,
-        pending_menu: RefCell::new(None),
-        deferred_menu: RefCell::new(std::collections::VecDeque::new()),
-        widget_canvas,
         window: window.clone(),
-        delve,
-        stopwatches,
-        stopwatch_manager,
-        images,
-        image_manager,
-        pending_image_edit: Cell::new(None),
-        widget_transaction: Cell::new(false),
-        order_transaction: Cell::new(false),
+        game_bounds: Cell::new(None),
+        game_window: Cell::new(None),
+        panel_bounds: Cell::new(None),
         pending_interaction: Cell::new(None),
-        pending_stopwatch_edit: Cell::new(None),
         started: Instant::now(),
+        frames: Cell::new(0),
         desktop: RefCell::new(Snapshot::default()),
         title,
         text,
+        search_button: search.clone(),
+        listings,
         hint,
         league,
+        league_label,
+        league_worker,
+        league_ready: Cell::new(false),
+        league_error: RefCell::new(None),
         online,
         search_range,
         currency,
+        bulk_row,
         economy_panel,
         unidentified,
-        catalogue,
         identity_epoch: Cell::new(0),
         economy_worker,
         economy_result: RefCell::new(None),
@@ -3103,8 +1603,6 @@ pub fn run() -> Result<(), String> {
         mod_scroll,
         mod_expander,
         stack,
-        inspection,
-        inspection_result: RefCell::new(None),
         view: Cell::new(View::Price),
         stat_rows: RefCell::new(Vec::new()),
         mercenary_panel: RefCell::new(None),
@@ -3118,7 +1616,6 @@ pub fn run() -> Result<(), String> {
         preferences_worker,
         preferences_pending: Cell::new(false),
         preferences_epoch: Cell::new(0),
-        preferences_return: Cell::new(View::Price),
         backend_connection: Cell::new(0),
         backend_status: RefCell::new(Err("Initialisation des raccourcis…".into())),
         updating_settings: Cell::new(false),
@@ -3135,39 +1632,46 @@ pub fn run() -> Result<(), String> {
         request: RefCell::new(None),
     });
     {
+        let events = sender.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = crate::desktop::game_geometry::watch(move |id, bounds| {
+                let _ = events.send(Event::GameGeometry(id, bounds));
+            }) {
+                eprintln!("geometry observer stopped: {e}");
+            }
+        });
+    }
+    ui.refresh_league();
+    {
         let owner = ui.clone();
         preferences_open.connect_clicked(move |_| owner.open_settings());
-        let owner = ui.clone();
-        menu_open.connect_clicked(move |_| owner.route_menu(MenuRoute::Open(true)));
-        let owner = ui.clone();
-        stopwatch_open.connect_clicked(move |_| owner.open_stopwatches());
-        let owner = ui.clone();
-        image_open.connect_clicked(move |_| owner.open_images());
-        let owner = ui.clone();
-        catalogue_open.connect_clicked(move |_| owner.open_catalogue());
-        let owner = ui.clone();
-        delve_open.connect_clicked(move |_| owner.toggle_delve());
+    }
+    {
         let owner = ui.clone();
         ui.preferences
             .apply
             .connect_clicked(move |_| owner.save_settings());
+    }
+    {
         let owner = ui.clone();
         ui.preferences
             .cancel
             .connect_clicked(move |_| owner.cancel_settings());
+    }
+    {
         let owner = ui.clone();
         ui.preferences
             .reset
             .connect_clicked(move |_| owner.preferences.defaults());
-        for (index, button) in ui.preferences.capture_buttons().into_iter().enumerate() {
-            let owner = ui.clone();
-            button.connect_clicked(move |_| owner.preferences.arm_capture(index));
-            let owner = ui.clone();
-            button.connect_focus_out_event(move |_, _| {
-                owner.preferences.cancel_capture();
-                glib::Propagation::Proceed
-            });
-        }
+    }
+    for (index, button) in ui.preferences.capture_buttons().into_iter().enumerate() {
+        let owner = ui.clone();
+        button.connect_clicked(move |_| owner.preferences.arm_capture(index));
+        let owner = ui.clone();
+        button.connect_focus_out_event(move |_, _| {
+            owner.preferences.cancel_capture();
+            glib::Propagation::Proceed
+        });
     }
     {
         let ui = ui.clone();
@@ -3227,69 +1731,12 @@ pub fn run() -> Result<(), String> {
     }
     {
         let ui = ui.clone();
-        evaluate.connect_clicked(move |_| ui.change_view(View::Inspection));
-    }
-    {
-        let panel = ui.inspection.clone();
-        let ui = ui.clone();
-        panel
-            .price
-            .connect_clicked(move |_| ui.change_view(View::Price));
-    }
-    {
-        let panel = ui.inspection.clone();
-        let ui = ui.clone();
-        panel
-            .close
-            .connect_clicked(move |_| ui.hide(HideReason::Button));
-    }
-    {
-        let ui = ui.clone();
-        let button = ui.inspection.stash.clone();
-        button.connect_clicked(move |_| {
-            if ui.view.get() == View::Inspection && ui.state.borrow().state == State::Interactive {
-                let text = ui
-                    .item
-                    .borrow()
-                    .as_ref()
-                    .map(|i| crate::stash_search::similar_filter(&i.market.name));
-                if let Some(text) = text {
-                    ui.route_menu(MenuRoute::Stash(text));
-                }
-            }
-        });
-    }
-    for (button, kind) in [
-        (ui.inspection.wiki.clone(), 0),
-        (ui.inspection.poedb.clone(), 1),
-        (ui.inspection.coe.clone(), 2),
-    ] {
-        let ui = ui.clone();
-        button.connect_clicked(move |_| {
-            let url = ui
-                .inspection_result
-                .borrow()
-                .as_ref()
-                .and_then(|r| match kind {
-                    0 => Some(r.links.wiki.clone()),
-                    1 => Some(r.links.poedb.clone()),
-                    _ => r.links.craft_of_exile.clone(),
-                });
-            if let Some(url) = url {
-                ui.hide(HideReason::ExternalLink);
-                if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-                    eprintln!("inspection open link: {error}");
-                }
-            }
-        });
-    }
-    {
-        let ui = ui.clone();
         window.connect_realize(move |w| {
         apply_input(w,false);
         if let Some(clock) = w.frame_clock() {
             let weak = Rc::downgrade(&ui);
             clock.connect_after_paint(move |_| { if let Some(ui) = weak.upgrade() {
+                ui.frames.set(ui.frames.get()+1);
                 if ui.state.borrow().state == State::Preparing {
                     ui.state.borrow_mut().painted();
                     eprintln!("overlay state=Passive first_frame=painted display_ms={} geometry={}x{} activation_requested=false",ui.shown.borrow().as_ref().map(|t| t.elapsed().as_millis()).unwrap_or(0),ui.window.allocated_width(),ui.window.allocated_height());
@@ -3302,7 +1749,8 @@ pub fn run() -> Result<(), String> {
     {
         let ui = ui.clone();
         window.connect_size_allocate(move |w, _| {
-            apply_input(w, ui.state.borrow().state == State::Interactive)
+            apply_input(w, ui.state.borrow().state == State::Interactive);
+            ui.position_panel(Some(w.allocated_width()));
         });
     }
     {
@@ -3331,9 +1779,6 @@ pub fn run() -> Result<(), String> {
                 ui.window.is_active()
             );
             ui.state.borrow_mut().focus_restored();
-            if ui.window.is_visible() && ui.state.borrow().state == State::Interactive {
-                ui.hide_delve(crate::delve::Reason::Interactive);
-            }
             glib::Propagation::Proceed
         });
     }
@@ -3418,59 +1863,22 @@ pub fn run() -> Result<(), String> {
                 if &bytes[..n] == b"status" {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
-                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"inspection":ui.inspection_result.borrow().as_ref().filter(|_|ui.view.get()==View::Inspection).map(|r|serde_json::json!({"map_like":r.map_like,"profile":ui.settings.borrow().map_check.profile,"stats":r.stats,"unknown":r.unknown,"outdated":r.outdated,"dps":r.dps,"dust":r.dust})),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
-                        value["delve"] = match &ui.delve {
-                            Ok(grid) => grid.diagnostics(),
-                            Err(error) => serde_json::json!({"available":false,"error":error}),
-                        };
-                        value["delve_button"]=serde_json::json!(delve_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":delve_open.allocated_width(),"height":delve_open.allocated_height()})));
-                        value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
-                        value["widget_menu"] = match &ui.menu {
-                            Ok(m) => m.diagnostics(),
-                            Err(e) => serde_json::json!({"error":e}),
-                        };
-                        value["menu_button"]=serde_json::json!(menu_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":menu_open.allocated_width(),"height":menu_open.allocated_height()})));
-                        value["widget_canvas"] = match &ui.widget_canvas {
-                            Ok(c) => c.diagnostics(),
-                            Err(e) => serde_json::json!({"available":false,"error":e}),
-                        };
-                        value["stash_pending"] = serde_json::json!(ui.stash_pending.get());
-                        value["stash_scroll"] = serde_json::json!({"wanted":ui.settings.borrow().stash_scroll,"backend":"XRecord on XWayland","status":*ui.wheel_status.borrow(),"queued":ui.scroll_pending.get(),"dropped":ui.scroll_dropped.get()});
-                        value["inspection_stash"]=ui.inspection.stash.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.inspection.stash.allocated_width(),"height":ui.inspection.stash.allocated_height(),"mapped":ui.inspection.stash.is_mapped()})).unwrap_or_default();
-                        value["stash_result"] = serde_json::json!(*ui.stash_result.borrow());
-                        value["stash"] = match &ui.stash {
-                            Ok(r) => r.diagnostics(),
-                            Err(e) => serde_json::json!({"available":false,"error":e}),
-                        };
-                        value["images"] = match &ui.images {
-                            Ok(r) => r.diagnostics(ui.state.borrow().state == State::Interactive),
-                            Err(e) => serde_json::json!({"available":false,"error":e}),
-                        };
-                        value["image_manager"] = ui
-                            .image_manager
-                            .diagnostics(&ui.window, ui.view.get() == View::Images);
-                        value["image_button"]=serde_json::json!(image_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":image_open.allocated_width(),"height":image_open.allocated_height()})));
-                        value["stopwatches"] = match &ui.stopwatches {
-                            Ok(r) => r.snapshot(ui.state.borrow().state == State::Interactive),
-                            Err(e) => serde_json::json!({"available":false,"error":e}),
-                        };
-                        value["stopwatch_manager"] = ui
-                            .stopwatch_manager
-                            .diagnostics(&ui.window, ui.view.get() == View::Stopwatches);
-                        value["stopwatch_button"]=serde_json::json!(stopwatch_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":stopwatch_open.allocated_width(),"height":stopwatch_open.allocated_height()})));
-                        value["catalogue"] = ui.catalogue.diagnostics(&ui.window);
-                        value["catalogue_button"]=serde_json::json!(catalogue_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":catalogue_open.allocated_width(),"height":catalogue_open.allocated_height()})));
+                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
                         value["preferences"] = ui.preferences.diagnostics(&ui.window);
                         value["preferences_pending"] =
                             serde_json::json!(ui.preferences_pending.get());
-                        {
-                            let settings = ui.settings.borrow();
-                            value["settings"] = serde_json::json!({"image_strip_count":settings.image_strips.len(),"stopwatch_count":settings.stopwatches.len(),"league":settings.league,"scale":settings.scale,"search_range":settings.search_range,"automatic_search":settings.automatic_search,"hotkeys":settings.hotkeys,"filters":{"online":settings.filters.online,"merchant_only":settings.filters.merchant_only,"collapse_listings":settings.filters.collapse_listings,"bulk_currency":settings.filters.bulk_currency,"default_currency":settings.filters.default_currency,"activate_stock_filter":settings.filters.activate_stock_filter,"stats_count":settings.filters.stats.len()},"map_check":{"profile":settings.map_check.profile,"showNewStats":settings.map_check.show_new_stats,"selected_stats_count":settings.map_check.selected_stats.len()}});
-                        }
+                        value["settings"] =
+                            serde_json::to_value(&*ui.settings.borrow()).unwrap_or_default();
                         value["shortcut_backend"] = serde_json::json!({"connection":ui.backend_connection.get(),"status":*ui.backend_status.borrow()});
                         value["settings_button"]=serde_json::json!(preferences_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":preferences_open.allocated_width(),"height":preferences_open.allocated_height()})));
                         value["unidentified_resolver"] = ui.unidentified.diagnostics(&ui.window);
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
+                        value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
+                        value["frames"] = serde_json::json!(ui.frames.get());
+                        value["listings"] = ui.listings.diagnostics(&ui.window);
+                        value["league_selection"] = serde_json::json!({"automatic":ui.settings.borrow().automatic_league,"ready":ui.league_ready.get(),"label":ui.league_label.text().as_str()});
+                        value["panel_bounds"] = serde_json::json!(ui.panel_bounds.get());
+                        value["search_button"]=serde_json::json!(search.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":search.allocated_width(),"height":search.allocated_height(),"mapped":search.is_mapped()})));
                         let _ = socket.send_to(status_payload(&value).as_bytes(), path);
                     }
                     continue;
@@ -3488,21 +1896,4 @@ pub fn run() -> Result<(), String> {
     gtk::main();
     let _ = std::fs::remove_file(path);
     Ok(())
-}
-
-#[cfg(test)]
-mod diagnostic_tests {
-    #[test]
-    fn large_widget_diagnostics_still_fit_the_local_reply_buffer() {
-        let value = serde_json::json!({"state":"Hidden","view":"Images","game_active":true,"visible":false,"stat_controls":vec!["x".repeat(300);400],"images":{"rows":vec![0;16]},"stopwatches":{"rows":vec![0;32]}});
-        let encoded = super::status_payload(&value);
-        assert!(encoded.len() < 65536);
-        let reply: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-        assert_eq!(reply["state"], "Hidden");
-        assert_eq!(reply["game_active"], true);
-        assert_eq!(reply["diagnostics_truncated"], true);
-        assert_eq!(reply["counts"]["image_strips"], 16);
-        let small = serde_json::json!({"state":"Passive"});
-        assert_eq!(super::status_payload(&small), small.to_string());
-    }
 }

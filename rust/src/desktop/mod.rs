@@ -3,9 +3,8 @@
 pub mod clipboard;
 pub mod game_input;
 pub mod wayland;
-pub mod wheel;
 pub mod xwayland_shortcuts;
 
 pub mod preferences;
 
-pub mod images;
+pub mod game_geometry;

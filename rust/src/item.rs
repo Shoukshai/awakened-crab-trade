@@ -2,6 +2,8 @@
 //! Unsupported modifiers remain in the raw text and never become guessed filters.
 #[path = "item/mercenary.rs"]
 pub mod mercenary;
+// Historical catalogue helpers are used by standalone migration probes.
+#[allow(dead_code)]
 #[path = "item/search.rs"]
 pub mod search;
 #[path = "item/special.rs"]
@@ -182,6 +184,7 @@ struct CatalogueEntry {
     exchangeable: bool,
     gem: Option<GemMetadata>,
     #[serde(default, rename = "disc")]
+    #[allow(dead_code)] // Used by the standalone catalogue probe.
     discriminator: Option<serde::de::IgnoredAny>,
     #[serde(rename = "mercenaryBuild")]
     mercenary_build: Option<mercenary::BuildRecord>,
