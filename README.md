@@ -21,6 +21,8 @@ Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),
 [Windows portable](rust/docs/windows-portable.md).
 
+[Planned improvements](TODO.md).
+
 ## Credits
 
 Based on [Awakened PoE Trade](https://github.com/SnosMe/awakened-poe-trade).
