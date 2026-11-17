@@ -47,7 +47,7 @@ impl EconomyPanel {
             let _ = cr.show_text(&format!("{max:.1}%"));
             cr.move_to(1., height + 8.);
             let _ = cr.show_text(&format!("{min:.1}%"));
-            cr.set_source_rgb(0.85, 0.7, 0.35);
+            cr.set_source_rgb(0.79, 0.43, 0.24);
             cr.set_line_width(2.);
             let mut started = false;
             for (index, value) in points.iter().enumerate() {

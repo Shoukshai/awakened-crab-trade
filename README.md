@@ -9,6 +9,7 @@ Awakened PoE Trade.
 - Search Trade offers and hover over a result to see its full mods and price.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
 - Use a full-height overlay beside the inventory, with automatic league selection.
+- Dark navy and cyan styling inspired by the crab icon.
 
 ## Usage
 

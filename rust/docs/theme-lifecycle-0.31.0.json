@@ -1,0 +1,143 @@
+{
+  "dark_veil_pixel_before_after": [
+    [
+      246,
+      245,
+      244
+    ],
+    [
+      202,
+      201,
+      200
+    ]
+  ],
+  "outside_click_closes_passive_and_interactive_without_forwarding_to_game": true,
+  "first_click_after_open_works_across_three_cycles": true,
+  "ctrl_d_copies_rare_into_passive_checker_with_mods_expanded_and_no_auxiliary_surfaces": true,
+  "full_height_panel_right_edge_matches_inventory_left_edge": true,
+  "passive_rectangles_pass_clicks_to_fake_game_without_selection_or_focus": true,
+  "closed_dropdown_wheel_keeps_filters_and_scrolls_parent": true,
+  "inside_padding_fields_and_owned_dropdown_do_not_dismiss": true,
+  "outside_click_with_open_menu_dismisses_only_the_menu": true,
+  "direct_base_and_ilvl_buttons_change_trade_query_without_automatic_requests": true,
+  "plain_label_dropdowns_remove_corruption_and_rarity_criteria": true,
+  "native_life_minimum_60_reaches_trade_query_only_after_search": true,
+  "clicking_offer_rows_keeps_checker_open": true,
+  "whole_offer_right_edge_hover_ms": 105,
+  "offer_preview_stays_in_window_and_does_not_cover_hovered_row": true,
+  "native_hover_shows_fetched_offer_stats_and_preserves_parent_focus": true,
+  "first_offered_item_life": 73,
+  "searched_item_life": 85,
+  "deselecting_a_mod_clears_prices_and_removes_it_from_next_query": true,
+  "price_only_settings_native_capture_rebind_and_historical_json_preservation": true,
+  "switching_app_hides_and_return_does_not_reopen": true,
+  "ten_capture_hide_cycles_and_static_panel_without_periodic_frames": true,
+  "private_game_configure_event_updates_inventory_side_position": true,
+  "private_output_sizes_and_factor_2_keep_full_height": [
+    {
+      "physical": [
+        1920,
+        1080
+      ],
+      "output_scale": 1,
+      "panel": {
+        "height": 1080,
+        "width": 480,
+        "x": 1093,
+        "y": 0
+      },
+      "allocated_width": 480,
+      "observed_x_client": {
+        "WINDOW": "6291460",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "2560",
+        "HEIGHT": "1600",
+        "SCREEN": "0"
+      }
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "output_scale": 2,
+      "panel": {
+        "height": 800,
+        "width": 480,
+        "x": 307,
+        "y": 0
+      },
+      "allocated_width": 480,
+      "observed_x_client": {
+        "WINDOW": "6291460",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "2560",
+        "HEIGHT": "1600",
+        "SCREEN": "0"
+      }
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "output_scale": 1,
+      "panel": {
+        "height": 1600,
+        "width": 480,
+        "x": 1093,
+        "y": 0
+      },
+      "allocated_width": 480,
+      "observed_x_client": {
+        "WINDOW": "6291460",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "2560",
+        "HEIGHT": "1600",
+        "SCREEN": "0"
+      }
+    }
+  ],
+  "fake_game_recreation_can_copy_again_without_restarting_service": true,
+  "current_league_selected_automatically_from_private_cached_api_list_without_reopening": true,
+  "locked_copy_interacts_after_first_paint_even_when_automatic_search_changes_generation": true,
+  "scope": "Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.",
+  "binary_version": "awakened-crab-trade 0.31.0",
+  "source_sha256": {
+    "scripts/test-price-checker.py": "738ffd7ab882ec4b45208869ac633abeba722e03370ba5fe19546a718af0e15d",
+    "examples/stash-fixture.rs": "9cecb3461559fcd9bb430df2583d5f888bf16ee47d20dff706a7834962c45395",
+    "src/ui.rs": "106fbec6524a4d9794dc93a653d92bdccb2f1774930a98e5119fe3087c352f38",
+    "src/ui/stat_row.rs": "ac2ef2b48a260be8b6f9f0d2eb3abf99921de5f9b27ce6a42e043d8598291be4",
+    "src/ui/listings_panel.rs": "9a0288794b7440905de6af10f2f55f926fc97b2f6043b020e32e3182b2cbcf6b",
+    "src/ui/backdrop.rs": "de6966d440c3bd4c004493a4c5c3ec8ada99bf07df479080698d3494bbed4510",
+    "src/ui/style.css": "8b4feb6a6a1e97e00710abe939eeeedcda02ea611f30989f604a767029942502",
+    "src/ui/item_filters_panel.rs": "b5f0ac9e77a10890f328f263ac0b9c0e498406dc5b4b49d27090056532d607a0",
+    "examples/pointer.rs": "cd7e97323e8a09a98bdc53d1d15ec11318fb3fabf46cb11268f3fd290634dfd0",
+    "examples/native-key.rs": "357ae0edc0c4383f4a91aca35714b5a33721ccafd446ef166edb8f7de4a8b8f4",
+    "src/item.rs": "6e6c303416d2f581318f0e95fb8480e3c1e1db5abb0a348510c72c54a036be15",
+    "src/item_filters.rs": "bcc714e674ba720794e96b3aa109bb4ee31f7313212f5f6a12febc2be41a75bb",
+    "src/trade_item.rs": "43c2eda04274a4628e76c0f17213abc65fa65dc8b78b2c14ccd055810f9c894f",
+    "src/trade.rs": "ea55d71218859415ae931ec490b75f084a92aff3d833ed5edc1e5040fc254e4f",
+    "src/ui/settings_panel.rs": "7304f52e727d615711ed2db8899ff51dbc07a359e42535b0ae8b279ad117a381",
+    "src/settings.rs": "17762a5cb03cc57a881f03dc672f1caed1404433ef86de5cbeee602bf69cbe35",
+    "src/price_layout.rs": "dfd6a42c68dc1ce767cfe5cddb3565bec49ba9737d9ae81a018d53e87cf65d89",
+    "src/leagues.rs": "0579180fc84e09f637ac3dd4f0cdd1db4dccdc717d1df6a972cdfb1b035f939d",
+    "src/desktop/game_geometry.rs": "d5c7b0821c861927a8d199c6a8c3aeb9c39dee4387785b420bb414d127d77ae9",
+    "src/desktop/preferences.rs": "b8866cf22be4f357663d3318ad648625563df931475c28475e997b26745ebf2f",
+    "src/desktop/clipboard.rs": "6212e7f85bc2c74ce539cd14798409a133bbdebdcca0ef33387faaf08e332a26",
+    "src/desktop/xwayland_shortcuts.rs": "6accc19aa9692fb8833ab2bda5e601c8cebb598039b4172518a3ed68b416f59f",
+    "src/hotkeys.rs": "629711976a92db795bcb54143f7f96c20e44cba8d636060018346cf88c2b3ccd",
+    "src/ui/summary_panel.rs": "b05ad291e52dd7a4bad42749b4849aeaaed329461b17a608324171fb6042073e",
+    "src/ui/roll_slider.rs": "b49f3a39039ef5a8330a591c351d7c81dde668c58c8b3daacb1992b10c4e3d2d",
+    "src/ui/icons.rs": "fc27094012d3f04067a428734da4a9b9fc98b9e35235139fc71c95198ffe13fc",
+    "src/economy.rs": "e540dd1408808ab4fd10d9bd65627d498281030306bf1ba25a631c35f7cccfd1",
+    "src/economy/identity.rs": "c923b116c0f64cb63ca3baa8714b6cfd24525b2e7073639fb0d61d47c4eb0326",
+    "src/modifiers/translation.rs": "d6a4ecdda9a999225322defa125b51cb4485a8fc094c8d058218e8d1c16a7bc7",
+    "src/data/current-stats.ndjson": "c406b6b111b65858b30f58dbd692b67e2321248bc28e482b0493ec0e76f45819",
+    "src/data/current-items.ndjson": "86cc7290bd3c4eafd278eee9cbd07f486609d1ad0d6421abd661d883b6e96bef",
+    "src/data/current-icons.json": "4d8eaf6dbb616cf6118ea74a341f9c13fe94f313df4ee4fd5352c8ec1eeeed0d"
+  }
+}

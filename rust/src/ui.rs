@@ -1709,6 +1709,13 @@ pub fn run() -> Result<(), String> {
     price_content.show_all();
     stack.set_visible_child_name("price");
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    header.style_context().add_class("app-header");
+    let mark = app_icon
+        .scale_simple(20, 20, gtk::gdk_pixbuf::InterpType::Bilinear)
+        .ok_or("Application icon unavailable.")?;
+    let mark = gtk::Image::from_pixbuf(Some(&mark));
+    mark.set_tooltip_text(Some("Awakened Crab Trade"));
+    header.pack_start(&mark, false, false, 0);
     title.set_hexpand(true);
     let preferences_open = gtk::Button::with_label("Réglages");
     header.pack_start(&title, true, true, 0);

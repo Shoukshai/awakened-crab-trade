@@ -1,0 +1,48 @@
+{
+  "version": "0.31.0",
+  "reference_version": "0.30.0",
+  "palette": {
+    "background": "#0b1424",
+    "surface": "#102037",
+    "text": "#dce8f4",
+    "muted": "#8fa7bd",
+    "action_and_selection": "#5ad7e8",
+    "header_trim": "#97603f"
+  },
+  "visual_changes": [
+    "Crab identity mark in the existing header",
+    "Navy surfaces, cyan primary action and selected filters",
+    "Copper header trim and economy graph",
+    "Matching offer tooltips and menus"
+  ],
+  "preserved": [
+    "Yellow slider fill below Min and dark grey above, as validated by user",
+    "Integer thresholds and Min/Max query semantics",
+    "PoE rarity text colours",
+    "Interaction and search behaviour"
+  ],
+  "checks": {
+    "native_wand_slider_hover": "theme-linux-0.31.0.json",
+    "native_full_lifecycle": "theme-lifecycle-0.31.0.json",
+    "windows_packaged_wand_settings_lifecycle": "theme-windows-0.31.0.json",
+    "clippy": true,
+    "readme_ascii": true,
+    "linux_packaged_core_tests": 130
+  },
+  "screenshots": [
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/crab-theme-0.31.0.png",
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/crab-theme-hover-0.31.0.png",
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/crab-theme-windows-0.31.0.png",
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/crab-theme-settings-0.31.0.png"
+  ],
+  "artifacts": {
+    "awakened-crab-trade-0.31.0-windows-x64-portable.exe": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.0-windows-x64-portable.exe",
+      "sha256": "9fcf4f3dc79781821e524ce861a76692283e4fe44f7126c73d95be19e8aed335"
+    },
+    "awakened-crab-trade-0.31.0-1-x86_64.pkg.tar.zst": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/awakened-crab-trade-0.31.0-1-x86_64.pkg.tar.zst",
+      "sha256": "323fb92719f832b979c41ec1c76042a8a4057139f54bbc1efc6d7931f367424d"
+    }
+  }
+}
