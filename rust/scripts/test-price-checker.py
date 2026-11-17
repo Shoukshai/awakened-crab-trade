@@ -162,8 +162,8 @@ try:
             s1=status();o=s1['origin'];slider=next(r for r in s1['stat_controls'] if r['id']=='implicit.stat_2974417149')['slider']
             subprocess.run(['grim',str(runtime/'slider-colors.png')],env=env,check=True)
             picture=Image.open(runtime/'slider-colors.png').convert('RGB');y=o['y']+slider['y']+7
-            gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
-            yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
+            gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
+            yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
             assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
             report['slider_integer_thresholds_and_yellow_gray_colors']={'gray':gray,'yellow':yellow}
             for field,text in [(row['min'],'9'),(row['max'],'40')]:

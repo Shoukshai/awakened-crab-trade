@@ -98,6 +98,7 @@ try:
  baseline=Image.open(root/'before-veil.png').convert('RGB').getpixel((200,500));report['before_veil_pixel']=baseline
  print('fake game active',flush=True)
  for family,fixture in [('wand','driftwood-wand.txt'),('gem','price-gem.txt'),('currency','price-currency.txt'),('unique','price-unique.txt'),('map','price-map.txt'),('viscera','price-viscera.txt'),('viscera-siren','price-viscera-siren.txt'),('influence','price-influence.txt')]:
+  if os.environ.get('APT_WINDOWS_FAMILY_CASE') and family!=os.environ['APT_WINDOWS_FAMILY_CASE']:continue
   family_env['APT_FIXTURE_ITEM']=family;command('hide');(root/'fixture-item.txt').write_text((r/'src/fixtures'/fixture).read_text());click(200,700);wait(lambda:status()['game_active'],'game active before copy')
   before=json.loads((root/'fixture.state.json').read_text())['copies']
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
@@ -143,6 +144,14 @@ try:
     wait(lambda:not status()['owned_popup'] and status()['state']=='Interactive','menu selection keeps panel open')
     row=status()['stat_controls'][0];control(row['slider']);wait(lambda:status()['request'] is None,'slider invalidates results')
     assert status()['stat_controls'][0]['min_value']==10
+    time.sleep(.1);st=status();o=st['origin'];slider=st['stat_controls'][0]['slider']
+    subprocess.run(['grim',str(root/'slider-colors.png')],env=env,check=True)
+    picture=Image.open(root/'slider-colors.png').convert('RGB');y=int(o['y']+slider['y']+7)
+    yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),y))
+    gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),y))
+    assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
+    report['slider_fill_yellow_left_gray_right']={'yellow':yellow,'gray':gray}
+    shot('wand-slider-0.29.1.png')
     control(status()['stat_controls'][0]['min'])
     subprocess.run(['xdotool','key','--clearmodifiers','ctrl+a'],env=env,check=True)
     subprocess.run(['xdotool','type','11'],env=env,check=True)

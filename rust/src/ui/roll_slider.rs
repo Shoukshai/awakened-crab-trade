@@ -105,17 +105,25 @@ pub fn new(
             let h = area.allocated_height() as f64;
             let low = read(&min).ok().flatten();
             let high = read(&max).ok().flatten();
-            cr.set_source_rgb(0.15, 0.17, 0.20);
+            let range = (selected.is_active() && (low.is_some() || high.is_some()))
+                .then(|| {
+                    (
+                        bounds.fraction(low.unwrap_or(bounds.min)),
+                        bounds.fraction(high.unwrap_or(bounds.max)),
+                    )
+                })
+                .filter(|(l, r)| l <= r);
+            if range.is_some() {
+                cr.set_source_rgb(0.84, 0.72, 0.36);
+            } else {
+                cr.set_source_rgb(0.15, 0.17, 0.20);
+            }
             cr.rectangle(6., 4., w, h - 8.);
             let _ = cr.fill();
-            if selected.is_active() && (low.is_some() || high.is_some()) {
-                let l = bounds.fraction(low.unwrap_or(bounds.min));
-                let r = bounds.fraction(high.unwrap_or(bounds.max));
-                if l <= r {
-                    cr.set_source_rgb(0.84, 0.72, 0.36);
-                    cr.rectangle(6. + l * w, 4., ((r - l) * w).max(1.), h - 8.);
-                    let _ = cr.fill();
-                }
+            if let Some((l, r)) = range {
+                cr.set_source_rgb(0.15, 0.17, 0.20);
+                cr.rectangle(6. + l * w, 4., ((r - l) * w).max(1.), h - 8.);
+                let _ = cr.fill();
             }
             cr.set_source_rgb(0.9, 0.91, 0.93);
             cr.set_line_width(1.);
@@ -132,20 +140,16 @@ pub fn new(
                 let _ = cr.stroke();
             }
             cr.set_font_size(11.);
-            let selected_at = |fraction: f64| {
-                selected.is_active()
-                    && (low.is_some() || high.is_some())
-                    && fraction >= bounds.fraction(low.unwrap_or(bounds.min))
-                    && fraction <= bounds.fraction(high.unwrap_or(bounds.max))
-            };
-            if selected_at(0.02) {
+            let yellow_at =
+                |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);
+            if yellow_at(0.02) {
                 cr.set_source_rgb(0.09, 0.10, 0.12);
             }
             cr.move_to(10., h / 2. + 4.);
             let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
             let text = super::economy_panel::format_amount(bounds.max);
             if let Ok(size) = cr.text_extents(&text) {
-                if selected_at(0.98) {
+                if yellow_at(0.98) {
                     cr.set_source_rgb(0.09, 0.10, 0.12);
                 } else {
                     cr.set_source_rgb(0.9, 0.91, 0.93);

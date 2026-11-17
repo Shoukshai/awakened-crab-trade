@@ -1,9 +1,9 @@
 {
-  "saved_at": "2026-11-17T21:14:19.945488+00:00",
-  "status": "windows_0.29_portable_validated_pending_real_game_verification",
+  "saved_at": "2026-11-17T21:31:30.515229+00:00",
+  "status": "slider_colors_0.29.1_validated",
   "branch": "rust-windows-price-checker",
-  "linux_version": "0.29.0",
-  "linux_binary": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.29/usr/bin/awakened-poe-trade-rs",
+  "linux_version": "0.29.1",
+  "linux_binary": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.29.1/usr/bin/awakened-poe-trade-rs",
   "request": "Build a Windows version of the validated price checker. User uses Windows 11 and Steam and wants broad compatibility. Preserve the validated interface; Linux backend must keep working.",
   "approach": "Reuse shared GTK3 UI and Rust engine. Add Win32 integration, target x86_64-pc-windows-gnullvm with LLVM-MinGW UCRT and MSYS2 UCRT64 GTK3 runtime. Deliver portable ZIP when validated.",
   "completed": [
@@ -18,7 +18,8 @@
     "Integer slider thresholds; selected yellow, unselected dark grey",
     "Closed dropdown wheel scrolls parent without editing its selection",
     "Visible Options, Stats and Autres stats sections, secondary stats count; clearer stats/craft mode labels; French translations preserved",
-    "Linux 0.29 Arch package and source archive built; 130 packaged core tests passed, plus packaged Wand slider and real Sirens Tentacle UI tests."
+    "Linux 0.29 Arch package and source archive built; 130 packaged core tests passed, plus packaged Wand slider and real Sirens Tentacle UI tests.",
+    "0.29.1: reversed slider colour zones per user feedback; yellow below Min, dark grey above. Actual pixels, integer dragging, both handles and query bounds verified on Linux; packaged Windows single EXE verified under Wine with Wand and inside/outside/menu/focus lifecycle."
   ],
   "incomplete": [
     "Actual PoE/Windows 11 Steam testing; standalone and mixed monitor DPI require Windows hardware."
@@ -41,14 +42,14 @@
     "Private Wine tests use their own OS-layout fixture and Win32 window management settings; neither is shipped or applied to the user system.",
     "Source, ZIP and reports are on disk. No remote publishing or upload performed."
   ],
-  "windows_version": "0.29.0",
-  "windows_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.0-windows-x64.zip",
-  "windows_zip_sha256": "4e50506e267b363fffcfa79fcd12b8caff389cd7e54a91feb9a5facf44c92c52",
-  "windows_binary_sha256": "72cb32384459294f54a4707c67fbdb8e0a19f6b8490e33aa3d91d6e223231843",
-  "validation_report": "rust/docs/windows-validation-0.29.json",
-  "windows_portable_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.0-windows-x64-portable.exe",
-  "windows_portable_sha256": "9e3cfd69c4d4498fd6b18663f3c532fb3c78140f40e77b0194efec92602f4148",
-  "windows_portable_validation_report": "rust/docs/windows-portable-validation-0.29.json",
+  "windows_version": "0.29.1",
+  "windows_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.1-windows-x64.zip",
+  "windows_zip_sha256": "d65147908d81f4a6f32585b2c3bf711a7d26f6f0d0a206c23d5f8af970e3dd00",
+  "windows_binary_sha256": "5f5ba43df66afee2a96d00ba2bec4abe415dbaa5b9617284010cfa16ead332bf",
+  "validation_report": "rust/docs/slider-windows-validation-0.29.1.json",
+  "windows_portable_artifact": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.1-windows-x64-portable.exe",
+  "windows_portable_sha256": "d2cc5a9f207b6083bcd21da3a11f70116f50eb409fbc177233a718ad378fcd4a",
+  "windows_portable_validation_report": "rust/docs/slider-windows-validation-0.29.1.json",
   "previous_linux_validated_commit": "63320b7",
-  "linux_validation_report": "rust/docs/linux-validation-0.29.json"
+  "linux_validation_report": "rust/docs/slider-linux-validation-0.29.1.json"
 }
