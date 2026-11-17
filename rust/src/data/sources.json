@@ -1,0 +1,26 @@
+{
+  "upstream": "https://github.com/SnosMe/awakened-poe-trade",
+  "upstream_commit": "3188208957422b21b69b12083a03edf3d1bac187",
+  "license": "MIT; see repository LICENSE",
+  "catalogues": [
+    {
+      "path": "base-items.ndjson",
+      "original_path": "renderer/public/data/en/items.ndjson",
+      "sha256": "af8391e58698dacbd393361eea12e304d1abed83f50453dac4e5804de8775c6f",
+      "last_upstream_change": "543423aba68db81d965f42bfbe7af47bf435fe13"
+    },
+    {
+      "path": "base-stats.ndjson",
+      "original_path": "renderer/public/data/en/stats.ndjson",
+      "sha256": "16fe7b84549d5570a734ef441e4722d589a6d17ecd3f834ecf867736855af719",
+      "last_upstream_change": "543423aba68db81d965f42bfbe7af47bf435fe13"
+    },
+    {
+      "path": "item-drop.json",
+      "original_path": "renderer/public/data/item-drop.json",
+      "sha256": "b73cc22ece0311441aa11793a5857e94462b2ed9a2dde573a35a0e5727b5aaf5",
+      "last_upstream_change": "543423aba68db81d965f42bfbe7af47bf435fe13"
+    }
+  ],
+  "rules": "Native JSON rule tables retain their original source paths and source hashes as provenance. Original migration tooling and sources remain in Git history."
+}

@@ -1,9 +1,0 @@
-{
-  "cases": 6528,
-  "mismatches": 0,
-  "scope": "Unchanged isStashArea, wheel callback and uiSidebarWidth getter. Includes strict edges, sidebar rounding, offsets, wheel sign and activation/option guards. No drawing, XRecord availability or native key delivery claimed.",
-  "source_sha256": {
-    "main/src/shortcuts/Shortcuts.ts": "4174c5e7d6fab125008352aab7e071818cbccea411635f22c47e1f936f1e854f",
-    "main/src/windowing/GameWindow.ts": "ee73eb39b33813df98dec3e672740160c5bf9a6bcfa9c6ebe35dac8bce25aae8"
-  }
-}

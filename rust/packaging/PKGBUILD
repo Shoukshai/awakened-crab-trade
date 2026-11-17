@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-crab-trade
-pkgver=0.31.1
+pkgver=0.31.2
 pkgrel=1
 provides=("awakened-poe-trade-rs=$pkgver")
 conflicts=('awakened-poe-trade-rs')
@@ -39,13 +39,7 @@ package() {
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     cp -a license-bundle "$pkgdir/usr/share/licenses/$pkgname/dependencies"
     install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
-    for doc in PORTING.md QUICKSTART.md CHECKER-VALIDATION.md GAME-ART.md; do
+    for doc in CHECKER-VALIDATION.md GAME-ART.md windows.md windows-portable.md current-data.json; do
         install -Dm644 "rust/docs/$doc" "$pkgdir/usr/share/doc/$pkgname/$doc"
-    done
-    for report in current-data-0.26.json price-checker-lifecycle-0.25.json price-checker-real-0.25.json price-checker-real-0.23.json \
-        parser-measurements-0.2.json stat-translations-0.3.json calculated-filters-0.4.json \
-        presets-0.6.json item-filters-0.7.json equipment-presets-0.8.json \
-        special-presets-0.10.json mercenary-0.11.json economy-0.12.json unidentified-0.13.json; do
-        install -Dm644 "rust/docs/$report" "$pkgdir/usr/share/doc/$pkgname/$report"
     done
 }

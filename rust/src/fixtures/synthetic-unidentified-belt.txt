@@ -1,7 +1,0 @@
-Item Class: Belts
-Rarity: Unique
-Heavy Belt
---------
-Item Level: 84
---------
-Unidentified

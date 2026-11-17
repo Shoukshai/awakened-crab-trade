@@ -1,9 +1,0 @@
-Item Class: Gloves
-Rarity: Unique
-Tombfist
-Steelscale Gauntlets
---------
-Item Level: 83
---------
-{ Unique Modifier }
-Has 1 Abyssal Socket

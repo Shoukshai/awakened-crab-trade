@@ -1,24 +1,8 @@
-//! Portable shortcut names from ipc/KeyToCode.ts, resolved by each desktop backend.
+//! Portable shortcut names, compatible with upstream and resolved per backend.
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TabDirection {
-    Left,
-    Right,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ScrollChord {
-    pub direction: TabDirection,
-    pub shift: bool,
-    pub alt: bool,
-    pub super_key: bool,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
-    #[allow(dead_code)] // Historical probe action; never installed by the checker.
-    ScrollStash(ScrollChord),
     Command(&'static str),
     StopwatchToggle(u64),
     StopwatchReset(u64),

@@ -1,7 +1,0 @@
-Item Class: Stackable Currency
-Rarity: Currency
-Scroll of Wisdom
---------
-Stack Size: 9/40
---------
-Right click this item then left click an unidentified item to apply it.

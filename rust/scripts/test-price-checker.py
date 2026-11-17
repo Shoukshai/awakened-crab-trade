@@ -4,7 +4,7 @@ from PIL import Image
 import hashlib,json,os,pathlib,select,shutil,subprocess,sys,tempfile,time,urllib.parse,http.server,threading
 root=pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
-for name in ['river','riverctl','wlr-randr','xdotool','wl-copy','wtype']:
+for name in ['river','riverctl','wlr-randr','xdotool','wl-copy','wtype','grim']:
     assert shutil.which(name),name+' required'
 subprocess.run(['cargo','build','--locked','--example','pointer','--example','overlay-fixture','--example','stash-fixture','--example','native-key','-j','3'],check=True)
 app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else root/'target/release/awakened-poe-trade-rs').resolve()
@@ -409,7 +409,7 @@ try:
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines
     assert fixture_command('input')['submitted']==[]
     report.update(scope='Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.',binary_version=subprocess.check_output([str(app),'--version'],text=True).strip())
-    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','examples/native-key.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs','src/ui/summary_panel.rs','src/ui/roll_slider.rs','src/ui/icons.rs','src/economy.rs','src/economy/identity.rs','src/modifiers/translation.rs','src/data/current-stats.ndjson','src/data/current-items.ndjson','src/data/current-icons.json']}
+    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','examples/native-key.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs','src/ui/summary_panel.rs','src/ui/roll_slider.rs','src/ui/icons.rs','src/economy.rs','src/economy/identity.rs','src/modifiers/translation.rs','src/data/current-stats.ndjson','src/data/current-items.ndjson','src/data/current-icons.json','src/data/base-items.ndjson','src/data/base-stats.ndjson','src/data/item-drop.json']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 

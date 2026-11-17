@@ -134,7 +134,7 @@ pub struct Report {
 pub fn related_keys(key: &Key) -> Option<(Vec<Key>, Vec<Key>)> {
     static DROPS: OnceLock<Vec<Drop>> = OnceLock::new();
     let drops = DROPS.get_or_init(|| {
-        serde_json::from_str(include_str!("../../../renderer/public/data/item-drop.json"))
+        serde_json::from_str(include_str!("../data/item-drop.json"))
             .expect("upstream drop relationships")
     });
     let id = key.query_id();

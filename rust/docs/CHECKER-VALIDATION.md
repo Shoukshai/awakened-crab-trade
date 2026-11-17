@@ -1,172 +1,48 @@
-# Validation du price checker 0.27 — Linux
+# Price checker validation
 
-Le survol lit les descriptions des mods structurés du Trade actuel et les
-anciennes listes de textes. Les autres groupes `*Mods` sont également lus,
-y compris les groupes de nouvelles mécaniques. L'objet présenté reste celui
-de l'offre ; ses valeurs ne viennent jamais de l'objet copié.
+Run from the repository root:
 
-Les bornes des mods numériques utilisent un slider bicolore et deux champs
-Min/Max accolés à droite. Les champs acceptent des valeurs hors de la plage
-copiée ; un champ vide retire sa borne. Cliquer ou glisser le slider active le
-mod et ajuste une borne. Avec deux bornes, la poignée la plus proche est
-choisie. Les saisies invalides ou Min > Max bloquent toute requête Trade.
-Les valeurs négatives, décimales et les plages fixes sont couvertes.
-Le slider utilise les bornes copiées ; il ne représente pas une liste de tiers.
+```sh
+cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
+cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets -- -D warnings
+cargo test --locked --manifest-path rust/portable/Cargo.toml
+```
 
-128 tests unitaires couvrent le moteur et les formats Trade. Le scénario natif
-`APT_FAMILY_CASE=wand` vérifie le clic, le glissement des deux bornes, les champs
-accolés, l'effacement, les erreurs de saisie et les mods de l'offre au survol.
-Le clavier de test complet evdev est utilisé pour les raccourcis d'édition GTK.
-Les captures natives sont dans `dist/previews/0.27/` et utilisent des offres
-synthétiques. Le scénario complet conserve les tests de focus, de menus et de
-fermeture extérieure, avec un pointeur persistant.
+## Native GUI
 
-La consultation poe.ninja n'est plus demandée deux fois lors d'une recherche
-automatique après copie, ce qui évite l'annulation de la première consultation.
+Requires River, riverctl, wlr-randr, xdotool, wl-copy, wtype, grim and Python Pillow.
+Build the release binary first, then run:
 
-## Ajouts de la version 0.26
+```sh
+python3 rust/scripts/test-price-checker.py
+APT_FAMILY_CASE=wand python3 rust/scripts/test-price-checker.py
+APT_FAMILY_CASE=viscera-siren python3 rust/scripts/test-price-checker.py
+```
 
+Other family cases: gem, currency, unique, map, viscera and influence. The test
+creates its own compositor and fake game, serves local Trade/poe.ninja fixtures,
+and blocks public market traffic. Reports go to `rust/dist/`. Captures and
+failure logs stay in the private test directory or the explicitly selected path.
 
-La version 0.26 ajoute les panneaux par famille et un résumé poe.ninja sans
-courbe. Les monnaies ne lancent aucune recherche Trade. Les gemmes exposent
-niveau et qualité exacts et corruption ; les cartes leur tier ; les uniques
-conservent leur identité même sans la base. Les Viscera gardent leur nom gradué
-pour poe.ninja et leur base commune pour le Trade. Les variantes à plusieurs
-effets ne reçoivent pas de cote partielle.
+Coverage includes scoped copying, modifiers and Min/Max queries, integer slider
+values and rendered cyan/grey colours, full-row hover, inside/outside clicks,
+owned menus, Escape, focus changes, settings and clipboard restoration.
 
-Le complément [current-data-0.26.json](current-data-0.26.json) documente les
-sources et empreintes des données : 18 427 identifiants de stats officiels
-représentés et 164 bases Viscera. Cela ne revendique pas la reconnaissance de
-toutes les combinaisons de texte du presse-papiers. Les règles de désambiguïsation
-upstream sont conservées ; les nouveaux mods sans règle de sens utilisent des
-bornes exactes. Le parseur accepte aussi les plages textuelles `(...)`.
+## Packaged Windows
 
-126 tests unitaires couvrent notamment les identités Trade/poe.ninja distinctes,
-les 164 emplacements Viscera, les filtres de gemme et les cartes modernes. Les
-essais natifs privés servent des offres et des cotes synthétiques ; ils ne
-mesurent aucun prix réel. Les captures sont dans `dist/previews/0.26/`. Les
-images du jeu et leurs sources sont créditées dans [GAME-ART.md](GAME-ART.md).
+Use [the Windows build instructions](windows.md) and build the portable EXE.
+Run `windows-sandbox.py` in a separate terminal. With that guarded desktop active:
 
-## Régression conservée depuis 0.25
+```sh
+python3 rust/scripts/setup-windows-test-layout.py
+python3 rust/scripts/test-windows-portable.py
+```
 
+The runner builds its Win32 fixture and launcher unit tests from the current
+checkout. These helpers are excluded from the production packages. The sandbox has its own Wine prefix and keyboard layout;
+never point it at a user's Steam prefix. Stop it by creating `stop` inside the
+guarded directory recorded in `rust/dist/windows-sandbox.json`.
 
-Le périmètre actuel est le price checker : sélection des stats et Min/Max,
-recherche Trade, offres dans un panneau natif pleine hauteur adjacent à
-l’inventaire. Les widgets antérieurs ne sont plus compilés dans l’application.
-Leurs champs de configuration sont conservés sans installer leurs raccourcis.
-
-## Automatisation
-
-121 tests Rust couvrent le moteur et ses services, dont le choix de la ligue
-actuelle, le cache de ligues et la géométrie du panneau. Clippy tous targets avec
-`-D warnings` et le formatage sont vérifiés pendant la préparation du paquet.
-Les rapports antérieurs du moteur fournis avec le paquet sont des validations
-historiques de ses règles ; ils ne prouvent pas une identité totale à upstream.
-
-[price-checker-lifecycle-0.25.json](price-checker-lifecycle-0.25.json) utilise
-uniquement un River privé et un faux jeu GTK. Un serveur HTTP de boucle locale
-fournit deux offres synthétiques ; les autres requêtes publiques sont bloquées
-par un proxy local invalide. Le changement d’URL Trade est refusé hors du bureau
-de test identifié et n’accepte qu’une adresse HTTP 127.0.0.1. Un rare synthétique est copié par le même
-geste que dans PoE. Le panneau commence passif avec ses mods ouverts ; les
-rectangles passent alors les clics au faux jeu sans sélectionner de stat.
-Ctrl+Alt+D autorise l’interaction après le premier rendu, y compris lorsque la
-recherche automatique change la génération de requête avant ce rendu.
-
-La version 0.25 utilise deux surfaces de fond séparées à gauche et à droite
-sans recouvrir le panneau. Surtout, elle attend le relâchement de la souris
-et la fin du traitement de l’événement avant de masquer ces surfaces. Fermer
-à l’appui laissait une capture de périphérique GDK dirigée vers le fond caché :
-le clic intérieur suivant le refermait. Les premières simulations recréaient
-la souris virtuelle à chaque geste, ce qui masquait cette panne.
-
-Le test conserve maintenant le même périphérique pour toute la session et
-sépare chaque appui de son relâchement par 80 ms. Le paquet immuable 0.24 échoue
-sur ce test ; le correctif 0.25 le réussit. Trois cycles testent le premier clic
-intérieur après réouverture. Les clics dans les marges intérieures, les champs,
-les offres et les menus restent dans le panneau. Un clic extérieur pendant un
-menu ferme le menu seul ; choisir une option à la souris garde le panneau.
-Le clic extérieur sans menu ferme l’overlay sans transmettre le clic au faux jeu.
-Les régions d’entrée sont commises avant d’activer les surfaces extérieures.
-
-La base et l’ilvl sont désactivés après chaque copie. Sur un unique, désactiver
-la base conserve l’identité de l’unique ; un test vérifie la requête réelle
-avec et sans la base. La puce de base contient
-son nom ; désactivée, elle utilise la catégorie disponible. Le champ d’ilvl
-contient la valeur exacte copiée, reste inactif tant que la puce est désactivée,
-et n’a ni boutons +/- ni maximum. Le test active le champ, saisit 86 sans Entrée
-et retrouve 86 dans la requête. Rareté et corruption sont des libellés simples
-suivis d’une liste, avec Toutes/Tous pour ne pas restreindre le critère.
-L’en-tête n’affiche que le nom, la ligue, En ligne, Réglages et la croix.
-
-Le test saisit directement un minimum de vie de 60 puis clique Rechercher sans
-validation clavier intermédiaire : la requête contient bien ce minimum.
-Cliquer le fond du rectangle retire la stat de la requête suivante ; éditer
-Min/Max ne change pas sa sélection. Les anciennes offres sont invalidées à
-chaque modification. La zone des stats est bornée et les offres disposent de
-l’espace principal restant. Le détail natif au survol de toute la case est réellement mappé
-et visible : elle affiche 73 de vie sur la première offre, alors que l’objet
-recherché a 85 de vie. Quitter la ligne ferme l’infobulle, sans changer le focus
-du panneau. Le délai programmé est de 100 ms ; le rapport mesure le temps
-observé jusqu’au rendu depuis le bord droit de la case. L’aperçu ne montre que
-nom/base colorés par rareté, ilvl, corruption éventuelle, mods et prix. Un trait
-sépare implicites et autres mods. Sa position et sa taille sont vérifiées dans
-la fenêtre sans recouvrir la ligne survolée. Les captures sont faites avec
-les deux offres synthétiques, sans les présenter comme des prix réels. Les réglages n’ont que deux pages et cinq raccourcis ;
-annulation, capture et nouvelle liaison sont exercées, et les données JSON des
-anciens widgets sont préservées. Le changement d’application masque le panneau
-sans le rouvrir au retour. Dix cycles de capture/masquage, le repos sans nouvelle
-frame et la recréation du faux jeu passent.
-
-Le panneau mesure 480×1600 dans la sortie privée initiale 2560×1600. Son bord
-droit correspond au bord gauche d’inventaire calculé à partir du client X11.
-Un changement de géométrie du faux jeu sans changement de sortie est suivi par
-ConfigureNotify, sans polling ni activation. Les sorties privées 1920×1080 et
-2560×1600 aux facteurs 2 et 1 conservent toute la hauteur logique.
-Le client X observé peut conserver 2560×1600 après le changement de mode ; les
-positions sont donc comparées aux coordonnées X réellement observées. Ce test
-ne prouve pas un alignement physique du vrai coffre après une telle modification.
-
-Une liste de ligues en cache propre au bureau privé prouve la sélection de la
-ligue actuelle softcore, indépendante de l’ordre de la liste et des variantes
-Hardcore. Sa réception ne rouvre pas un panneau masqué. Les combinaisons sont
-aussi testées par le probe privé historique de replay : autres applications,
-répétition de copie, écriture bloquée et restauration après conflit.
-
-## Session réelle
-
-[price-checker-real-0.23.json](price-checker-real-0.23.json) distingue les essais.
-Avant le passage au panneau pleine hauteur, la vraie Driftwood Wand copiée par
-l’utilisateur a donné dix offres Trade dans le panneau. Cliquer les contrôles
-natifs pour passer le minimum de dégâts des sorts de 8 à 9 a modifié la requête
-et les résultats ; les dix offres étaient affichées. Le minimum initial a été
-rétabli et le profil est sémantiquement conservé. Les derniers cycles du rapport
-utilisaient le cache de 60 s ; zéro milliseconde réseau y signifie un cache hit.
-
-Le premier essai utilisateur du nouveau panneau a révélé une réponse HTTP 403
-sur la liste des ligues du site PoE. La détection utilise désormais la liste
-publique des ligues économiques de poe.ninja, avec un cache de cinq minutes.
-**Covens, sélection automatique prête**, a été observé dans le processus réel
-après cette correction. Une liste ambiguë ou indisponible ne déclenche pas de
-recherche dans une ligue devinée ; le réglage manuel reste disponible.
-
-L’utilisateur a confirmé que les offres apparaissent après la correction de
-ligue. Le journal du processus réel donne un panneau **480×1600 à x=1116, y=0**,
-contre un client PoE à x=14, y=14, 2532×1540. Le bord droit 1596 correspond au
-bord gauche d’inventaire calculé par la règle upstream. La recherche réelle
-Covens a donné **432 résultats, dix offres, 621 ms réseau**, puis un cache hit.
-
-Le retour utilisateur sur 0.24 puis une première candidate 0.25 a révélé la
-panne intermittente de capture souris. Le test avec périphérique persistant
-la reproduit, puis passe après correction. L’utilisateur a ensuite confirmé
-**« Les deux cycles fonctionnent »** en jeu, avec fermeture extérieure,
-réouverture et clic intérieur répétés deux fois. Les observations sont dans
-[price-checker-real-0.25.json](price-checker-real-0.25.json). Les captures finales
-proviennent du bureau privé et de ses offres synthétiques. Le jeu n’est jamais activé de force. Les essais avant/après chaque
-modification sont séparés dans le rapport ; les vérifications du binaire du
-paquet sont enregistrées dans `dist/`.
-
-Windows, plusieurs écrans, X11 natif et les autres compositeurs restent non
-validés. La version Windows suit la première version Linux. Les formats riches
-du presse-papiers ne sont pas restaurés ; le parseur et l’éditeur de filtres ne
-revendiquent pas la totalité des fonctionnalités du site Trade.
+Automated offers and prices are synthetic. Wine checks do not replace testing
+PoE under Windows hardware. The supported Linux setup is River with XWayland;
+other compositors and monitor arrangements need separate validation.

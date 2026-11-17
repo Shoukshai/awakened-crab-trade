@@ -1,94 +1,74 @@
-# Awakened Crab Trade - native price checker
+# Awakened Crab Trade - native app
 
-Overlay natif de consultation des prix : copier un objet dans PoE, choisir ses
-stats et leurs bornes, rechercher les objets comparables sur Trade et lire les
-offres dans le panneau. Le périmètre est limité au **price checker**.
+Native Rust/GTK3 price checker for Path of Exile 1. No Electron, Node.js or WebView is needed.
 
-Configuration Linux vérifiée : Artix x86_64, River avec layer-shell, PoE Steam /
-DWProton sous XWayland, écran 2560×1600 au facteur 1. **Windows x64 dispose d’une version portable 0.31.1**, avec intégration
-Win32 et validation dans un bureau Wine isolé. Le test réel sous Windows 11 /
-PoE Steam reste à faire : voir [Windows](docs/windows.md). Aucun Electron ni WebView.
+## Build and run
 
-## Lancement
+Linux dependencies: Rust, GTK3 development files, gtk-layer-shell, pkg-config,
+wl-clipboard and xdotool. The current overlay targets River/Wayland with PoE
+running through XWayland.
 
-Depuis `rust/`, avec Rust, GTK3, gtk-layer-shell, wl-clipboard et xdotool :
+From the repository root:
 
 ```sh
-cargo build --locked --release -j 3
-GDK_BACKEND=wayland ./target/release/awakened-poe-trade-rs daemon
+cargo build --locked --release --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
+GDK_BACKEND=wayland rust/target/release/awakened-poe-trade-rs daemon
 ```
 
-Le programme démarre masqué. Dans PoE, survoler un objet :
+Windows build and usage: [Windows](docs/windows.md),
+[single-file portable EXE](docs/windows-portable.md).
 
-- **Ctrl+D** : copie et affichage passif du price checker.
-- **Ctrl+Alt+D** : même panneau, interaction autorisée après le premier rendu.
-- **Maj+Espace** : autoriser les clics dans un panneau déjà affiché.
-- **Ctrl+Maj+D** : masquer depuis le jeu ; **Échap** ou **Fermer** depuis le panneau.
+## Controls
 
-La ligue actuelle PC softcore est sélectionnée automatiquement depuis la liste
-poe.ninja au lancement (Covens dans la session testée). Pour une autre ligue, désactiver
-la sélection automatique dans Réglages. Le panneau occupe toute la hauteur de
-l’écran, au bord gauche de l’inventaire. Un léger voile sombre couvre le jeu ;
-cliquer en dehors du panneau le ferme sans transmettre ce clic au jeu. Pour un équipement rare, choisir
-les stats pertinentes en cliquant sur leurs rectangles, activer Min et/ou Max,
-saisir les bornes puis cliquer
-**Rechercher**. Modifier un filtre invalide les anciennes offres sans lancer de
-recherche. Les offres occupent la zone principale sous les filtres. Survoler n’importe où dans la case d’une offre
-affiche rapidement son nom, sa base, son ilvl, ses mods et son prix ; les bornes de recherche
-ne sont pas utilisées comme statistiques de l’offre. **Ouvrir Trade** ouvre la
-requête dans le navigateur sur une action explicite.
+- `Ctrl+D`: copy the hovered item and show a passive price panel.
+- `Ctrl+Alt+D`: copy and open the interactive panel.
+- `Shift+Space`: enable interaction in a passive panel.
+- `Ctrl+Shift+D`, `Esc`, the close button or an outside click: hide the panel.
 
-Les puces de **base** et d’**ilvl** sont désactivées par défaut. La base porte
-son nom ; ilvl active un champ de minimum prérempli avec le niveau de l’objet.
-Rareté et corruption se choisissent dans leurs listes. Qualité, niveau de
-gemme et liens restent disponibles selon l’objet. **Options** conserve les options complémentaires, dont les
-influences et le regroupement Trade. Les presets proposent les filtres
-adaptés à son type. **Autres stats** donne accès aux stats
-masquées par les calculs pseudo. Une comparaison par base seule ne suffit pas à
-estimer un rare. Les cotes poe.ninja sont indicatives.
+Choose modifiers, base, ilvl and other filters, then select **Rechercher**.
+Sliders use integer thresholds, cyan below the minimum and dark grey above.
+Hover over an offer to see the offered item's mods and price. Currency uses
+poe.ninja quotes; other supported families also offer Trade searches.
 
-La version 0.29 accepte la copie réelle des Viscera sans ligne « Rarity », dont
-Siren’s Tentacle. Les 164 bases et leurs emplacements ont été comparés à PoEDB.
-Les sliders règlent des seuils entiers. Le cyan du thème remplit la
-barre jusqu’au seuil minimum ; le reste est gris foncé. La molette sur une liste fermée fait défiler les filtres sans
-changer son choix. Les modes se nomment **Recherche par stats** et
-**Recherche pour craft** ; les sections secondaires affichent leur nombre de stats.
+The current league is selected automatically. Settings can override the league,
+shortcuts, scale and default filters. Unknown historical preferences are preserved.
+The existing `awakened-poe-trade-rs` config and IPC identifiers remain compatible.
 
-Après une copie manuelle Ctrl+Alt+C, on peut aussi lancer :
+## Checks and packaging
 
 ```sh
-./target/release/awakened-poe-trade-rs check
-./target/release/awakened-poe-trade-rs locked-check
-./target/release/awakened-poe-trade-rs hide
-./target/release/awakened-poe-trade-rs quit
+cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
+cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets -- -D warnings
+python3 rust/scripts/test-price-checker.py
+sh rust/scripts/package.sh
 ```
 
-Réglages : `~/.config/awakened-poe-trade-rs/config.json` ou `$XDG_CONFIG_HOME`.
-Général et Raccourcis utilisent un brouillon : **Annuler** conserve le profil,
-**Enregistrer** applique sans redémarrer. Les champs historiques des fonctions
-annexes sont préservés mais leurs raccourcis ne sont plus installés.
+GUI checks require the local graphical test tools described in
+[validation](docs/CHECKER-VALIDATION.md). They create guarded private desktops;
+they never send test input to the real game. The four files in `examples/` are
+helpers for those checks. Builds and reports stay in ignored `dist/` and `target/`.
 
-## Paquet et validation
+`package.sh` builds an Arch/Artix package without installing it. Cargo dependencies
+must be available locally (`cargo fetch --locked --manifest-path rust/Cargo.toml`
+before an offline package build).
 
-`sh scripts/package.sh` construit le paquet Artix/Arch dans `dist/` sans
-l’installer. Les dépendances Cargo doivent être disponibles localement
-(`cargo fetch --locked` avant une construction hors ligne).
+## Data and maintenance
+
+All runtime data now lives in `src/data/`. The pinned English item/stat catalogues
+and item-drop table retain their hashes and upstream revision in `sources.json`.
+The other JSON rule tables preserve their upstream source hashes as provenance.
+The original sources and migration tools remain available in Git history.
+
+Refresh the official Trade supplement and current item/icon registry with:
 
 ```sh
-cargo test --locked -j 3
-python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs dist/price-checker-lifecycle-0.27.json
+python3 rust/scripts/refresh-current-data.py --download --league Covens
 ```
 
-Le bloc supérieur affiche l’image et la cote poe.ninja, sans courbe. Les monnaies
-utilisent cette cote seule ; gemmes, uniques, cartes et Viscera disposent de leurs
-filtres propres. Les données et crédits sont documentés dans `docs/`.
+Use the desired league name. Public input snapshots are cached in
+`dist/research/current/`; refresh provenance is stored in
+[the current data report](docs/current-data.json). Existing upstream
+disambiguation remains authoritative. [Game artwork credits](docs/GAME-ART.md).
 
-Voir [périmètre et état](docs/PORTING.md), [démarrage rapide](docs/QUICKSTART.md)
-et [validation actuelle](docs/CHECKER-VALIDATION.md). Les essais graphiques
-automatisés utilisent un faux jeu dans un River privé. Les observations réelles,
-les tests automatisés et les limites sont distingués dans la validation.
-
-Le parseur anglais et l’éditeur couvrent de nombreux cas upstream, sans revendiquer
-la parité totale. L’ajout libre de toute stat Trade, toutes les options avancées,
-les autres compositeurs, X11 natif, plusieurs écrans et Windows restent à traiter
-ou valider. Les anciens widgets et leurs rapports appartiennent à l’historique.
+The CLI `inspect FILE` prints parsed filters without querying Trade. `lookup FILE
+[LEAGUE]` queries prices; `analyze FILE` retains the map-profile diagnostics.

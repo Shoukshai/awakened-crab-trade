@@ -204,7 +204,7 @@ fn hash(text: &str) -> u32 {
 fn database() -> &'static Database {
     static DATA: OnceLock<Database> = OnceLock::new();
     DATA.get_or_init(|| {
-        let records: Vec<Record> = include_str!("../../../renderer/public/data/en/stats.ndjson")
+        let records: Vec<Record> = include_str!("../data/base-stats.ndjson")
             .lines()
             .map(|s| serde_json::from_str(s).expect("upstream stat record"))
             .collect();

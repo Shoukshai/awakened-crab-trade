@@ -284,17 +284,6 @@ fn keycode(connection: &impl Connection, symbol: u32) -> Result<u8, String> {
         .map(|n| first + n as u8)
         .ok_or_else(|| format!("XWayland key symbol {symbol} missing"))
 }
-#[allow(dead_code)] // Standalone entry point retained for the isolated regression probe.
-pub fn run(
-    active: Arc<AtomicBool>,
-    send: impl Fn(Action) + Clone + Send + 'static,
-    ready: impl FnOnce(),
-) -> Result<(), String> {
-    let backend = Backend::new(&Hotkeys::default())?;
-    ready();
-    backend.listen(active, send)
-}
-
 fn focused_game(connection: &impl Connection) -> bool {
     focused_game_window(connection).is_some()
 }

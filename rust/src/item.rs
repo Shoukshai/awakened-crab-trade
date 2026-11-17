@@ -1,11 +1,7 @@
-//! First parser port: English item text and the upstream item catalogue.
+//! English item clipboard parser with pinned and current Trade catalogues.
 //! Unsupported modifiers remain in the raw text and never become guessed filters.
 #[path = "item/mercenary.rs"]
 pub mod mercenary;
-// Historical catalogue helpers are used by standalone migration probes.
-#[allow(dead_code)]
-#[path = "item/search.rs"]
-pub mod search;
 #[path = "item/special.rs"]
 mod special;
 #[path = "item/unidentified.rs"]
@@ -189,9 +185,6 @@ struct CatalogueEntry {
     #[serde(default)]
     exchangeable: bool,
     gem: Option<GemMetadata>,
-    #[serde(default, rename = "disc")]
-    #[allow(dead_code)] // Used by the standalone catalogue probe.
-    discriminator: Option<serde::de::IgnoredAny>,
     #[serde(rename = "mercenaryBuild")]
     mercenary_build: Option<mercenary::BuildRecord>,
     unique: Option<Unique>,
@@ -217,7 +210,7 @@ struct Unique {
 fn catalogue() -> &'static Vec<CatalogueEntry> {
     static ITEMS: OnceLock<Vec<CatalogueEntry>> = OnceLock::new();
     ITEMS.get_or_init(|| {
-        include_str!("../../renderer/public/data/en/items.ndjson")
+        include_str!("data/base-items.ndjson")
             .lines()
             .chain(include_str!("data/current-items.ndjson").lines())
             .map(|s| serde_json::from_str(s).expect("upstream catalogue entry"))
@@ -766,7 +759,7 @@ mod tests {
             .collect();
         assert_eq!(entries.len(), 164);
         let poedb: serde_json::Value =
-            serde_json::from_str(include_str!("../docs/poedb-viscera-0.29.json")).unwrap();
+            serde_json::from_str(include_str!("fixtures/viscera-poedb.json")).unwrap();
         for row in poedb["rows"].as_array().unwrap() {
             let entry = entries
                 .iter()

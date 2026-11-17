@@ -1,4 +1,4 @@
-# Price checker Windows 0.31.1
+# Price checker Windows 0.31.2
 
 Version portable x64 pour Windows 11, préparée pour PoE 1 Steam et standalone.
 

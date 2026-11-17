@@ -35,10 +35,13 @@ Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),
 [Windows portable](rust/docs/windows-portable.md).
 
-[Planned improvements](TODO.md).
-
 ## Credits
 
 Based on [Awakened PoE Trade](https://github.com/SnosMe/awakened-poe-trade).
 Original [MIT license](LICENSE) retained. Market data comes from GGG Trade and
 poe.ninja; item references include PoEDB. Project icon supplied by Shoukshai.
+
+## TODO
+
+- [ ] OCR support for cloud gaming.
+- [ ] Improve the UI to replace the "AI slop" look, based on feedback from friends.

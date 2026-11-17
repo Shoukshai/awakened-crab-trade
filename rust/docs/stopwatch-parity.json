@@ -1,7 +1,0 @@
-{
-  "cases": 129,
-  "steps": 12296,
-  "mismatch_count": 0,
-  "scope": "Unchanged upstream start/stop/reset/updateTime functions, ref declarations and Luxon computed formatting. Deterministic monotonic time, three independent instances. Native hidden-time lazy evaluation tested separately. Visibility flags compared; no desktop equivalence implied.",
-  "source_sha256": "09bc6bba3feb148f5d0be48a4547d23e47775799c4df099ff4ebbbb36b73e34a"
-}

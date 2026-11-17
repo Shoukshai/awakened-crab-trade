@@ -11,6 +11,16 @@ env.update(s['env'])
 assert env['DISPLAY'] != os.environ.get('DISPLAY') and pathlib.Path(env['WINEPREFIX']).parent == root
 lock = (root / 'test.lock').open('w')
 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+# Build helpers from this checkout rather than relying on previous local runs.
+llvm = r / 'dist/windows-tools/llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64'
+subprocess.run(['sh', str(r / 'scripts/cargo-windows.sh'), 'build', '--locked',
+                '--features', 'windows-test-fixture', '--bin', 'apt-win32-fixture', '-j', '3'], check=True)
+unit_env = os.environ.copy()
+unit_env.update(APT_WINDOWS_WINDRES=str(llvm / 'bin/x86_64-w64-mingw32-windres'),
+                CARGO_TARGET_X86_64_PC_WINDOWS_GNULLVM_LINKER=str(llvm / 'bin/x86_64-w64-mingw32-clang'),
+                CARGO_TARGET_DIR=str(r / 'portable/target'), RUSTFLAGS='-C target-feature=+crt-static')
+subprocess.run(['cargo', 'test', '--locked', '--no-run', '--manifest-path', str(r / 'portable/Cargo.toml'),
+                '--target', 'x86_64-pc-windows-gnullvm'], env=unit_env, check=True)
 build = json.loads((r / 'dist/windows-portable-build.json').read_text())
 folder = root / 'Un seul fichier déplacé'
 folder.mkdir(exist_ok=True)
@@ -78,7 +88,7 @@ assert '4 passed; 0 failed' in (root / 'portable-unit.log').read_text()
 report['native_Windows_launcher_unit_tests'] = 4
 
 shutil.copy2(r / 'target/x86_64-pc-windows-gnullvm/debug/apt-win32-fixture.exe', root / 'apt-win32-fixture.exe')
-shutil.copy2(r / 'dist/windows-tools/llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64/x86_64-w64-mingw32/bin/libunwind.dll', root / 'libunwind.dll')
+shutil.copy2(llvm / 'x86_64-w64-mingw32/bin/libunwind.dll', root / 'libunwind.dll')
 fcntl.flock(lock, fcntl.LOCK_UN)
 with (r / 'dist/windows-portable-ui.log').open('w') as out:
     subprocess.run(['python3', str(r / 'scripts/test-windows.py'), str(app)], stdout=out, stderr=subprocess.STDOUT, check=True)

@@ -1,8 +1,5 @@
 //! Windows process setup and portable GTK runtime discovery.
-use std::{
-    hash::{Hash, Hasher},
-    path::PathBuf,
-};
+use std::hash::{Hash, Hasher};
 use windows_sys::Win32::{Foundation::*, System::Console::*, UI::HiDpi::*};
 pub fn initialize() -> Result<(), String> {
     glib::setenv("GDK_BACKEND", "win32", true).map_err(|e| e.to_string())?;
@@ -86,8 +83,4 @@ pub fn report_error(message: &str) {
             );
         }
     }
-}
-#[allow(dead_code)]
-pub fn root() -> Option<PathBuf> {
-    std::env::current_exe().ok()?.parent().map(PathBuf::from)
 }

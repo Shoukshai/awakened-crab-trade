@@ -1,5 +1,0 @@
-Item Class: Map Fragments
-Rarity: Normal
-Sacrifice at Dawn
---------
-Stack Size: 3/10

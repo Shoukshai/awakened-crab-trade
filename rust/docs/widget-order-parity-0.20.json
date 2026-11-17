@@ -1,9 +1,0 @@
-{
-  "sequences": 256,
-  "steps": 32768,
-  "mismatch_count": 0,
-  "scope": "Unchanged upstream bringToTop and topmostWidget callback; relative ordering of nonexclusive, initialized widgets. Native drawing, clicks, persistence, and exclusive views tested separately.",
-  "source_sha256": {
-    "renderer/src/web/overlay/OverlayWindow.vue": "db7c67f3fc73427fdfac9e498fce582a8cf87fe3f9331333d8c0cdaf98033746"
-  }
-}
