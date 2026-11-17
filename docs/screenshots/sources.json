@@ -1,0 +1,120 @@
+{
+  "app_version": "0.31.1",
+  "scope": "Actual app captures on isolated test desktops using demo clipboard items and synthetic market responses. No real game input or live market prices.",
+  "previews": "Cropped panels with no content changes. Full panel captures are linked from README.",
+  "linux_binary_sha256": "1bafd3a57136c0857c1be8e386f462b1883927f716f3d2c31203456225be72ef",
+  "images": [
+    {
+      "name": "gem",
+      "platform": "Linux",
+      "full_panel": "full/gem.png",
+      "preview": "gem.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        600
+      ],
+      "full_sha256": "77634ec7e854a6bb97959080b1fe5d0a7844ac3797f294e2d97860895257a206",
+      "preview_sha256": "655d1d8792bf76c9334766ae600909466ef57cd1a9350c75f36349c8d26295e7"
+    },
+    {
+      "name": "rare",
+      "platform": "Linux",
+      "full_panel": "full/rare.png",
+      "preview": "rare.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        984
+      ],
+      "full_sha256": "a6ad242169574330f2788bfbcc752876e2063f4b3124fee877274bb865fafa26",
+      "preview_sha256": "2805e92dc1aaaa349bd674c7b1606462e141628feaa52ef6583e268db073357c"
+    },
+    {
+      "name": "unique",
+      "platform": "Linux",
+      "full_panel": "full/unique.png",
+      "preview": "unique.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        864
+      ],
+      "full_sha256": "53c74c030c9bc4029cac24232b918d7e536c3b73892cceb1309d244fe33f0a0e",
+      "preview_sha256": "08516c6f9e87417f2330c6a932aec1f3ddf277954821552cb689060ef63735af"
+    },
+    {
+      "name": "currency",
+      "platform": "Linux",
+      "full_panel": "full/currency.png",
+      "preview": "currency.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        224
+      ],
+      "full_sha256": "5354e77e1a93c58d4b5c47c21d3ae5756e8027d220b4e14238f406c15a289af1",
+      "preview_sha256": "d28c3833176b89f6428a9ede3f7ddc19cf43482a552fec188ab9766312814166"
+    },
+    {
+      "name": "map",
+      "platform": "Linux",
+      "full_panel": "full/map.png",
+      "preview": "map.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        680
+      ],
+      "full_sha256": "55d22e2a65cefac19245f553c8a82d53eafbebfff4d5737af46ec411bac205d4",
+      "preview_sha256": "9ee1c4347bdf538501b7145250deaf2e8179b0c32488d4213dc6460c86dae879"
+    },
+    {
+      "name": "viscera",
+      "platform": "Linux",
+      "full_panel": "full/viscera.png",
+      "preview": "viscera.png",
+      "full_size": [
+        480,
+        1600
+      ],
+      "preview_size": [
+        480,
+        648
+      ],
+      "full_sha256": "e524e42b3eaf07288a4b9c0b790b90d7022aed17b7aaba176547d4cbc9514216",
+      "preview_sha256": "e146dbae0335a58fe0785aa02269ff3bdb9b901a568f26f089daa4ed9ff6a820"
+    },
+    {
+      "name": "offer-hover",
+      "platform": "Windows binary under Wine",
+      "full_panel": "full/offer-hover.png",
+      "preview": "offer-hover.png",
+      "full_size": [
+        480,
+        1000
+      ],
+      "preview_size": [
+        480,
+        728
+      ],
+      "full_sha256": "92bd0a4334370077f5f82abfea554dfb13c7e4428ac82bd3e610d0927eb3d9a8",
+      "preview_sha256": "cd206e34e765f76e2ec9782f6b69f619bf9d078834c09b41b377aaf1224ca97c"
+    }
+  ]
+}
