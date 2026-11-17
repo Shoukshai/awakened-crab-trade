@@ -20,7 +20,7 @@ impl StatRow {
         container.set_above_child(false);
         container.set_can_focus(true);
         container.style_context().add_class("mod-row");
-        let body = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        let body = gtk::Box::new(gtk::Orientation::Vertical, 4);
         body.set_border_width(8);
         container.add(&body);
         let selected = gtk::ToggleButton::new();
@@ -31,7 +31,7 @@ impl StatRow {
             modifier.text.clone()
         };
         let label = gtk::Label::new(Some(&text));
-        label.set_line_wrap(true);
+        label.set_ellipsize(gtk::pango::EllipsizeMode::End);
         label.set_max_width_chars(32);
         label.set_xalign(0.);
         body.pack_start(&label, false, false, 0);
@@ -79,8 +79,11 @@ impl StatRow {
         let min = gtk::SpinButton::with_range(-1e12, 1e12, 1.);
         let max = gtk::SpinButton::with_range(-1e12, 1e12, 1.);
         for spin in [&min, &max] {
-            spin.set_digits(if modifier.decimal { 2 } else { 1 });
-            spin.set_width_chars(6);
+            let attrs = gtk::pango::AttrList::new();
+            attrs.insert(gtk::pango::AttrFontFeatures::new("tnum=1"));
+            spin.set_attributes(&attrs);
+            spin.set_digits(if modifier.decimal { 2 } else { 0 });
+            spin.set_width_chars(4);
             spin.set_value(candidate.display_value.unwrap_or(0.));
         }
         min_enabled.set_active(candidate.initial_min.is_some());
@@ -139,7 +142,7 @@ impl StatRow {
         }
         if let Some(oils) = &candidate.oils {
             let label = gtk::Label::new(Some(&format!("Anointment : {}", oils.join(" + "))));
-            label.set_line_wrap(true);
+            label.set_ellipsize(gtk::pango::EllipsizeMode::End);
             label.set_xalign(0.);
             body.pack_start(&label, false, false, 0);
         }

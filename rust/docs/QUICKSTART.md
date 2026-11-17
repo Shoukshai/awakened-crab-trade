@@ -4,10 +4,11 @@
    ou `GDK_BACKEND=wayland ./target/release/awakened-poe-trade-rs daemon` après compilation.
 2. Dans PoE, survoler un objet et faire **Ctrl+Alt+D**.
 3. La ligue actuelle est sélectionnée automatiquement. Cliquer les rectangles
-   des stats à comparer et ajuster Min/Max. Les boutons Même base, ilvl, rareté
-   et corruption activent ou désactivent ces critères directement.
+   des stats à comparer et ajuster Min/Max. Les puces base et ilvl sont
+   désactivées par défaut ; cliquer pour les activer. Rareté et corruption
+   se choisissent dans leurs listes.
 4. Cliquer **Rechercher** et lire les offres sous les filtres. Survoler une offre
-   n’importe où dans sa case pour voir rapidement ses propriétés et ses mods.
+   n’importe où dans sa case pour voir rapidement son identité, son ilvl, ses mods et son prix.
 5. Un léger voile sombre accompagne le panneau. Cliquer à l’extérieur ou
    **Échap** le ferme. **Ctrl+D** permet une consultation passive ;
    **Maj+Espace** autorise ensuite les clics.

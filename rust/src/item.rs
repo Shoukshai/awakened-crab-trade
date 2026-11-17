@@ -623,32 +623,6 @@ impl Item {
             .collect(),
         })
     }
-    pub fn description(&self) -> String {
-        if self.raw == "VIRTUAL_ITEM" {
-            return format!("{} · objet virtuel du catalogue", self.name);
-        }
-        let markers = [
-            (self.corrupted, "Corrupted"),
-            (self.unidentified, "Unidentified"),
-            (self.market.foulborn, "Foulborn"),
-            (self.market.vestigial, "Vestigial"),
-            (self.market.foil, "Foil Unique"),
-        ]
-        .into_iter()
-        .filter(|(active, _)| *active)
-        .map(|(_, text)| format!(" · {text}"))
-        .collect::<String>();
-        format!(
-            "{}\n{} · {:?} · ilvl {}{}",
-            self.name,
-            self.base,
-            self.rarity,
-            self.item_level
-                .map(|n| n.to_string())
-                .unwrap_or_else(|| "—".into()),
-            markers
-        )
-    }
 }
 
 #[cfg(test)]

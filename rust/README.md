@@ -33,13 +33,14 @@ les stats pertinentes en cliquant sur leurs rectangles, activer Min et/ou Max,
 saisir les bornes puis cliquer
 **Rechercher**. Modifier un filtre invalide les anciennes offres sans lancer de
 recherche. Les offres occupent la zone principale sous les filtres. Survoler n’importe où dans la case d’une offre
-affiche rapidement les propriétés et les mods de cet objet vendu ; les bornes de recherche
+affiche rapidement son nom, sa base, son ilvl, ses mods et son prix ; les bornes de recherche
 ne sont pas utilisées comme statistiques de l’offre. **Ouvrir Trade** ouvre la
 requête dans le navigateur sur une action explicite.
 
-Les boutons **Même base / nom exact**, **ilvl**, **Rareté**, **Corruption**,
-qualité, niveau de gemme et liens (selon l’objet) activent ou désactivent ces critères
-directement. **Filtres d’objet** conserve les options complémentaires, dont les
+Les puces de **base** et d’**ilvl** sont désactivées par défaut. La base porte
+son nom ; ilvl active un champ de minimum prérempli avec le niveau de l’objet.
+Rareté et corruption se choisissent dans leurs listes. Qualité, niveau de
+gemme et liens restent disponibles selon l’objet. **Filtres d’objet** conserve les options complémentaires, dont les
 influences et le regroupement Trade. Les presets proposent les filtres
 adaptés à son type. **Autres filtres et sources exactes** donne accès aux stats
 masquées par les calculs pseudo. Une comparaison par base seule ne suffit pas à
@@ -67,7 +68,7 @@ l’installer. Les dépendances Cargo doivent être disponibles localement
 
 ```sh
 cargo test --locked -j 3
-python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs docs/price-checker-lifecycle-0.24.json
+python3 scripts/test-price-checker.py target/release/awakened-poe-trade-rs docs/price-checker-lifecycle-0.25.json
 ```
 
 Voir [périmètre et état](docs/PORTING.md), [démarrage rapide](docs/QUICKSTART.md)

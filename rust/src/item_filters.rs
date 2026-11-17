@@ -682,6 +682,37 @@ fn area_search(item: &Item) -> Result<Search, String> {
 }
 
 impl Plan {
+    /// Defaults for the native editor: optional base and exact copied ilvl.
+    /// A unique's intrinsic identity remains selected when its base is optional.
+    pub fn editor_defaults(&mut self, item: &Item) {
+        if self.search_exact.name.is_some() || self.search_exact.name_trade.is_some() {
+            let mut relaxed = self.search_exact.clone();
+            relaxed.base_type = None;
+            relaxed.base_type_trade = None;
+            self.search_relaxed = Some(relaxed);
+        } else if self.search_relaxed.is_none()
+            && item
+                .category
+                .as_ref()
+                .is_some_and(|c| CATEGORIES.iter().any(|(name, _)| name == c))
+        {
+            self.search_relaxed = Some(Search {
+                category: item.category.clone(),
+                ..Default::default()
+            });
+        }
+        if let Some(search) = &mut self.search_relaxed {
+            search.disabled = Some(false);
+        }
+        if let Some(level) = item.item_level {
+            self.item_level = Some(Numeric {
+                value: level,
+                max: None,
+                disabled: true,
+            });
+        }
+    }
+
     pub fn active_search(&self) -> &Search {
         let search = self
             .search_relaxed
@@ -884,6 +915,21 @@ impl Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn optional_base_does_not_drop_unique_identity_from_editor_query() {
+        let item=Item::parse("Item Class: Helmets\nRarity: Unique\nGoldrim\nLeather Cap\n--------\nItem Level: 76\n--------").unwrap();
+        let mut plan = create(&item, &Options::default()).unwrap();
+        plan.editor_defaults(&item);
+        let mut query = json!({"filters":{},"stats":[{"type":"and","filters":[]}]});
+        plan.append_query(&mut query).unwrap();
+        assert_eq!(query["name"], "Goldrim");
+        assert!(query.get("type").is_none());
+        plan.search_relaxed.as_mut().unwrap().disabled = Some(true);
+        let mut query = json!({"filters":{},"stats":[{"type":"and","filters":[]}]});
+        plan.append_query(&mut query).unwrap();
+        assert_eq!(query["name"], "Goldrim");
+        assert_eq!(query["type"], "Leather Cap");
+    }
     #[test]
     fn gem_thresholds_do_not_overrestrict_a_leveling_gem() {
         let text="Item Class: Skill Gems\nRarity: Gem\nFireball\n--------\nFire, Spell\nLevel: 19\nQuality: +15%\n--------";

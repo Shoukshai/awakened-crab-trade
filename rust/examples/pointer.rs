@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
     let scroll = match args.get(4).map(String::as_str) {
-        None | Some("--click" | "--hold" | "--drag-to") => None,
+        None | Some("--click" | "--hold" | "--drag-to" | "--persistent") => None,
         Some("--scroll") => {
             let value: f64 = args.get(5).ok_or("--scroll requires pixels")?.parse()?;
             if !value.is_finite() || value.abs() > 1000. {
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let private_action = args
         .get(4)
-        .is_some_and(|a| matches!(a.as_str(), "--hold" | "--drag-to"));
+        .is_some_and(|a| matches!(a.as_str(), "--hold" | "--drag-to" | "--persistent"));
     if private_action
         && !std::env::var("XDG_RUNTIME_DIR")
             .unwrap_or_default()
@@ -77,6 +77,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .as_ref()
         .ok_or("virtual pointer unavailable")?
         .create_virtual_pointer(None, &q.handle(), ());
+    if args.get(4).is_some_and(|a| a == "--persistent") {
+        use std::io::{BufRead, Write};
+        for line in std::io::stdin().lock().lines() {
+            let line = line?;
+            let parts: Vec<_> = line.split_whitespace().collect();
+            match parts.as_slice() {
+                ["move", x, y] => p.motion_absolute(
+                    timestamp(),
+                    x.parse()?,
+                    y.parse()?,
+                    args[2].parse()?,
+                    args[3].parse()?,
+                ),
+                ["down"] => p.button(timestamp(), 0x110, wl_pointer::ButtonState::Pressed),
+                ["up"] => p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released),
+                _ => return Err("expected move X Y, down or up".into()),
+            }
+            p.frame();
+            q.roundtrip(&mut s)?;
+            println!("ok");
+            std::io::stdout().flush()?;
+        }
+        p.destroy();
+        c.flush()?;
+        return Ok(());
+    }
     p.motion_absolute(
         timestamp(),
         args[0].parse()?,

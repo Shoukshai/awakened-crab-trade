@@ -1,4 +1,7 @@
-use crate::{trade::Prices, trade_item::OfferedItem};
+use crate::{
+    trade::{Listing, Prices},
+    trade_item::OfferedItem,
+};
 use gtk::prelude::*;
 use std::{
     cell::{Cell, RefCell},
@@ -14,57 +17,107 @@ pub struct Panel {
     rows: RefCell<Vec<OfferRow>>,
     tooltip_queries: Rc<Cell<u64>>,
 }
-fn tooltip_text(item: &OfferedItem) -> String {
-    let mut lines = Vec::new();
-    if !item.name.is_empty() {
-        lines.push(item.name.clone());
+fn label(text: &str, class: &str) -> gtk::Label {
+    let l = gtk::Label::new(Some(text));
+    l.set_xalign(0.);
+    l.style_context().add_class(class);
+    let attrs = gtk::pango::AttrList::new();
+    attrs.insert(gtk::pango::AttrFontFeatures::new("tnum=1"));
+    l.set_attributes(Some(&attrs));
+    l
+}
+fn price_text(listing: &Listing) -> String {
+    let currency = crate::filters::PAYMENT_CURRENCIES
+        .iter()
+        .find(|(id, _)| *id == listing.currency)
+        .map(|(_, s)| *s)
+        .unwrap_or(&listing.currency);
+    format!(
+        "{} {}",
+        super::economy_panel::format_amount(listing.amount),
+        currency
+    )
+}
+fn rarity_class(item: &OfferedItem) -> &'static str {
+    match item.rarity {
+        Some(1) => "rarity-magic",
+        Some(2) => "rarity-rare",
+        Some(3 | 9) => "rarity-unique",
+        _ => "rarity-normal",
     }
-    if !item.base.is_empty() {
-        lines.push(item.base.clone());
+}
+fn details(item: &OfferedItem, price: &str) -> (gtk::Box, String) {
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    body.set_border_width(12);
+    let mut plain = Vec::new();
+    for text in [&item.name, &item.base]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .enumerate()
+        .filter(|(i, s)| *i == 0 || **s != item.name)
+        .map(|(_, s)| s)
+    {
+        let l = label(text, rarity_class(item));
+        l.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        l.set_max_width_chars(40);
+        body.pack_start(&l, false, false, 0);
+        plain.push(text.clone());
     }
+    let meta = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     if let Some(level) = item.item_level {
-        lines.push(format!("Niveau d’objet : {level}"));
-    }
-    if !item.properties.is_empty() {
-        lines.push(String::new());
-        lines.extend(item.properties.clone());
-    }
-    if !item.requirements.is_empty() {
-        lines.push(String::new());
-        lines.push("Prérequis".into());
-        lines.extend(item.requirements.clone());
-    }
-    for group in &item.mods {
-        let label = match group.kind.as_str() {
-            "implicitMods" => "Implicites",
-            "explicitMods" => "Mods",
-            "craftedMods" => "Craftés",
-            "fracturedMods" => "Fracturés",
-            "enchantMods" => "Enchantements",
-            "runeMods" => "Runes",
-            "scourgeMods" => "Scourge",
-            "mutatedMods" => "Mutés",
-            "veiledMods" => "Voilés",
-            _ => "Autres mods",
-        };
-        lines.push(String::new());
-        lines.push(label.into());
-        lines.extend(group.lines.clone());
-    }
-    if item.identified == Some(false) {
-        lines.push("Objet non identifié".into());
+        let text = format!("ilvl {level}");
+        meta.pack_start(&label(&text, "muted"), false, false, 0);
+        plain.push(text);
     }
     if item.corrupted {
-        lines.push("Corrompu".into());
+        meta.pack_start(&label("Corrompu", "corrupted"), false, false, 0);
+        plain.push("Corrompu".into());
     }
-    lines.join("\n")
+    body.pack_start(&meta, false, false, 0);
+    let implicit: Vec<_> = item
+        .mods
+        .iter()
+        .filter(|m| m.kind == "implicitMods")
+        .flat_map(|m| m.lines.iter())
+        .collect();
+    let explicit: Vec<_> = item
+        .mods
+        .iter()
+        .filter(|m| m.kind != "implicitMods")
+        .flat_map(|m| m.lines.iter())
+        .collect();
+    for (index, group) in [&implicit, &explicit].into_iter().enumerate() {
+        if index == 1 && !implicit.is_empty() && !explicit.is_empty() {
+            body.pack_start(
+                &gtk::Separator::new(gtk::Orientation::Horizontal),
+                false,
+                false,
+                0,
+            );
+            plain.push("────────".into());
+        }
+        for text in group {
+            let l = label(text, "mod");
+            l.set_line_wrap(true);
+            l.set_line_wrap_mode(gtk::pango::WrapMode::WordChar);
+            l.set_max_width_chars(40);
+            body.pack_start(&l, false, false, 0);
+            plain.push((*text).clone());
+        }
+    }
+    let value = label(price, "price");
+    value.set_xalign(1.);
+    body.pack_start(&value, false, false, 0);
+    plain.push(price.into());
+    (body, plain.join("\n"))
+}
+fn rect(w: &impl IsA<gtk::Widget>, window: &gtk::Window) -> Option<serde_json::Value> {
+    w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
 }
 impl Panel {
     pub fn new() -> Self {
         let container = gtk::Grid::new();
-        container.set_column_spacing(12);
-        container.set_column_homogeneous(true);
-        container.set_row_spacing(6);
+        container.set_row_spacing(4);
         container.set_no_show_all(true);
         Self {
             container,
@@ -87,11 +140,6 @@ impl Panel {
     }
     pub fn show(&self, prices: &Prices) {
         self.clear();
-        for (column, text) in ["Prix / objet", "Vendeur"].into_iter().enumerate() {
-            let l = gtk::Label::new(Some(text));
-            l.set_xalign(if column == 0 { 0. } else { 1. });
-            self.container.attach(&l, column as i32, 0, 1, 1);
-        }
         for (index, listing) in prices.listings.iter().enumerate() {
             let widget = gtk::EventBox::new();
             widget.set_hexpand(true);
@@ -100,79 +148,103 @@ impl Panel {
                 gtk::gdk::EventMask::ENTER_NOTIFY_MASK | gtk::gdk::EventMask::LEAVE_NOTIFY_MASK,
             );
             widget.style_context().add_class("trade-row");
-            let body = gtk::Box::new(gtk::Orientation::Vertical, 4);
+            let body = gtk::Box::new(gtk::Orientation::Horizontal, 12);
             body.set_border_width(8);
-            let line = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-            let currency = crate::filters::PAYMENT_CURRENCIES
-                .iter()
-                .find(|(id, _)| *id == listing.currency)
-                .map(|(_, label)| *label)
-                .unwrap_or(&listing.currency);
-            let price = gtk::Label::new(Some(&format!(
-                "{} {}",
-                super::economy_panel::format_amount(listing.amount),
-                currency
-            )));
-            price.set_xalign(0.);
-            let seller = gtk::Label::new(Some(&listing.seller));
-            seller.set_xalign(1.);
+            let identity = gtk::Box::new(gtk::Orientation::Vertical, 4);
+            identity.set_hexpand(true);
+            let name = listing
+                .item
+                .as_ref()
+                .map(|i| {
+                    if i.name.is_empty() {
+                        i.base.clone()
+                    } else if i.base == i.name {
+                        i.name.clone()
+                    } else {
+                        format!("{} · {}", i.name, i.base)
+                    }
+                })
+                .unwrap_or_else(|| {
+                    listing
+                        .bulk
+                        .as_ref()
+                        .map(|b| format!("Stock {}", b.stock))
+                        .unwrap_or_default()
+                });
+            let name = label(&name, "offer-name");
+            name.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            name.set_max_width_chars(28);
+            let seller = label(&listing.seller, "seller");
             seller.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            seller.set_max_width_chars(20);
-            line.pack_start(&price, true, true, 0);
-            line.pack_start(&seller, true, true, 0);
-            body.pack_start(&line, false, false, 0);
-            if let Some(item) = &listing.item {
-                let text = if item.name.is_empty() {
-                    item.base.clone()
-                } else {
-                    format!("{} · {}", item.name, item.base)
-                };
-                let name = gtk::Label::new(Some(&text));
-                name.set_xalign(0.);
-                name.set_ellipsize(gtk::pango::EllipsizeMode::End);
-                name.set_max_width_chars(44);
-                body.pack_start(&name, false, false, 0);
-            } else if let Some(b) = &listing.bulk {
-                let stock = gtk::Label::new(Some(&format!(
-                    "Stock {} · lot {} pour {}",
-                    b.stock, b.item_amount, b.exchange_amount
-                )));
-                stock.set_xalign(0.);
-                body.pack_start(&stock, false, false, 0);
-            }
-            let text = listing.item.as_ref().map(tooltip_text);
-            let popover = text.as_ref().map(|text| {
+            seller.set_max_width_chars(28);
+            identity.pack_start(&name, false, false, 0);
+            identity.pack_start(&seller, false, false, 0);
+            body.pack_start(&identity, true, true, 0);
+            let price = price_text(listing);
+            let value = label(&price, "price");
+            value.set_xalign(1.);
+            value.set_width_chars(10);
+            body.pack_start(&value, false, false, 0);
+            let mut text = None;
+            let popover = listing.item.as_ref().map(|item| {
+                let (content, plain) = details(item, &price);
+                text = Some(plain);
+                let scroll =
+                    gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+                scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+                scroll.set_propagate_natural_height(true);
+                scroll.set_propagate_natural_width(true);
+                scroll.set_max_content_width(390);
+                scroll.add(&content);
+                content.show_all();
                 let popover = gtk::Popover::new(Some(&widget));
                 popover.set_modal(false);
-                popover.set_position(gtk::PositionType::Left);
+                popover.set_constrain_to(gtk::PopoverConstraint::Window);
                 popover.set_widget_name("apt-offer-details");
-                let label = gtk::Label::new(Some(text));
-                label.set_xalign(0.);
-                label.set_line_wrap(true);
-                label.set_max_width_chars(44);
-                label.set_margin_start(12);
-                label.set_margin_end(12);
-                label.set_margin_top(10);
-                label.set_margin_bottom(10);
-                popover.add(&label);
+                popover.add(&scroll);
                 let epoch = Rc::new(Cell::new(0u64));
                 let entered = epoch.clone();
                 let weak = popover.downgrade();
+                let row = widget.downgrade();
                 let queries = self.tooltip_queries.clone();
                 widget.connect_enter_notify_event(move |_, _| {
                     entered.set(entered.get() + 1);
                     let token = entered.get();
                     let epoch = entered.clone();
                     let weak = weak.clone();
+                    let row = row.clone();
                     let queries = queries.clone();
+                    let scroll = scroll.clone();
                     glib::timeout_add_local_once(
-                        std::time::Duration::from_millis(120),
+                        std::time::Duration::from_millis(100),
                         move || {
-                            if epoch.get() == token {
-                                if let Some(p) = weak.upgrade() {
-                                    p.show_all();
-                                    queries.set(queries.get() + 1);
+                            if epoch.get() != token {
+                                return;
+                            }
+                            if let (Some(p), Some(row)) = (weak.upgrade(), row.upgrade()) {
+                                if !row.is_mapped() {
+                                    return;
                                 }
+                                if let Some(top) = row.toplevel() {
+                                    if let Some((_, y)) = row.translate_coordinates(&top, 0, 0) {
+                                        let above = y - 12;
+                                        let below = top.allocated_height()
+                                            - y
+                                            - row.allocated_height()
+                                            - 12;
+                                        let needed = content_height(&scroll);
+                                        p.set_position(if above >= needed || above >= below {
+                                            gtk::PositionType::Top
+                                        } else {
+                                            gtk::PositionType::Bottom
+                                        });
+                                        scroll.set_max_content_height(
+                                            (above.max(below) - 24).max(80),
+                                        );
+                                    }
+                                }
+                                p.show_all();
+                                queries.set(queries.get() + 1);
                             }
                         },
                     );
@@ -197,7 +269,7 @@ impl Panel {
                 popover
             });
             widget.add(&body);
-            self.container.attach(&widget, 0, index as i32 + 1, 2, 1);
+            self.container.attach(&widget, 0, index as i32, 1, 1);
             self.rows.borrow_mut().push(OfferRow {
                 widget,
                 tooltip: text,
@@ -214,6 +286,12 @@ impl Panel {
         let tooltip_visible = rows
             .iter()
             .any(|r| r.popover.as_ref().is_some_and(|p| p.is_mapped()));
-        serde_json::json!({"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":r.widget.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":r.widget.allocated_width(),"height":r.widget.allocated_height(),"mapped":r.widget.is_mapped()})),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref()}else{None}})).collect::<Vec<_>>()})
+        serde_json::json!({"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":rect(&r.widget,window),"detail_rect":r.popover.as_ref().filter(|p|p.is_mapped()).and_then(|p|rect(p,window)),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref()}else{None}})).collect::<Vec<_>>()})
     }
+}
+fn content_height(scroll: &gtk::ScrolledWindow) -> i32 {
+    scroll
+        .child()
+        .map(|w| w.preferred_height().1)
+        .unwrap_or(300)
 }

@@ -8,7 +8,7 @@ use crate::{
     item::Item,
     overlay::{DesktopState, HideReason, Overlay, State},
     settings::Settings,
-    trade::{Prices, SearchKind, Trade},
+    trade::{Prices, Trade},
 };
 mod backdrop;
 mod economy_panel;
@@ -39,6 +39,7 @@ enum View {
     Settings,
 }
 enum Event {
+    OutsideClick,
     Leagues(Result<crate::leagues::Selection, String>),
     GameGeometry(u32, crate::price_layout::Rect),
     Hotkey(crate::hotkeys::Action),
@@ -83,7 +84,6 @@ struct Ui {
     text: gtk::Label,
     search_button: gtk::Button,
     listings: listings_panel::Panel,
-    hint: gtk::Label,
     league: gtk::Entry,
     league_label: gtk::Label,
     league_worker: SyncSender<()>,
@@ -132,7 +132,13 @@ struct Ui {
 }
 fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
     window.set_size_request((480. * scale) as i32, 0);
-    css.load_from_data(format!("#apt-native {{ background-color: rgba(14,20,29,0.97); color: #eeeeef; border: 2px solid #b99a5b; border-radius: 0px; }} #apt-native label {{ font: {}px Sans; color: #eeeeef; }} #apt-native button {{ padding: 7px; }} #apt-native button, #apt-native entry, #apt-native spinbutton {{ color: #eeeeef; background-image: none; background-color: #263343; }} #apt-native button.map-danger {{ background-image: none; background-color: #7c2935; }} #apt-native button.map-warning {{ background-image: none; background-color: #865320; }} #apt-native button.map-good {{ background-image: none; background-color: #28603e; }} #apt-native .profile-active {{ border: 2px solid #d9b86b; }} #apt-native .mod-row {{ border: 1px solid #59606b; border-radius: 4px; background-color: #1b2430; }} #apt-native .mod-row.selected {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row {{ border: 1px solid #4a515e; border-radius: 3px; background-color: #1b2430; }} #apt-native togglebutton:checked, #apt-native button:checked {{ border-color: #c7a65f; background-color: #373321; }} #apt-native .trade-row:hover {{ border-color: #b99a5b; }} #apt-offer-details, tooltip {{ background-color: #151b24; border: 1px solid #b99a5b; padding: 10px; }} #apt-offer-details label, tooltip label {{ color: #eeeeef; font: 14px Sans; }} #apt-native treeview {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook, #apt-native notebook > stack, #apt-native notebook > header, #apt-native viewport {{ background-color: #182230; color: #eeeeef; }} #apt-native notebook > header > tabs > tab {{ background-color: #263343; }}",(16.0*scale) as u32).as_bytes()).map_err(|e| e.to_string())?;
+    let sheet = format!(
+        "{}\n#apt-native {{ font-size: {}px; }}",
+        include_str!("ui/style.css"),
+        (14. * scale).round() as u32
+    );
+    css.load_from_data(sheet.as_bytes())
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 fn socket_path() -> Result<std::path::PathBuf, String> {
@@ -159,6 +165,8 @@ fn apply_input(window: &gtk::Window, interactive: bool) {
             gtk::cairo::Region::create()
         };
         w.input_shape_combine_region(&region, 0, 0);
+        // Wayland only applies the new region with a surface commit.
+        window.queue_draw();
     }
 }
 fn status_payload(value: &serde_json::Value) -> String {
@@ -205,6 +213,20 @@ fn owned_popup(window: &gtk::Window) -> Option<gtk::Widget> {
             .toplevel()
             .is_some_and(|top| top != *window.upcast_ref::<gtk::Widget>());
     (popup && belongs_to_window(&grab, window, 0)).then_some(grab)
+}
+fn popup_controls(window: &gtk::Window) -> serde_json::Value {
+    let Some(menu) = owned_popup(window).and_then(|w| w.downcast::<gtk::Menu>().ok()) else {
+        return serde_json::Value::Null;
+    };
+    let parent_origin = window
+        .window()
+        .map(|w| w.root_coords(0, 0))
+        .unwrap_or_default();
+    let origin = menu
+        .window()
+        .map(|w| w.root_coords(0, 0))
+        .unwrap_or_default();
+    serde_json::json!({"mapped":menu.is_mapped(),"origin":{"x":origin.0-parent_origin.0,"y":origin.1-parent_origin.1},"items":menu.children().iter().map(|w|{let a=w.allocation();serde_json::json!({"x":a.x(),"y":a.y(),"width":a.width(),"height":a.height()})}).collect::<Vec<_>>()})
 }
 fn dismiss_owned_popup(window: &gtk::Window) {
     if let Some(grab) = owned_popup(window) {
@@ -349,16 +371,6 @@ impl Ui {
         self.backdrop.show();
         self.window.show_all();
         self.window.queue_draw();
-        let settings = self.settings.borrow();
-        self.hint.set_text(&format!(
-            "Passif · {} pour interagir · {} pour fermer",
-            settings
-                .hotkeys
-                .interact
-                .as_deref()
-                .unwrap_or("commande interact"),
-            settings.hotkeys.hide.as_deref().unwrap_or("commande hide")
-        ));
         eprintln!(
             "overlay state=Preparing generation={} scale={}",
             self.state.borrow().generation,
@@ -400,15 +412,18 @@ impl Ui {
         }
         self.view.set(View::Price);
         if let Some(item) = self.item.borrow().as_ref() {
-            self.title.set_text(&item.description());
+            self.title.set_text(if item.name.is_empty() {
+                &item.base
+            } else {
+                &item.name
+            });
             self.stack
                 .set_visible_child_name(if item.needs_unique_identity() {
                     "identify"
                 } else {
                     "price"
                 });
-            self.text
-                .set_text("Réglages annulés. Cliquez Rechercher pour consulter les prix.");
+            self.text.set_text("");
         } else {
             self.hide(HideReason::Button);
         }
@@ -505,8 +520,7 @@ impl Ui {
         if self.settings.borrow().automatic_search && !manual_rare {
             self.search();
         } else {
-            self.text
-                .set_text("Sélectionnez les stats et leurs bornes, puis cliquez Rechercher.");
+            self.text.set_text("");
             self.economy_panel.not_requested();
             self.economy_panel.container.hide();
         }
@@ -550,8 +564,6 @@ impl Ui {
             "interact" => {
                 if self.state.borrow_mut().interact() {
                     apply_input(&self.window, self.window.is_visible());
-                    self.hint
-                        .set_text("Modifiez les filtres puis Rechercher · Échap pour fermer");
                 }
             }
             "settings" => self.open_settings(),
@@ -591,7 +603,11 @@ impl Ui {
         self.economy_panel.reset();
         self.economy_panel.container.hide();
         if item.needs_unique_identity() {
-            self.title.set_text(&item.description());
+            self.title.set_text(if item.name.is_empty() {
+                &item.base
+            } else {
+                &item.name
+            });
             self.view.set(view);
             let sender = self.events.clone();
             self.unidentified
@@ -607,7 +623,11 @@ impl Ui {
             self.item.replace(Some(item));
             return;
         }
-        self.title.set_text(&item.description());
+        self.title.set_text(if item.name.is_empty() {
+            &item.base
+        } else {
+            &item.name
+        });
         self.currency.set_sensitive(item.trade_tag.is_some());
         if item.trade_tag.is_some() {
             for child in self.bulk_row.children() {
@@ -632,7 +652,10 @@ impl Ui {
             self.preset.append(Some("calculated"), "Filtres calculés");
         } else {
             for mode in &modes {
-                self.preset.append(Some(mode.id()), mode.label());
+                self.preset.append(
+                    Some(mode.id()),
+                    mode.label().split(" · ").next().unwrap_or(mode.label()),
+                );
             }
         }
         self.preset.set_sensitive(modes.len() > 1);
@@ -729,7 +752,7 @@ impl Ui {
             self.mod_box.pack_start(&label, false, false, 0);
         }
         let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        let expander = gtk::Expander::new(Some("Autres filtres et sources exactes"));
+        let expander = gtk::Expander::new(Some("Autres stats"));
         expander.add(&advanced);
         for candidate in &candidates {
             let row = stat_row::StatRow::new(candidate);
@@ -764,7 +787,7 @@ impl Ui {
         self.mod_scroll
             .set_min_content_height(if candidates.len() > 2 { 240 } else { 100 });
         self.mod_expander.set_label(Some(&format!(
-            "Filtres · {} actifs",
+            "Stats · {}",
             candidates.iter().filter(|c| !c.disabled).count()
         )));
         self.mod_box.show_all();
@@ -785,6 +808,7 @@ impl Ui {
         match result {
             Ok(p) => self.item_filters.show(
                 p,
+                item,
                 !(item.market.exchangeable && item.trade_tag.is_none()),
                 item.trade_tag.is_some()
                     && self.stat_rows.borrow().is_empty()
@@ -814,7 +838,7 @@ impl Ui {
             self.economy_panel.league_changed();
         }
         self.mod_expander.set_label(Some(&format!(
-            "Filtres · {} actifs",
+            "Stats · {}",
             self.stat_rows
                 .borrow()
                 .iter()
@@ -828,8 +852,7 @@ impl Ui {
                 panel.active_count()
             )));
         }
-        self.text
-            .set_text("Filtres modifiés. Vérifiez la portée puis cliquez Rechercher.");
+        self.text.set_text("");
         eprintln!(
             "filters edited generation={} automatic_http=false",
             self.state.borrow().generation
@@ -849,8 +872,7 @@ impl Ui {
         self.url.replace(None);
         self.build_stat_rows(&item);
         self.reset_item_filters(&item);
-        self.text
-            .set_text("Preset modifié. Vérifiez les filtres puis cliquez Rechercher.");
+        self.text.set_text("");
         eprintln!(
             "preset changed id={:?} generation={}",
             self.preset.active_id(),
@@ -931,7 +953,7 @@ impl Ui {
                 .filter_map(stat_row::StatRow::selected_filter),
         );
         self.mod_expander
-            .set_label(Some(&format!("Filtres · {} actifs", selected.stats.len())));
+            .set_label(Some(&format!("Stats · {}", selected.stats.len())));
         selected.mercenary = self
             .mercenary_panel
             .borrow()
@@ -968,7 +990,7 @@ impl Ui {
                 "une requête indicative est déjà en cours ; réessayez".into()
             ));
         }
-        self.text.set_text(&format!("Recherche dans {}…\n\nComparaison selon la portée et les filtres sélectionnés.\nVérifiez les filtres actifs dans le panneau.",settings.league));
+        self.text.set_text("Recherche…");
         match self.worker.try_send(Job {
             generation,
             league: settings.league.clone(),
@@ -985,6 +1007,18 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::OutsideClick => {
+                eprintln!(
+                    "outside dispatched main={}x{} origin={:?} popup={}",
+                    self.window.allocated_width(),
+                    self.window.allocated_height(),
+                    self.panel_bounds.get(),
+                    owned_popup(&self.window).is_some()
+                );
+                if owned_popup(&self.window).is_none() {
+                    self.hide(HideReason::Button);
+                }
+            }
             Event::GameGeometry(id, bounds) => {
                 if self.game_window.get() == Some(id) {
                     self.game_bounds.set(Some(bounds));
@@ -1105,28 +1139,17 @@ impl Ui {
                     Ok(p) => {
                         self.listings.show(&p);
                         self.text.set_text(&format!(
-                            "{} · {} résultats · {} offres{}",
-                            if p.kind == SearchKind::Bulk {
-                                "Échange en gros"
-                            } else {
-                                "Recherche Trade"
-                            },
+                            "{} résultat{}",
                             p.total,
-                            p.listings.len(),
-                            if p.cached { " · cache" } else { "" }
+                            if p.total == 1 { "" } else { "s" }
                         ));
-                        self.url.replace(Some(p.url));
                         eprintln!(
                             "trade result generation={generation} total={} network_ms={} cached={}",
                             p.total, p.network_ms, p.cached
                         );
                     }
                     Err(e) => {
-                        if e.contains("Query is too complex") {
-                            self.text.set_text(&format!("{e}\n\nRéduisez les critères, ou utilisez Ouvrir Trade pour reprendre cette requête dans votre navigateur."));
-                        } else {
-                            self.text.set_text(&e);
-                        }
+                        self.text.set_text(&e);
                         eprintln!("trade error generation={generation} error={e}");
                     }
                 }
@@ -1338,6 +1361,7 @@ pub fn run() -> Result<(), String> {
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
     window.set_title("Awakened PoE Trade — Rust");
     window.set_widget_name("apt-native");
+    window.set_decorated(false);
     window.set_size_request((480.0 * settings.scale) as i32, 0);
     if let Some(visual) = GtkWindowExt::screen(&window).and_then(|s| s.rgba_visual()) {
         window.set_visual(Some(&visual));
@@ -1361,13 +1385,15 @@ pub fn run() -> Result<(), String> {
     );
     let (sender, receiver) = glib::MainContext::channel::<Event>(glib::Priority::DEFAULT);
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    content.set_border_width(20);
+    content.set_border_width(16);
     let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
     title.set_xalign(0.);
-    title.set_line_wrap(true);
-    title.set_max_width_chars(28);
+    title.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    title.set_max_width_chars(14);
+    title.style_context().add_class("header-title");
     let text = gtk::Label::new(None);
     text.set_xalign(0.);
+    text.style_context().add_class("status");
     text.set_yalign(0.);
     text.set_line_wrap(true);
     text.set_selectable(false);
@@ -1376,11 +1402,10 @@ pub fn run() -> Result<(), String> {
     scroll.set_vexpand(true);
     scroll.set_propagate_natural_height(true);
     let listings = listings_panel::Panel::new();
-    let result_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    let result_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
     result_box.pack_start(&text, false, false, 0);
     result_box.pack_start(&listings.container, false, false, 0);
     scroll.add(&result_box);
-    let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let league = gtk::Entry::new();
     league.set_text(&settings.league);
     league.set_width_chars(18);
@@ -1389,8 +1414,10 @@ pub fn run() -> Result<(), String> {
     online.set_active(settings.filters.online);
     let league_label = gtk::Label::new(Some("Détection de la ligue…"));
     league_label.set_xalign(0.);
-    row.pack_start(&league_label, true, true, 0);
-    row.pack_start(&online, false, false, 0);
+    league_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    league_label.set_max_width_chars(10);
+    league_label.style_context().add_class("header-meta");
+    online.style_context().add_class("header-meta");
     let range_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let search_range = gtk::SpinButton::with_range(0., 100., 1.);
     search_range.set_value(settings.search_range);
@@ -1403,7 +1430,7 @@ pub fn run() -> Result<(), String> {
         false,
         0,
     );
-    let mod_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    let mod_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
     let bulk_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     bulk_row.set_no_show_all(true);
     let currency = gtk::ComboBoxText::new();
@@ -1427,12 +1454,12 @@ pub fn run() -> Result<(), String> {
     let mod_scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
     mod_scroll.set_min_content_height(180);
     mod_scroll.set_vexpand(false);
+    mod_scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
     mod_scroll.set_max_content_height(380);
     mod_scroll.set_propagate_natural_height(true);
     let filter_content = gtk::Box::new(gtk::Orientation::Vertical, 8);
     mod_scroll.add(&filter_content);
-    let mod_expander =
-        gtk::Expander::new(Some("Mods reconnus — cochez un filtre, puis Rechercher"));
+    let mod_expander = gtk::Expander::new(Some("Stats"));
     mod_expander.add(&mod_box);
     mod_expander.set_expanded(true);
     let preset = gtk::ComboBoxText::new();
@@ -1453,13 +1480,14 @@ pub fn run() -> Result<(), String> {
     let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let search = gtk::Button::with_label("Rechercher");
     let browser = gtk::Button::with_label("Ouvrir Trade");
-    let close = gtk::Button::with_label("Fermer");
-    for b in [&search, &browser, &close] {
+    search.style_context().add_class("primary");
+    browser.style_context().add_class("secondary");
+    let close = gtk::Button::with_label("×");
+    close.set_tooltip_text(Some("Fermer"));
+    close.style_context().add_class("close");
+    for b in [&search, &browser] {
         actions.pack_start(b, true, true, 0);
     }
-    let hint = gtk::Label::new(None);
-    hint.set_line_wrap(true);
-    hint.set_xalign(0.);
     let unidentified = unidentified_panel::Panel::new();
     let close_sender = sender.clone();
     unidentified.close.connect_clicked(move |_| {
@@ -1470,7 +1498,6 @@ pub fn run() -> Result<(), String> {
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
     let price_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    price_content.pack_start(&row, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     price_content.pack_start(&economy_panel.container, false, false, 0);
     filter_content.pack_start(&item_filters.container, false, false, 0);
@@ -1490,10 +1517,14 @@ pub fn run() -> Result<(), String> {
     title.set_hexpand(true);
     let preferences_open = gtk::Button::with_label("Réglages");
     header.pack_start(&title, true, true, 0);
+    preferences_open.style_context().add_class("secondary");
+    preferences_open.style_context().add_class("header-meta");
+    header.pack_start(&league_label, false, false, 0);
+    header.pack_start(&online, false, false, 0);
     header.pack_start(&preferences_open, false, false, 0);
+    header.pack_start(&close, false, false, 0);
     content.pack_start(&header, false, false, 0);
     content.pack_start(&stack, true, true, 0);
-    content.pack_start(&hint, false, false, 0);
     window.add(&content);
     let game_active = Arc::new(AtomicBool::new(false));
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
@@ -1590,7 +1621,9 @@ pub fn run() -> Result<(), String> {
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let close_sender = sender.clone();
     let backdrop = backdrop::Backdrop::new(move || {
-        let _ = close_sender.send(Event::Hotkey(crate::hotkeys::Action::Command("hide")));
+        if gtk::grab_get_current().is_none() {
+            let _ = close_sender.send(Event::OutsideClick);
+        }
     });
     let ui = Rc::new(Ui {
         backdrop,
@@ -1606,7 +1639,6 @@ pub fn run() -> Result<(), String> {
         text,
         search_button: search.clone(),
         listings,
-        hint,
         league,
         league_label,
         league_worker,
@@ -1722,7 +1754,15 @@ pub fn run() -> Result<(), String> {
     }
     {
         let ui = ui.clone();
-        close.connect_clicked(move |_| ui.hide(HideReason::Button));
+        close.connect_clicked(move |button| {
+            eprintln!(
+                "close-button clicked allocation={:?} parent={}x{}",
+                button.allocation(),
+                ui.window.allocated_width(),
+                ui.window.allocated_height()
+            );
+            ui.hide(HideReason::Button);
+        });
     }
     {
         let ui = ui.clone();
@@ -1759,11 +1799,15 @@ pub fn run() -> Result<(), String> {
             let weak = Rc::downgrade(&ui);
             clock.connect_after_paint(move |_| { if let Some(ui) = weak.upgrade() {
                 ui.frames.set(ui.frames.get()+1);
-                ui.backdrop.main_painted();
                 if ui.state.borrow().state == State::Preparing {
                     ui.state.borrow_mut().painted();
                     eprintln!("overlay state=Passive first_frame=painted display_ms={} geometry={}x{} activation_requested=false",ui.shown.borrow().as_ref().map(|t| t.elapsed().as_millis()).unwrap_or(0),ui.window.allocated_width(),ui.window.allocated_height());
                     if ui.pending_interaction.take()==Some(ui.state.borrow().generation) {ui.command("interact");}
+                    ui.window.queue_draw();
+                } else if ui.window.is_visible() && matches!(ui.state.borrow().state,State::Passive|State::Interactive) {
+                    // The second frame commits the final panel input region
+                    // and geometry before the outside surfaces accept clicks.
+                    ui.backdrop.main_painted();
                 }
             } });
         }
@@ -1887,6 +1931,9 @@ pub fn run() -> Result<(), String> {
                     if let Some(path) = address.as_pathname() {
                         let state = ui.state.borrow();
                         let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+                        value["popup_controls"] = popup_controls(&ui.window);
+                        value["header_text"] = serde_json::json!(ui.title.text().as_str());
+                        value["status_text"] = serde_json::json!(ui.text.text().as_str());
                         value["preferences"] = ui.preferences.diagnostics(&ui.window);
                         value["preferences_pending"] =
                             serde_json::json!(ui.preferences_pending.get());

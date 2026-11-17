@@ -21,7 +21,7 @@ riverctl rule-add -app-id apt_foreign_fixture tags 2
 touch "$XDG_RUNTIME_DIR/ready"
 ''');init.chmod(0o700)
 env=os.environ.copy();env.update(XDG_RUNTIME_DIR=str(runtime),XDG_CONFIG_HOME=str(runtime/'config'),XDG_CACHE_HOME=str(runtime/'cache'),XDG_STATE_HOME=str(runtime/'state'),APT_FIXTURE_ITEM='ring',GSETTINGS_BACKEND='memory',WLR_BACKENDS='headless',WLR_HEADLESS_OUTPUTS='1',WLR_RENDERER='pixman',GDK_BACKEND='wayland',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',ALL_PROXY='http://127.0.0.1:9')
-logs=[];processes=[];success=False;report={};httpd=None
+logs=[];processes=[];success=False;report={};httpd=None;persistent=None
 class TradeFixture(http.server.BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def reply(self,body):
@@ -32,7 +32,7 @@ class TradeFixture(http.server.BaseHTTPRequestHandler):
         self.reply({'id':'fixtureSearch','total':2,'result':['offerA','offerB']})
     def do_GET(self):
         assert self.path.startswith('/api/trade/fetch/'),self.path
-        self.reply({'result':[{'listing':{'price':{'amount':price,'currency':'chaos'},'account':{'name':f'FixtureSeller{suffix}'}},'item':{'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True}} for suffix,price,life in [('A',5,73),('B',12,110)]]})
+        self.reply({'result':[{'listing':{'price':{'amount':price,'currency':'chaos'},'account':{'name':f'FixtureSeller{suffix}'}},'item':{'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True,'corrupted':suffix=='B'}} for suffix,price,life in [('A',5,73),('B',12,110)]]})
 def start(args,name,**kwargs):
     log=open(runtime/(name+'.log'),'w');logs.append(log)
     p=subprocess.Popen(args,env=env,stderr=log,**({'stdout':log}|kwargs));processes.append(p);return p
@@ -48,9 +48,21 @@ def status():return json.loads(command('status'))
 def state(**expected):
     s=status();return s if all(s[k]==v for k,v in expected.items()) else None
 def pointer(x,y,click=False):
-    args=[str(target/'debug/examples/pointer'),str(int(x)),str(int(y)),'2560','1600']
-    if click:args+=['--click']
-    subprocess.run(args,env=env,check=True)
+    if persistent is not None:
+        def send(line):
+            persistent.stdin.write(line+'\n');persistent.stdin.flush()
+            assert select.select([persistent.stdout],[],[],3)[0],'persistent pointer stalled'
+            assert persistent.stdout.readline().strip()=='ok'
+        send(f'move {int(x)} {int(y)}')
+        if click:
+            send('down');time.sleep(.08);send('up')
+    else:
+        args=[str(target/'debug/examples/pointer'),str(int(x)),str(int(y)),'2560','1600']
+        if click:args+=['--click']
+        subprocess.run(args,env=env,check=True)
+
+def capture_panel(path):
+    s=status();o=s['origin'];subprocess.run(['grim','-g',f"{o['x']},{o['y']} {s['width']}x{s['height']}",path],env=env,check=True)
 def focus_game():
     subprocess.run(['riverctl','set-focused-tags','1'],env=env,check=True)
     pointer(2000,1200)
@@ -83,10 +95,18 @@ try:
     env['APT_RS_TEST_TRADE_BASE']=f'http://127.0.0.1:{httpd.server_address[1]}'
     env['NO_PROXY']='127.0.0.1,localhost'
     daemon=start([str(app),'daemon'],'overlay');wait_for(lambda:(runtime/'awakened-poe-trade-rs.sock').exists(),'daemon socket')
+    if not os.environ.get('APT_TRANSIENT_POINTER'):
+        persistent=start([str(target/'debug/examples/pointer'),'0','0','2560','1600','--persistent'],'persistent-pointer',stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
     wait_for(lambda:'Ok' in status()['shortcut_backend']['status'],'shortcuts');focus_game()
     def click(r):
         s=status();assert s['state']=='Interactive' and s['visible'] and s['rendered'];assert r and r.get('mapped',True) and r['width']>5 and r['height']>5,r
         o=s['origin'];pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']/2,True)
+    def choose_menu(name,index):
+        click(status()['item_filter_controls'][name]['rect'])
+        popup=wait_for(lambda:status()['popup_controls'] if status()['popup_controls'] and status()['popup_controls']['mapped'] else None,'menu mapped')
+        item=popup['items'][index];o=status()['origin'];p=popup['origin']
+        pointer(o['x']+p['x']+item['x']+item['width']/2,o['y']+p['y']+item['y']+item['height']/2,True)
+        wait_for(lambda:not status()['owned_popup'] and state(state='Interactive'),'menu mouse choice keeps checker open')
     def copy(key='ctrl+d',interactive=False):
         command('hide');focus_game();subprocess.run(['xdotool','key','--clearmodifiers',key],env=env,check=True)
         return wait_for(lambda:state(state='Interactive' if interactive else 'Passive',rendered=True,visible=True) and status()['item'] and status()['item']['base']=='Gold Ring','ring captured')
@@ -114,6 +134,14 @@ try:
         wait_for(lambda:state(state='Hidden',visible=False) and not status()['backdrop']['visible'],'outside click closes both surfaces')
         assert fixture_command('input')['clicks']==before,'outside click leaked to fake game'
     report['outside_click_closes_passive_and_interactive_without_forwarding_to_game']=True
+    for _ in range(3):
+        copy('ctrl+alt+d',True)
+        base=status()['item_filter_controls']['base'];click(base['rect'])
+        wait_for(lambda:state(state='Interactive') and status()['item_filter_controls']['base']['active']!=base['active'],'first click after render remains interactive')
+        command('hide')
+    report['first_click_after_open_works_across_three_cycles']=True
+    if os.environ.get('APT_PERSISTENT_ONLY'):
+        print(json.dumps({'persistent_pointer_outside_then_inside_repeated':True,**report},indent=2));success=True;sys.exit(0)
     copy();s=status();assert s['keyboard_mode']=='None' and s['game_active'] and not s['overlay_focused'] and s['mod_expander']['expanded'];assert s['request'] is None
     assert not any(k in s for k in ['widget_canvas','widget_menu','delve','images','stash','stopwatches','catalogue'])
     report['ctrl_d_copies_rare_into_passive_checker_with_mods_expanded_and_no_auxiliary_surfaces']=True
@@ -127,7 +155,22 @@ try:
     assert status()['state']=='Passive' and status()['game_active'] and not status()['overlay_focused'] and current_life()['selected']
     report['passive_rectangles_pass_clicks_to_fake_game_without_selection_or_focus']=True
     copy('ctrl+alt+d',True);assert status()['keyboard_mode']=='OnDemand';time.sleep(.15)
+    for dx,y in [(4,80),(status()['width']-4,80),(status()['width']/2,1250)]:
+        o=status()['origin'];pointer(o['x']+dx,y,True);time.sleep(.08)
+        assert status()['state']=='Interactive','inside click closed checker'
+    click(status()['item_filter_controls']['corruption']['rect']);wait_for(lambda:status()['owned_popup'],'corruption dropdown grabbed')
+    pointer(2300,1200,True)
+    wait_for(lambda:not status()['owned_popup'] and state(state='Interactive'),'outside click dismisses dropdown only')
+    choose_menu('corruption',2)
+    choose_menu('corruption',1)
+    report['inside_padding_fields_and_owned_dropdown_do_not_dismiss']=True
+    report['outside_click_with_open_menu_dismisses_only_the_menu']=True
+    if os.environ.get('APT_CLOSURE_ONLY'):
+        print(json.dumps(report,indent=2));success=True;sys.exit(0)
     controls=status()['item_filter_controls'];base=controls['base'];assert base['sensitive']
+    assert not base['active'] and base['label']=='Gold Ring'
+    initial_ilvl=next(n for n in controls['numbers'] if n['name']=='ItemLevel')
+    assert not initial_ilvl['active'] and initial_ilvl['value']=='83' and not initial_ilvl['field_sensitive']
     click(base['rect']);wait_for(lambda:status()['item_filter_controls']['base']['active'] != base['active'],'same base toggled')
     assert status()['request'] is None
     click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'base filter query')
@@ -136,22 +179,26 @@ try:
     click(status()['item_filter_controls']['base']['rect'])
     ilvl=next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')
     click(ilvl['rect']);wait_for(lambda:next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')['active']!=ilvl['active'],'ilvl toggled')
+    field=next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')['field'];click(field)
+    subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','86'],env=env,check=True)
     click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'ilvl query')
     assert ('ilvl' in status()['request']['query'].get('filters',{}).get('misc_filters',{}).get('filters',{})) == (not ilvl['active']),status()['request']
+    assert status()['request']['query']['filters']['misc_filters']['filters']['ilvl']['min']==86
     time.sleep(5.1)
     click(next(n for n in status()['item_filter_controls']['numbers'] if n['name']=='ItemLevel')['rect'])
     report['direct_base_and_ilvl_buttons_change_trade_query_without_automatic_requests']=True
     for name in ['corruption','rarity']:
         assert status()['item_filter_controls'][name]['active']
-        click(status()['item_filter_controls'][name]['rect'])
+        choose_menu(name,0)
     wait_for(lambda:status()['item_filters'].get('corrupted') is None and status()['item_filters'].get('rarity') is None,'corruption and rarity disabled')
     assert status()['request'] is None
     click(status()['search_button']);wait_for(lambda:status()['request'] is not None,'query without rarity or corruption')
     q=status()['request']['query']['filters']
     assert 'corrupted' not in q.get('misc_filters',{}).get('filters',{}) and 'rarity' not in q.get('type_filters',{}).get('filters',{}),q
     time.sleep(5.1)
-    for name in ['corruption','rarity']:click(status()['item_filter_controls'][name]['rect'])
-    report['direct_corruption_and_rarity_buttons_remove_criteria_from_query']=True
+    for name in ['corruption','rarity']:
+        choose_menu(name,1)
+    report['plain_label_dropdowns_remove_corruption_and_rarity_criteria']=True
     r=reveal(current_life);assert r['selected'] and r['min_enabled'];field=r['min'];click(dict(field,x=field['x']+6,width=28));time.sleep(.1)
     subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','60'],env=env,check=True)
     assert status()['request'] is None
@@ -164,7 +211,17 @@ try:
     wait_for(lambda:status()['listings']['offers'][0]['rect']['width']>=status()['width']-44,'full-width offer rows allocated')
     offers=status()['listings']['offers'];assert all(o['has_item_details'] for o in offers)
     assert '+73 to maximum Life' in offers[0]['tooltip'] and '+110 to maximum Life' not in offers[0]['tooltip']
+    assert all(t not in offers[0]['tooltip'] for t in ['Mods','Implicites','Craftés','Quality','Prérequis']),offers[0]['tooltip']
+    assert '5 Chaos Orb' in offers[0]['tooltip']
+    assert status()['status_text']=='2 résultats'
+    assert status()['header_text']=='Synthetic Fixture'
+    pointer(status()['origin']['x']+8,1100)
+    wait_for(lambda:not status()['listings']['tooltip_visible'],'clean panel capture')
+    if os.environ.get('APT_PANEL_SCREENSHOT'):capture_panel(os.environ['APT_PANEL_SCREENSHOT'])
     assert offers[0]['rect']['y']<1000,'offers are still compressed at the bottom'
+    click(offers[0]['rect']);time.sleep(.15);assert status()['state']=='Interactive','clicking an offer closed checker'
+    pointer(status()['origin']['x']+8,1100);wait_for(lambda:not status()['listings']['tooltip_visible'],'leave offer before timed hover')
+    report['clicking_offer_rows_keeps_checker_open']=True
     r=offers[0]['rect'];o=status()['origin'];pointer(o['x']+r['x']+r['width']-5,o['y']+r['y']+r['height']/2)
     hover_started=time.monotonic()
     wait_for(lambda:status()['listings']['tooltip_queries']>0 and status()['listings']['tooltip_visible'],'native tooltip painted at offer hover')
@@ -172,7 +229,11 @@ try:
     assert report['whole_offer_right_edge_hover_ms']<450,report
     assert status()['state']=='Interactive' and status()['overlay_focused'],'hover tooltip changed keyboard owner'
     time.sleep(.3);assert status()['listings']['tooltip_visible'],'hover detail flickered away'
-    if os.environ.get('APT_HOVER_SCREENSHOT'):subprocess.run(['grim',os.environ['APT_HOVER_SCREENSHOT']],env=env,check=True)
+    detail=status()['listings']['offers'][0]['detail_rect'];row=status()['listings']['offers'][0]['rect'];assert detail and detail['width']>100,detail
+    assert detail['x']>=0 and detail['y']>=0 and detail['x']+detail['width']<=status()['width'] and detail['y']+detail['height']<=status()['height'],detail
+    assert detail['y']+detail['height']<=row['y'] or detail['y']>=row['y']+row['height'],(detail,row)
+    report['offer_preview_stays_in_window_and_does_not_cover_hovered_row']=True
+    if os.environ.get('APT_HOVER_SCREENSHOT'):capture_panel(os.environ['APT_HOVER_SCREENSHOT'])
     report['native_hover_shows_fetched_offer_stats_and_preserves_parent_focus']=True
     report['first_offered_item_life']=73;report['searched_item_life']=85
     r=status()['search_button'];o=status()['origin'];pointer(o['x']+r['x']+10,o['y']+r['y']+10)
@@ -240,7 +301,7 @@ try:
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines
     assert fixture_command('input')['submitted']==[]
     report.update(scope='Private River/XWayland with GTK fake game and synthetic rare ring. No real-game input; Trade uses a guarded loopback HTTP fixture with two offered items, other public network blocked by local invalid proxy. No live prices claimed.',binary_version=subprocess.check_output([str(app),'--version'],text=True).strip())
-    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/item_filters_panel.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs']}
+    report['source_sha256']={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ['scripts/test-price-checker.py','examples/stash-fixture.rs','src/ui.rs','src/ui/stat_row.rs','src/ui/listings_panel.rs','src/ui/backdrop.rs','src/ui/style.css','src/ui/item_filters_panel.rs','examples/pointer.rs','src/item.rs','src/item_filters.rs','src/trade_item.rs','src/trade.rs','src/ui/settings_panel.rs','src/settings.rs','src/price_layout.rs','src/leagues.rs','src/desktop/game_geometry.rs','src/desktop/preferences.rs','src/desktop/clipboard.rs','src/desktop/xwayland_shortcuts.rs','src/hotkeys.rs']}
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 

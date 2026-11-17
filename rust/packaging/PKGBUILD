@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-poe-trade-rs
-pkgver=0.24.0
+pkgver=0.25.0
 pkgrel=1
 pkgdesc='Native Rust PoE price checker for River and XWayland'
 arch=('x86_64')
@@ -39,7 +39,7 @@ package() {
     for doc in PORTING.md QUICKSTART.md CHECKER-VALIDATION.md; do
         install -Dm644 "rust/docs/$doc" "$pkgdir/usr/share/doc/$pkgname/$doc"
     done
-    for report in price-checker-lifecycle-0.24.json price-checker-real-0.23.json \
+    for report in price-checker-lifecycle-0.25.json price-checker-real-0.25.json price-checker-real-0.23.json \
         parser-measurements-0.2.json stat-translations-0.3.json calculated-filters-0.4.json \
         presets-0.6.json item-filters-0.7.json equipment-presets-0.8.json \
         special-presets-0.10.json mercenary-0.11.json economy-0.12.json unidentified-0.13.json; do
