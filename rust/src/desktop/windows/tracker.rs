@@ -28,19 +28,20 @@ impl Snapshot {
     pub fn game_active(&self) -> bool {
         self.windows
             .iter()
-            .any(|w| w.game && w.active && !w.minimized)
+            .any(|w| w.is_game() && w.active && !w.minimized)
     }
     pub fn other_active(&self) -> bool {
-        self.windows.iter().any(|w| !w.game && w.active)
+        self.windows.iter().any(|w| !w.is_game() && w.active)
     }
     pub fn game_present(&self) -> bool {
-        self.windows.iter().any(|w| w.game && !w.minimized)
+        self.windows.iter().any(|w| w.is_game() && !w.minimized)
     }
     pub fn game_exists(&self) -> bool {
-        self.windows.iter().any(|w| w.game)
+        self.windows.iter().any(Window::is_game)
     }
 }
-thread_local! {static SEND:RefCell<Option<Box<dyn Fn(Snapshot)>>>=RefCell::new(None);static PREVIOUS:RefCell<Vec<Window>>=const{RefCell::new(Vec::new())};}
+type SnapshotCallback = Box<dyn Fn(Snapshot)>;
+thread_local! {static SEND:RefCell<Option<SnapshotCallback>>=RefCell::new(None);static PREVIOUS:RefCell<Vec<Window>>=const{RefCell::new(Vec::new())};}
 unsafe extern "system" fn enumerate(window: HWND, data: LPARAM) -> i32 {
     let out = &mut *(data as *mut Vec<Window>);
     let Some((pid, path)) = native::process(window) else {
@@ -93,10 +94,13 @@ unsafe extern "system" fn event(
     _: u32,
     _: u32,
 ) {
-    if event == EVENT_SYSTEM_FOREGROUND || object == OBJID_WINDOW {
-        if window.is_null() || event == EVENT_SYSTEM_FOREGROUND || native::is_game(window) {
-            publish();
-        }
+    if (event == EVENT_SYSTEM_FOREGROUND || object == OBJID_WINDOW)
+        && (window.is_null()
+            || event == EVENT_SYSTEM_FOREGROUND
+            || native::is_game(window)
+            || PREVIOUS.with(|p| p.borrow().iter().any(|w| w.id == native::id(window))))
+    {
+        publish();
     }
 }
 pub fn track(send: impl Fn(Snapshot) + 'static) -> Result<(), String> {

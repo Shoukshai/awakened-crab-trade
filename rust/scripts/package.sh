@@ -8,7 +8,7 @@ python3 "$rust_dir/scripts/collect-licenses.py" "$rust_dir/dist/license-bundle"
 cd "$repo_dir"
 # Only the native program and licensed build-time inputs; no local profiles/logs.
 tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source-${apt_pkg_version}.tar.gz" LICENSE README.md \
-    rust/Cargo.toml rust/Cargo.lock rust/src rust/examples rust/scripts \
+    rust/Cargo.toml rust/Cargo.lock rust/build.rs rust/src rust/examples rust/scripts \
     rust/packaging rust/README.md rust/docs rust/assets \
     renderer/public/data/en/items.ndjson renderer/public/data/en/stats.ndjson \
     renderer/public/data/en/stats-matcher.index.bin renderer/public/data/en/stats-ref.index.bin \
@@ -23,8 +23,12 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     renderer/src/web/stash-search renderer/src/web/item-check/hotkeyable-actions.ts main/src/shortcuts/text-box.ts main/src/shortcuts/HostClipboard.ts main/src/shortcuts/Shortcuts.ts main/src/windowing/GameWindow.ts renderer/src/web/item-search renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
     renderer/src/web/item-check/ItemInfo.vue \
     renderer/package.json renderer/package-lock.json \
-    ipc/KeyToCode.ts main/build/icons/128x128.png -C "$rust_dir/dist" license-bundle
+    ipc/KeyToCode.ts main/build/icons/128x128.png main/build/icons/icon.ico -C "$rust_dir/dist" license-bundle
 apt_source_sha=$(sha256sum "rust/dist/native-source-${apt_pkg_version}.tar.gz" | cut -d ' ' -f 1)
+if [ "${1-}" = "--source-only" ]; then
+    printf '%s  %s\n' "$apt_source_sha" "native-source-${apt_pkg_version}.tar.gz" > "$rust_dir/dist/native-source-${apt_pkg_version}.tar.gz.sha256"
+    exit 0
+fi
 sed "s/sha256sums=('SKIP')/sha256sums=('$apt_source_sha')/" rust/packaging/PKGBUILD > rust/dist/PKGBUILD
 cd "$rust_dir/dist"
 export CARGO_TARGET_DIR="$rust_dir/target"

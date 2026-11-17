@@ -1,0 +1,92 @@
+{
+  "version": "0.28.0",
+  "validated_at": "2026-11-17T19:14:37.999696+00:00",
+  "artifact": {
+    "sha256": "a34881941636a517a98c28dc600b7576d758e98b43028971a1dc3ed70e36568a",
+    "file_hashes_checked": 3180,
+    "test_fixture_in_production_zip": false
+  },
+  "artifact_filename": "awakened-poe-trade-rs-0.28.0-windows-x64.zip",
+  "bytes": 31396842,
+  "PE": "AMD64 Windows GUI, embedded manifest, icon and version resources",
+  "Windows_Rust_unit_tests": 125,
+  "Linux_Rust_unit_tests": 129,
+  "clippy": "Linux all-targets and Windows main + fixture, -D warnings; passed",
+  "Windows_packaged_UI": {
+    "windowing": "Independent Win32 windows with Wine managing placement on private XWayland; windowed fake game",
+    "os_keyboard_layout": "Private Wine prefix with pinned ReactOS US layout DLL; absent from production ZIP",
+    "scope": "Windows binary on private Wine desktop, fake PoE process, synthetic offers and public-market fixtures. No real game input or real market prices.",
+    "before_veil_pixel": [
+      32,
+      40,
+      48
+    ],
+    "veil_pixel": [
+      26,
+      33,
+      39
+    ],
+    "wand_hover_ms": 151,
+    "wand": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "gem_hover_ms": 153,
+    "gem": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "currency": {
+      "copied": true,
+      "outside_close": true,
+      "offers": false
+    },
+    "unique_hover_ms": 182,
+    "unique": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "map_hover_ms": 155,
+    "map": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "viscera_hover_ms": 152,
+    "viscera": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "influence_hover_ms": 152,
+    "influence": {
+      "copied": true,
+      "outside_close": true,
+      "offers": true
+    },
+    "clipboard_text_restored": true,
+    "passive_click_through_and_escape": true,
+    "foreign_focus_hides_and_shortcuts_are_forwarded": true,
+    "single_instance": true,
+    "binary_sha256": "7cd3b8df93875ebeb291c5e2a221e5241c633517b99286d5896613dbd7444ef5",
+    "settings_without_game": true
+  },
+  "Linux_native_UI": {
+    "binary_sha256": "a3641ec5c4231badbcda2db2a9fb0b24dd776f56662bd2538332da90b8c5ab85",
+    "version": "awakened-poe-trade-rs 0.28.0",
+    "report": "rust/dist/linux-windows-port-final-report.json",
+    "passed": true
+  },
+  "real_Windows_game_test": {
+    "performed": false,
+    "remaining": [
+      "Windows 11 with PoE Steam, windowed/borderless",
+      "Standalone launcher and mixed monitor DPI to verify on Windows"
+    ]
+  },
+  "screenshots_directory": "rust/dist/previews/windows",
+  "relocation_test": "ZIP extracted to a different path containing spaces and an accented character; all 3180 file hashes verified before running the packaged binary."
+}

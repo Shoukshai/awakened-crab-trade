@@ -1,4 +1,14 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::atomic::{AtomicBool, Ordering},
+};
+static PANEL_VISIBLE: AtomicBool = AtomicBool::new(false);
+pub fn set_panel_visible(visible: bool) {
+    PANEL_VISIBLE.store(visible, Ordering::Release);
+}
+pub fn panel_visible() -> bool {
+    PANEL_VISIBLE.load(Ordering::Acquire)
+}
 use windows_sys::Win32::{Foundation::*, System::Threading::*, UI::WindowsAndMessaging::*};
 pub fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
@@ -36,24 +46,7 @@ pub fn process(window: HWND) -> Option<(u32, PathBuf)> {
     }
 }
 pub fn fixture_root() -> Option<PathBuf> {
-    let path = PathBuf::from(std::env::var_os("APT_RS_WINDOWS_TEST_DIR")?);
-    if !path
-        .file_name()?
-        .to_string_lossy()
-        .starts_with("apt-windows-desktop-")
-    {
-        return None;
-    }
-    let token = std::env::var("APT_RS_WINDOWS_TEST_TOKEN").ok()?;
-    if token.len() < 32
-        || std::fs::read_to_string(path.join("fixture.guard"))
-            .ok()?
-            .trim()
-            != token
-    {
-        return None;
-    }
-    path.canonicalize().ok()
+    crate::paths::private_windows_test_root()
 }
 pub fn is_game(window: HWND) -> bool {
     unsafe {

@@ -5,8 +5,9 @@ stats et leurs bornes, rechercher les objets comparables sur Trade et lire les
 offres dans le panneau. Le périmètre est limité au **price checker**.
 
 Configuration Linux vérifiée : Artix x86_64, River avec layer-shell, PoE Steam /
-DWProton sous XWayland, écran 2560×1600 au facteur 1. **Windows est l’étape
-suivante** et n’est pas encore implémenté ni testé. Aucun Electron ni WebView.
+DWProton sous XWayland, écran 2560×1600 au facteur 1. **Windows x64 dispose d’une première version portable 0.28**, avec intégration
+Win32 et validation dans un bureau Wine isolé. Le test réel sous Windows 11 /
+PoE Steam reste à faire : voir [Windows](docs/windows.md). Aucun Electron ni WebView.
 
 ## Lancement
 

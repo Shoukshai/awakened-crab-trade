@@ -67,13 +67,13 @@ impl<'a> Guard<'a> {
         ];
         let input: Vec<INPUT> = keys
             .into_iter()
-            .map(|(wVk, dwFlags)| INPUT {
+            .map(|(w_vk, dw_flags)| INPUT {
                 r#type: INPUT_KEYBOARD,
                 Anonymous: INPUT_0 {
                     ki: KEYBDINPUT {
-                        wVk,
+                        wVk: w_vk,
                         wScan: 0,
-                        dwFlags,
+                        dwFlags: dw_flags,
                         time: 0,
                         dwExtraInfo: 0,
                     },

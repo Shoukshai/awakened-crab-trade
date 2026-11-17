@@ -71,19 +71,25 @@ pub struct Trade {
 pub(crate) fn fixture_endpoint(variable: &str) -> Result<Option<String>, String> {
     let test_base = std::env::var(variable).ok();
     let base = if let Some(value) = test_base {
-        let runtime = std::env::var("XDG_RUNTIME_DIR").map_err(|e| e.to_string())?;
-        let path = std::path::Path::new(&runtime);
-        let isolated = path
-            .file_name()
-            .is_some_and(|n| n.to_string_lossy().starts_with("apt-overlay-desktop-"))
-            && std::fs::read_to_string(path.join("display"))
-                .ok()
-                .map(|s| s.trim().to_string())
-                == std::env::var("DISPLAY").ok()
-            && std::fs::read_to_string(path.join("wayland"))
-                .ok()
-                .map(|s| s.trim().to_string())
-                == std::env::var("WAYLAND_DISPLAY").ok();
+        #[cfg(target_os = "windows")]
+        let isolated = crate::paths::private_windows_test_root().is_some();
+        #[cfg(not(target_os = "windows"))]
+        let isolated = {
+            let runtime = std::env::var("XDG_RUNTIME_DIR").map_err(|e| e.to_string())?;
+            let path = std::path::Path::new(&runtime);
+            let result = path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with("apt-overlay-desktop-"))
+                && std::fs::read_to_string(path.join("display"))
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    == std::env::var("DISPLAY").ok()
+                && std::fs::read_to_string(path.join("wayland"))
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    == std::env::var("WAYLAND_DISPLAY").ok();
+            result
+        };
         let url = reqwest::Url::parse(&value).map_err(|e| e.to_string())?;
         if !isolated
             || url.scheme() != "http"

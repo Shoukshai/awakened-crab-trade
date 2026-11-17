@@ -126,6 +126,16 @@ unsafe extern "system" fn callback(code: i32, kind: WPARAM, data: LPARAM) -> LRE
         if state.suppressed.contains(&event.vkCode) {
             return true;
         }
+        // While the passive panel leaves focus with PoE, Escape still dismisses it.
+        // With an owned menu focused, GTK handles Escape to close only that menu.
+        if event.vkCode == u32::from(VK_ESCAPE)
+            && native::panel_visible()
+            && native::focused_game().is_some()
+        {
+            state.suppressed.insert(event.vkCode);
+            (state.send)(Action::Command("hide"));
+            return true;
+        }
         let binding = {
             let Ok(keys) = state.shared.bindings.read() else {
                 return false;

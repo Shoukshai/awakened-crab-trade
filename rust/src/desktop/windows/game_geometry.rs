@@ -8,7 +8,8 @@ pub fn focused() -> Option<(u32, crate::price_layout::Rect)> {
     let w = native::focused_game()?;
     Some((native::id(w), native::rect(w)?))
 }
-thread_local! {static SEND:RefCell<Option<Box<dyn FnMut(u32,crate::price_layout::Rect)>>>=RefCell::new(None);}
+type GeometryCallback = Box<dyn FnMut(u32, crate::price_layout::Rect)>;
+thread_local! {static SEND:RefCell<Option<GeometryCallback>>=RefCell::new(None);}
 unsafe extern "system" fn event(
     _: HWINEVENTHOOK,
     _: u32,

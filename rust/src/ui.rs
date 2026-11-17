@@ -26,6 +26,8 @@ use gtk::{gdk, prelude::*};
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 #[cfg(target_os = "windows")]
 mod windows_shell;
+#[cfg(target_os = "windows")]
+mod windows_tray;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -146,9 +148,14 @@ struct Ui {
 }
 fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
     window.set_size_request((480. * scale) as i32, 0);
+    #[cfg(target_os = "windows")]
+    let platform_style = "#apt-native, #apt-offer-details, tooltip { font-family: \"Segoe UI\", \"Liberation Sans\", sans-serif; }";
+    #[cfg(not(target_os = "windows"))]
+    let platform_style = "";
     let sheet = format!(
-        "{}\n#apt-native {{ font-size: {}px; }}",
+        "{}\n{}\n#apt-native {{ font-size: {}px; }}",
         include_str!("ui/style.css"),
+        platform_style,
         (14. * scale).round() as u32
     );
     css.load_from_data(sheet.as_bytes())
@@ -329,6 +336,10 @@ impl Ui {
     }
 
     fn defer_focus_check(self: &Rc<Self>) {
+        #[cfg(target_os = "windows")]
+        if self.view.get() == View::Settings {
+            return;
+        }
         let Some(token) = self.state.borrow_mut().focus_lost() else {
             return;
         };
@@ -337,7 +348,12 @@ impl Ui {
         // Observe settled state; never request activation or focus to compensate.
         glib::timeout_add_local_once(Duration::from_millis(30), move || {
             if let Some(ui) = weak.upgrade() {
+                #[cfg(target_os = "linux")]
                 let active = ui.window.is_active();
+                #[cfg(target_os = "windows")]
+                let active = ui.window.is_active()
+                    || crate::desktop::native::owned_active()
+                    || crate::desktop::native::focused_game().is_some();
                 let popup = owned_popup(&ui.window).is_some();
                 let hide = ui
                     .state
@@ -374,6 +390,18 @@ impl Ui {
         value["league_selection"] = serde_json::json!({"automatic":self.settings.borrow().automatic_league,"ready":self.league_ready.get(),"label":self.league_label.text().as_str()});
         value["panel_bounds"] = serde_json::json!(self.panel_bounds.get());
         value["search_button"]=serde_json::json!(self.search_button.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.search_button.allocated_width(),"height":self.search_button.allocated_height(),"mapped":self.search_button.is_mapped()})));
+        #[cfg(target_os = "windows")]
+        if let Some(window) = windows_shell::handle(&self.window) {
+            value["native_window"] = serde_json::json!(window as usize);
+            unsafe {
+                let mut info: windows_sys::Win32::UI::WindowsAndMessaging::GUITHREADINFO =
+                    std::mem::zeroed();
+                info.cbSize = std::mem::size_of_val(&info) as u32;
+                windows_sys::Win32::UI::WindowsAndMessaging::GetGUIThreadInfo(0, &mut info);
+                value["native_focus"] = serde_json::json!({"active":info.hwndActive as usize,"focus":info.hwndFocus as usize,"menu":info.hwndMenuOwner as usize,"ui_thread_focus":windows_sys::Win32::UI::Input::KeyboardAndMouse::GetFocus() as usize});
+            }
+            value["native_rect"] = serde_json::json!(crate::desktop::native::rect(window));
+        }
         value
     }
     fn sync_generation(&self) {
@@ -388,6 +416,8 @@ impl Ui {
         self.current.store(generation, Ordering::Release);
     }
     fn hide(&self, reason: HideReason) {
+        #[cfg(target_os = "windows")]
+        crate::desktop::native::set_panel_visible(false);
         self.pending_interaction.set(None);
         self.quote_current.fetch_add(1, Ordering::Release);
         self.state.borrow_mut().hide(reason);
@@ -402,7 +432,14 @@ impl Ui {
         );
     }
     fn show(&self) -> bool {
+        #[cfg(target_os = "linux")]
         let generation = self.state.borrow_mut().show();
+        #[cfg(target_os = "windows")]
+        let generation = if self.view.get() == View::Settings {
+            Some(self.state.borrow_mut().show_settings())
+        } else {
+            self.state.borrow_mut().show()
+        };
         if generation.is_none() {
             eprintln!("show refused: PoE is not active");
             return false;
@@ -411,8 +448,15 @@ impl Ui {
         self.shown.replace(Some(Instant::now()));
         self.position_panel(None);
         apply_input(&self.window, false);
+        #[cfg(target_os = "linux")]
         self.backdrop.show();
+        #[cfg(target_os = "windows")]
+        if self.view.get() != View::Settings || self.desktop.borrow().game_active() {
+            self.backdrop.show();
+        }
         self.window.show_all();
+        #[cfg(target_os = "windows")]
+        crate::desktop::native::set_panel_visible(true);
         self.window.queue_draw();
         eprintln!(
             "overlay state=Preparing generation={} scale={}",
@@ -447,6 +491,12 @@ impl Ui {
         self.stack.set_visible_child_name("settings");
         if !self.window.is_visible() {
             self.show();
+        }
+        #[cfg(target_os = "windows")]
+        {
+            self.pending_interaction
+                .set(Some(self.state.borrow().generation));
+            self.command("interact");
         }
     }
     fn cancel_settings(&self) {
@@ -631,8 +681,22 @@ impl Ui {
                 }
             }
             "interact" => {
-                if self.state.borrow_mut().interact() {
+                #[cfg(target_os = "linux")]
+                let allow = self.state.borrow_mut().interact();
+                #[cfg(target_os = "windows")]
+                let allow = if self.view.get() == View::Settings {
+                    self.state.borrow_mut().interact_settings()
+                } else {
+                    self.state.borrow_mut().interact()
+                };
+                if allow {
                     apply_input(&self.window, self.window.is_visible());
+                    #[cfg(target_os = "windows")]
+                    if self.view.get() == View::Settings {
+                        if let Some(surface) = self.window.window() {
+                            surface.focus(gtk::current_event_time());
+                        }
+                    }
                 }
             }
             "settings" => self.open_settings(),
@@ -1180,6 +1244,13 @@ impl Ui {
                     self.state.borrow_mut().generation += 1;
                     self.sync_generation();
                 }
+                #[cfg(target_os = "windows")]
+                if self.view.get() == View::Settings && self.window.is_visible() {
+                    self.state.borrow_mut().game_active = active;
+                    self.game_active.store(active, Ordering::Release);
+                    self.desktop.replace(snapshot);
+                    return;
+                }
                 let reason = self.state.borrow_mut().desktop_changed(DesktopState {
                     game_exists: snapshot.game_exists(),
                     game_visible: snapshot.game_present(),
@@ -1419,6 +1490,13 @@ pub fn run() -> Result<(), String> {
     if args.first().is_some_and(|a| a != "daemon" && a != "probe") {
         return Err("Unknown command; see --help".into());
     }
+    #[cfg(target_os = "windows")]
+    if args.is_empty() && crate::ipc::command("status").is_ok() {
+        crate::ipc::command("settings")?;
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
+    let first_launch = !crate::settings::path().exists();
     let settings = Settings::load()?;
     gtk::init().map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
@@ -2065,6 +2143,13 @@ pub fn run() -> Result<(), String> {
         let ui = ui.clone();
         glib::timeout_add_local_once(Duration::from_secs(2), move || ui.command("demo"));
         glib::timeout_add_local_once(Duration::from_secs(12), gtk::main_quit);
+    }
+    #[cfg(target_os = "windows")]
+    let _tray = windows_tray::new(sender.clone())?;
+    #[cfg(target_os = "windows")]
+    if first_launch {
+        let ui = ui.clone();
+        glib::idle_add_local_once(move || ui.command("settings"));
     }
     gtk::main();
     crate::ipc::cleanup();

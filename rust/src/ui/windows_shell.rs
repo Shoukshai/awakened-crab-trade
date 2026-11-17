@@ -6,7 +6,6 @@ use windows_sys::Win32::{Foundation::*, Graphics::Gdi::*, UI::WindowsAndMessagin
 #[link(name = "gdk-3")]
 extern "C" {
     fn gdk_win32_window_get_handle(window: *mut gdk::ffi::GdkWindow) -> HWND;
-    fn gdk_win32_monitor_get_handle(monitor: *mut gdk::ffi::GdkMonitor) -> HMONITOR;
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Edge {
@@ -87,16 +86,23 @@ fn apply(w: &gtk::Window) {
         g.x() + state.left
     };
     let y = g.y() + state.top;
+    // Keep GTK/GDK placement in sync; native-only moves are overwritten on map.
+    if w.position() != (x, y) {
+        w.move_(x, y);
+    }
     let transparent = state
         .input
         .map(|input| !input)
         .unwrap_or(state.mode == KeyboardMode::None);
-    let mut flags = WS_EX_TOOLWINDOW | WS_EX_LAYERED;
+    let mut flags = WS_EX_TOOLWINDOW;
+    if transparent {
+        flags |= WS_EX_TRANSPARENT;
+    }
     if state.mode == KeyboardMode::None || state.backdrop {
         flags |= WS_EX_NOACTIVATE;
     }
-    if transparent {
-        flags |= WS_EX_TRANSPARENT;
+    if let Some(surface) = w.window() {
+        surface.set_pass_through(transparent);
     }
     let rect = (
         x * factor,
@@ -105,7 +111,9 @@ fn apply(w: &gtk::Window) {
         height * factor,
         flags,
     );
-    if state.last == Some(rect) {
+    let managed = WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_APPWINDOW | WS_EX_TRANSPARENT;
+    let old = unsafe { GetWindowLongPtrW(raw, GWL_EXSTYLE) as u32 };
+    if state.last == Some(rect) && old & managed == flags {
         return;
     }
     // Store before invoking Win32: size messages can re-enter GTK allocation.
@@ -115,14 +123,8 @@ fn apply(w: &gtk::Window) {
         }
     });
     unsafe {
-        let old = GetWindowLongPtrW(raw, GWL_EXSTYLE) as u32;
-        let managed = WS_EX_TOOLWINDOW
-            | WS_EX_LAYERED
-            | WS_EX_NOACTIVATE
-            | WS_EX_TRANSPARENT
-            | WS_EX_APPWINDOW;
         SetWindowLongPtrW(raw, GWL_EXSTYLE, ((old & !managed) | flags) as isize);
-        SetLayeredWindowAttributes(raw, 0, if state.backdrop { 46 } else { 255 }, LWA_ALPHA);
+
         SetWindowPos(
             raw,
             HWND_TOPMOST,
@@ -143,11 +145,22 @@ pub fn monitor_for_game(display: &gdk::Display, game: Option<u32>) -> Option<gdk
         .or_else(crate::desktop::native::focused_game);
     if let Some(window) = window {
         let native = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST) };
-        for n in 0..display.n_monitors() {
-            if let Some(monitor) = display.monitor(n) {
-                if unsafe { gdk_win32_monitor_get_handle(monitor.to_glib_none().0) } == native {
-                    return Some(monitor);
-                }
+        let mut info: MONITORINFO = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        if unsafe { GetMonitorInfoW(native, &mut info) } != 0 {
+            let best = (0..display.n_monitors())
+                .filter_map(|n| display.monitor(n))
+                .max_by_key(|monitor| {
+                    let g = monitor.geometry();
+                    let scale = monitor.scale_factor().max(1);
+                    let width = (g.x() * scale + g.width() * scale).min(info.rcMonitor.right)
+                        - (g.x() * scale).max(info.rcMonitor.left);
+                    let height = (g.y() * scale + g.height() * scale).min(info.rcMonitor.bottom)
+                        - (g.y() * scale).max(info.rcMonitor.top);
+                    i64::from(width.max(0)) * i64::from(height.max(0))
+                });
+            if best.is_some() {
+                return best;
             }
         }
     }
@@ -198,8 +211,21 @@ impl LayerShell for gtk::Window {
         change(self, |s| s.monitor = Some(monitor.clone()));
     }
     fn set_keyboard_mode(&self, mode: KeyboardMode) {
-        change(self, |s| s.mode = mode);
+        let previous = self.keyboard_mode();
         self.set_accept_focus(mode == KeyboardMode::OnDemand);
+        change(self, |s| s.mode = mode);
+        // Explicit interaction follows first paint. Only activate over the game
+        // or our own window; a late capture must never take another app's focus.
+        if previous != mode
+            && mode == KeyboardMode::OnDemand
+            && self.is_visible()
+            && (crate::desktop::native::focused_game().is_some()
+                || crate::desktop::native::owned_active())
+        {
+            if let Some(surface) = self.window() {
+                surface.focus(gtk::current_event_time());
+            }
+        }
     }
     fn keyboard_mode(&self) -> KeyboardMode {
         WINDOWS.with(|m| {

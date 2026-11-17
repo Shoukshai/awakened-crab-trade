@@ -1,7 +1,6 @@
 use super::{game_input, native};
 use std::{
-    cell::Cell,
-    sync::Mutex,
+    sync::{Mutex, OnceLock},
     time::{Duration, Instant},
 };
 use windows_sys::Win32::{
@@ -10,36 +9,47 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::*,
 };
 static MUTATION: Mutex<()> = Mutex::new(());
-thread_local! {static OWNER:Cell<HWND>=const{Cell::new(std::ptr::null_mut())};}
+static OWNER: OnceLock<Result<usize, String>> = OnceLock::new();
 const UNICODE: u32 = 13;
 fn owner() -> Result<HWND, String> {
-    OWNER.with(|o| {
-        if !o.get().is_null() {
-            return Ok(o.get());
-        }
-        let w = unsafe {
-            CreateWindowExW(
-                0,
-                native::wide("STATIC").as_ptr(),
-                native::wide("APT clipboard").as_ptr(),
-                0,
-                0,
-                0,
-                0,
-                0,
-                HWND_MESSAGE,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                std::ptr::null(),
-            )
-        };
-        if w.is_null() {
-            Err(native::error("Presse-papiers Windows"))
-        } else {
-            o.set(w);
-            Ok(w)
-        }
-    })
+    // Clipboard ownership receives synchronous Win32 messages. A capture worker
+    // must not own an unpumped window or EmptyClipboard in the game can block.
+    OWNER
+        .get_or_init(|| {
+            let (send, receive) = std::sync::mpsc::sync_channel(1);
+            std::thread::spawn(move || unsafe {
+                let window = CreateWindowExW(
+                    0,
+                    native::wide("STATIC").as_ptr(),
+                    native::wide("APT clipboard").as_ptr(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    HWND_MESSAGE,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                );
+                if window.is_null() {
+                    let _ = send.send(Err(native::error("Presse-papiers Windows")));
+                    return;
+                }
+                if send.send(Ok(window as usize)).is_err() {
+                    return;
+                }
+                let mut message: MSG = std::mem::zeroed();
+                while GetMessageW(&mut message, std::ptr::null_mut(), 0, 0) > 0 {
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+                DestroyWindow(window);
+            });
+            receive.recv().map_err(|e| e.to_string())?
+        })
+        .clone()
+        .map(|window| window as HWND)
 }
 struct Open;
 impl Open {
@@ -135,25 +145,31 @@ pub fn copy_from_game(
     guard.check()?;
     let marker = format!("__APT_RS_COPY_{}", std::process::id());
     write(&marker)?;
-    let sequence = unsafe { GetClipboardSequenceNumber() };
+
     let result = (|| {
         guard.copy()?;
         let start = Instant::now();
+        let mut last_read = String::new();
         while start.elapsed() < Duration::from_millis(1500) {
             guard.check()?;
-            if unsafe { GetClipboardSequenceNumber() } != sequence {
-                if let Ok(text) = read() {
-                    guard.check()?;
-                    if text.starts_with("Item Class: ") {
-                        if restore_text {
-                            restore(&text, previous.as_deref());
+            {
+                match read() {
+                    Ok(text) => {
+                        guard.check()?;
+                        if text.starts_with("Item Class: ") {
+                            if restore_text {
+                                restore(&text, previous.as_deref());
+                            }
+                            return Ok(text);
                         }
-                        return Ok(text);
+                        last_read = format!("text available, {} UTF-8 bytes", text.len());
                     }
+                    Err(error) => last_read = error,
                 }
             }
             std::thread::sleep(Duration::from_millis(16));
         }
+        eprintln!("Clipboard copy timed out: {last_read}");
         Err("Aucun nouvel objet copié. Survolez un objet dans PoE puis réessayez.".into())
     })();
     if result.is_err() {

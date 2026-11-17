@@ -66,7 +66,6 @@ impl Backdrop {
                 window.set_decorated(false);
                 window.set_app_paintable(true);
                 window.set_accept_focus(false);
-                #[cfg(target_os = "linux")]
                 if let Some(v) = GtkWindowExt::screen(&window).and_then(|s| s.rgba_visual()) {
                     window.set_visual(Some(&v));
                 }
@@ -91,10 +90,7 @@ impl Backdrop {
                 });
                 side.window.connect_draw(|_, cr| {
                     cr.set_operator(gtk::cairo::Operator::Source);
-                    #[cfg(target_os = "linux")]
                     cr.set_source_rgba(0., 0., 0., 0.18);
-                    #[cfg(target_os = "windows")]
-                    cr.set_source_rgb(0., 0., 0.);
                     let _ = cr.paint();
                     glib::Propagation::Stop
                 });

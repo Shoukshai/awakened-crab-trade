@@ -1,6 +1,6 @@
 [package]
 name = "awakened-poe-trade-rs"
-version = "0.27.0"
+version = "0.28.0"
 edition = "2021"
 license = "MIT"
 description = "Native Rust migration of Awakened PoE Trade"
@@ -32,3 +32,11 @@ wayland-scanner = "0.31"
 [profile.release]
 lto = "thin"
 strip = true
+
+[features]
+windows-test-fixture = []
+
+[[bin]]
+name = "apt-win32-fixture"
+path = "src/windows_fixture.rs"
+required-features = ["windows-test-fixture"]

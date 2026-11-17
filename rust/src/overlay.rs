@@ -66,6 +66,23 @@ impl Overlay {
         self.state = State::Preparing;
         Some(self.generation)
     }
+    #[cfg(any(target_os = "windows", test))]
+    pub fn show_settings(&mut self) -> u64 {
+        self.generation += 1;
+        self.focus_restored();
+        self.rendered = false;
+        self.state = State::Preparing;
+        self.generation
+    }
+    #[cfg(any(target_os = "windows", test))]
+    pub fn interact_settings(&mut self) -> bool {
+        if self.state == State::Passive && self.rendered {
+            self.state = State::Interactive;
+            true
+        } else {
+            false
+        }
+    }
     pub fn painted(&mut self) {
         if self.state == State::Preparing {
             self.rendered = true;
@@ -151,6 +168,17 @@ impl Overlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn detached_settings_do_not_enable_capture_without_a_game() {
+        let mut o = Overlay::default();
+        assert!(o.show().is_none());
+        o.show_settings();
+        assert!(!o.interact_settings());
+        o.painted();
+        assert!(o.interact_settings());
+        assert!(!o.game_active);
+        assert!(o.show().is_none());
+    }
     #[test]
     fn focus_requires_first_render_and_explicit_action() {
         let mut o = Overlay {

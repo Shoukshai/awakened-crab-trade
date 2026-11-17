@@ -1,3 +1,7 @@
+#![cfg_attr(
+    all(target_os = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)]
 mod calculated;
 #[cfg(target_os = "linux")]
 mod desktop;
@@ -10,6 +14,8 @@ mod hotkeys;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ipc;
 mod paths;
+#[cfg(target_os = "windows")]
+mod windows_runtime;
 // Retained for local diagnostics and compatibility with earlier map profiles.
 #[allow(dead_code)]
 mod inspection;
@@ -30,7 +36,14 @@ mod ui;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 fn main() {
+    #[cfg(target_os = "windows")]
+    if let Err(error) = windows_runtime::initialize() {
+        windows_runtime::report_error(&error);
+        std::process::exit(1);
+    }
     if let Err(e) = ui::run() {
+        #[cfg(target_os = "windows")]
+        windows_runtime::report_error(&e);
         eprintln!("error: {e}");
         std::process::exit(1);
     }

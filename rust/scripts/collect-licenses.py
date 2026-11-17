@@ -16,7 +16,7 @@ root = pathlib.Path(__file__).resolve().parents[1]
 output = pathlib.Path(sys.argv[1]).resolve()
 output.mkdir(parents=True, exist_ok=True)
 compiler = subprocess.check_output(['rustc', '-vV'], text=True)
-host = next(line.split(': ', 1)[1] for line in compiler.splitlines() if line.startswith('host: '))
+host = sys.argv[2] if len(sys.argv)>2 else next(line.split(': ', 1)[1] for line in compiler.splitlines() if line.startswith('host: '))
 metadata = json.loads(subprocess.check_output([
     'cargo', 'metadata', '--locked', '--offline', '--format-version', '1',
     '--filter-platform', host, '--manifest-path', str(root / 'Cargo.toml'),
@@ -76,11 +76,11 @@ stdlib_dest.parent.mkdir(exist_ok=True)
 shutil.copyfile(stdlib, stdlib_dest)
 index['standard_library'] = {'path': str(stdlib_dest.relative_to(output)), 'sha256': hashlib.sha256(stdlib_dest.read_bytes()).hexdigest()}
 (output / 'index.json').write_text(json.dumps(index, indent=2, ensure_ascii=False) + '\n')
-lines = ['# Rust dependency notices', '', f'Locked host graph: `{host}`. Includes build and test dependencies.', '',
+lines = ['# Rust dependency notices', '', f'Locked target graph: `{host}`. Includes build and test dependencies.', '',
          'The standard-library notice is copied from the exact build toolchain.',
-         'GTK and other system shared libraries are supplied by the distribution.', '']
+         'GTK and other shared-library notices are in ../runtime for Windows portable builds; Linux uses distribution libraries.', '']
 for package in index['packages']:
     lines.append(f"- {package['name']} {package['version']} — {package['license']}")
     lines.extend(f"  - [{file['path']}]({file['path']})" for file in package['files'])
 (output / 'README.md').write_text('\n'.join(lines) + '\n')
-print(f"Bundled license texts for {len(index['packages'])} host-graph crates and the Rust standard library")
+print(f"Bundled license texts for {len(index['packages'])} target-graph crates and the Rust standard library")
