@@ -138,6 +138,20 @@ try:
     command('interact');wait_for(lambda:state(state='Interactive'),'manager interaction')
     click(status()['stopwatch_manager']['add']);wait_for(lambda:len(clocks()['rows'])==3 and not status()['preferences_pending'],'native add persisted')
     assert len(json.loads(configpath.read_text())['stopwatches'])==3
+    assert 40<=row(3)['x']<60 and 40<=row(3)['y']<60
+    # The random new instance can cover controls of an existing one. Hide it
+    # through its native manager button before targeting those controls.
+    # The list is scrollable; mapped GTK children can still be clipped.
+    for _ in range(12):
+        time.sleep(.06)
+        m=status()['stopwatch_manager'];r=next(r for r in m['rows'] if r['id']==3)['wanted']
+        if r['y']+r['height']<m['add']['y']-4:break
+        o=status()['origin']
+        subprocess.run([str(target/'debug/examples/pointer'),str(o['x']+35),str(o['y']+m['add']['y']-35),'2560','1600','--scroll','100'],env=env,check=True)
+    assert r['y']+r['height']<m['add']['y']-4,'new row must be inside scroll viewport'
+    click(next(r for r in status()['stopwatch_manager']['rows'] if r['id']==3)['wanted'])
+    wait_for(lambda:not row(3)['wanted'] and not row(3)['visible'] and not status()['preferences_pending'],'new timer hidden from manager')
+    report['new_instance_random_anchor_and_native_hide']=True
     report['native_manager_add_and_exclusive_views']=True
     # A one-second hold actually deletes only its target, including its keys.
     command('hide');focus_game();key('ctrl+j');wait_for(lambda:clocks()['visible'] and clocks()['rendered'],'clock resumed')

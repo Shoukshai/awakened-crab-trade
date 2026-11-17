@@ -24,8 +24,8 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
 | Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples natifs, contrôles, déplacement, maintien pour supprimer, noms/positions/raccourcis par instance | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres comparées ; scénarios GTK sur River privé | alignement dans la vraie interface Delve ; ordre de superposition persistant, images et menu général de widgets |
-| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF, contrôles et ancrages | 12 966 géométries et 3 840 transitions Delve ; 12 296 transitions de chronomètres ; 8 192 étapes de survol et 630 ancrages d’images ; scénarios GTK privés et aperçu réel au-dessus de PoE | alignement dans la vraie interface Delve ; ordre de superposition persistant, menu général, URL distantes, édition et présentation upstream complètes |
+| Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes/Chronomètres/Images ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
 | Tray, mises à jour, debug, fichiers hôte | oui | logs stderr, status IPC, PKGBUILD et lanceur | status et journaux en direct, paquet construit/extrait/exécuté | installation propre, tray, mises à jour et fichiers hôte |
@@ -349,3 +349,52 @@ L’interface GTK adapte la présentation des commandes ; les mesures ne prouven
 pas une identité de pixels avec le navigateur upstream. L’ordre de superposition
 persistant, les widgets d’images, le menu général et les autres environnements de
 bureau restent dans l’inventaire. La limite native de 32 chronomètres est explicite.
+
+## Jalon 0.18 : bandes d’images locales
+
+`image_strip.rs` sépare modèle, six ancrages et garde de survol du bureau.
+`desktop/images.rs` valide les noms locaux et leurs sommes SHA256, copie les
+imports sans modifier les originaux, décode et réduit les images. Les limites
+de taille sont vérifiées avant publication. Deux workers bornés effectuent les
+lectures et le décodage initial hors GTK ; les réponses portent révision et jeton
+d’aperçu. Une réponse obsolète ne peut rouvrir la surface.
+
+`ui/image_panel.rs` rassemble les bandes dans une surface layer-shell RGBA.
+Les entrées restent vides et le clavier None jusqu’au premier rendu réel et à
+l’interaction explicite. L’union des bandes visibles constitue ensuite la région
+cliquable ; l’aperçu agrandi est transparent aux entrées. Une sortie de vignette
+ferme cet aperçu. Le premier mouvement GDK sans position antérieure connue est
+traité comme nul : il faut alors quitter la vignette ou cliquer. Cela évite
+d’inventer une position globale indisponible sur Wayland.
+
+Les six poignées changent l’ancrage et les coordonnées en pourcentage. Les
+mutations des widgets utilisent la même transaction que les réglages ; un refus
+d’écriture rétablit le profil et la position. Le gestionnaire et le cinquième
+onglet des réglages offrent création, affichage, import local, ordre et édition.
+Le sélecteur de fichier est intégré dans la surface existante. Un import fini
+après annulation ne publie pas le brouillon. Les copies de fichiers déjà importées
+restent dans le répertoire de données, comme les uploads upstream.
+
+Les GIF utilisent l’itérateur natif GTK ; sa reconstruction depuis les octets
+encodés se fait encore sur le thread GTK et sa durée est journalisée. Les grands
+GIF ne sont pas profilés. Une seule échéance suit les animations visibles ;
+aucune échéance n’est créée pour les images statiques ou une surface masquée.
+Les vignettes et aperçus tiennent compte du facteur de sortie. Les limites natives
+sont explicites : 16 bandes, 32 images par bande, 16 Mo, 48 mégapixels et décodage
+d’affichage au plus 4096 pixels par dimension. Aucun téléchargement d’image.
+
+Le panneau principal, les chronomètres et les images comptent comme propriétaires
+du focus. Les bandes d’images restent invisibles hors interaction. Un changement
+d’application révoque les entrées et le retour au jeu ne les restaure pas.
+`status` renvoie un résumé JSON explicite si les diagnostics détaillés dépassent
+60 Kio, pour rester dans le datagramme local. La capture native d’un raccourci
+vérifie que la disposition courante reproduit le symbole de l’événement avant
+de l’utiliser : une ancienne touche en file ne prend plus le symbole d’une
+nouvelle disposition d’un clavier virtuel transitoire.
+
+Le menu général et l’ordre de superposition persistant entre types de widgets
+restent à porter. Des bandes superposées peuvent couvrir leurs commandes ; la
+disposition aux bords n’a pas la parité des contraintes CSS upstream. Pas de
+glisser-déposer de fichiers ou d’édition inline complète, ni d’URL distante.
+La feuille Syndicate conserve intégralement son crédit et sa mention version
+3.24 ; ses récompenses ne sont pas présentées comme actuelles.

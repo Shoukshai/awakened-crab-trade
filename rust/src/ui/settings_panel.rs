@@ -33,6 +33,7 @@ pub struct Panel {
     record: Vec<gtk::Button>,
     capture: Rc<Cell<Option<usize>>>,
     pub stopwatches: Rc<super::stopwatch_settings::Editor>,
+    pub images: Rc<super::image_settings::Editor>,
     message: gtk::Label,
     base: RefCell<Settings>,
 }
@@ -170,6 +171,8 @@ impl Panel {
             &stopwatches.container,
             Some(&gtk::Label::new(Some("Chronomètres"))),
         );
+        let images = super::image_settings::Editor::new();
+        form.append_page(&images.container, Some(&gtk::Label::new(Some("Images"))));
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
         message.set_line_wrap(true);
@@ -207,6 +210,7 @@ impl Panel {
             record,
             capture,
             stopwatches,
+            images,
             message,
             base: RefCell::new(Settings::default()),
         }
@@ -219,6 +223,7 @@ impl Panel {
         self.fill(settings);
         self.stopwatches
             .fill(&settings.stopwatches, &settings.hotkeys.stopwatch_keys);
+        self.images.fill(&settings.image_strips);
         self.capture.set(None);
         self.message
             .set_text("Les modifications restent en brouillon jusqu’à Enregistrer.");
@@ -303,6 +308,7 @@ impl Panel {
             stopwatch_keys: s.hotkeys.stopwatch_keys.clone(),
         };
         let (configs, keys) = self.stopwatches.read()?;
+        s.image_strips = self.images.read()?;
         s.stopwatches = configs;
         s.hotkeys.stopwatch_keys = keys;
         s.hotkeys = s.hotkeys.normalized()?;
@@ -337,17 +343,7 @@ impl Panel {
             self.capture.set(None);
             return true;
         }
-        let symbol = gdk::Display::default()
-            .and_then(|d| gdk::Keymap::for_display(&d))
-            .and_then(|m| {
-                m.translate_keyboard_state(
-                    event.hardware_keycode() as u32,
-                    gdk::ModifierType::empty(),
-                    event.group() as i32,
-                )
-            })
-            .map(|(key, _, _, _)| key)
-            .unwrap_or_else(|| *event.keyval());
+        let symbol = unmodified_keyval(event);
         if (0xffe1..=0xffee).contains(&symbol) && symbol != 0xffe5 {
             return true;
         }
@@ -376,6 +372,12 @@ impl Panel {
         self.capture.set(None);
         self.stopwatches.cancel_capture();
     }
+    pub fn open_images(&self, id: Option<u64>) {
+        self.form.set_current_page(Some(4));
+        if let Some(id) = id {
+            self.images.select(id);
+        }
+    }
     pub fn open_stopwatches(&self) {
         self.form.set_current_page(Some(3));
     }
@@ -383,6 +385,25 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..4).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..5).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
+}
+
+/// A transient keyboard can replace the seat keymap while older key events
+/// are still queued. Only use that map if it reproduces this event's symbol.
+pub(super) fn unmodified_keyval(event: &gdk::EventKey) -> u32 {
+    let actual = *event.keyval();
+    gdk::Display::default()
+        .and_then(|d| gdk::Keymap::for_display(&d))
+        .and_then(|m| {
+            let code = u32::from(event.hardware_keycode());
+            let group = i32::from(event.group());
+            let (current, _, _, _) = m.translate_keyboard_state(code, event.state(), group)?;
+            if current != actual {
+                return None;
+            }
+            m.translate_keyboard_state(code, gdk::ModifierType::empty(), group)
+                .map(|(key, _, _, _)| key)
+        })
+        .unwrap_or(actual)
 }

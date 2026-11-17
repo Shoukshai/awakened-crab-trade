@@ -222,7 +222,9 @@ try:
     assert panel['graph_visible'] and panel['source_enabled'] and panel['url'].endswith('/fragments/sacrifice-at-dawn'),panel
     assert panel['related']['visible'] and s['game_active'] and s['keyboard_mode']=='None'
     command('interact');s=wait_for(lambda:state(state='Interactive'),'economy interactive')
-    r=s['economy_panel']['related'];o=s['origin']
+    # A quote can arrive before GTK allocates its newly visible expander.
+    time.sleep(.06);s=status();r=s['economy_panel']['related'];o=s['origin']
+    (runtime/'before-economy-click.json').write_text(json.dumps(s))
     pointer(o['x']+r['x']+10,o['y']+r['y']+10,True)
     wait_for(lambda:status()['economy_panel']['related']['expanded'] and status()['economy_panel']['related']['height']>100,'related prices mapped')
     assert status()['state']=='Interactive'
@@ -308,6 +310,9 @@ try:
     if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2));success=True
 finally:
+    if not success:
+        try:(runtime/'status.json').write_text(command('status'))
+        except Exception:pass
     if not success and shutil.which('grim') and 'WAYLAND_DISPLAY' in env:
         subprocess.run(['grim',str(runtime/'failure.png')],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3)
     for p in reversed(processes):

@@ -250,17 +250,7 @@ impl Editor {
             self.cancel_capture();
             return true;
         }
-        let symbol = gdk::Display::default()
-            .and_then(|d| gdk::Keymap::for_display(&d))
-            .and_then(|m| {
-                m.translate_keyboard_state(
-                    event.hardware_keycode() as u32,
-                    gdk::ModifierType::empty(),
-                    event.group() as i32,
-                )
-            })
-            .map(|(key, _, _, _)| key)
-            .unwrap_or_else(|| *event.keyval());
+        let symbol = super::settings_panel::unmodified_keyval(event);
         if (0xffe1..=0xffee).contains(&symbol) && symbol != 0xffe5 {
             return true;
         }

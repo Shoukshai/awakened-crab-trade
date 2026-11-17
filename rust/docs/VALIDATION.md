@@ -1213,3 +1213,69 @@ revendiqués sur le vrai jeu. L’ordre de superposition persistant, les autres 
 la réduction réelle, plusieurs moniteurs, les autres compositeurs et Windows
 restent non validés ou à porter. L’interface des commandes est adaptée à GTK ;
 pas de parité visuelle pixel à pixel revendiquée.
+
+## Jalon 0.18 : bandes d’images natives
+
+### Comparaisons et tests automatisés
+
+`cargo test --locked --offline` : **120 tests réussis** ; Clippy toutes cibles
+avec `-D warnings` passe. Les nouveaux cas portent sur la garde de survol,
+les ancrages, les imports invalides, l’absence d’agrandissement au décodage,
+la déduplication/réparation du cache, la préservation du fichier source en échec
+et la taille bornée des diagnostics locaux.
+[image-strips-parity-0.18.json](image-strips-parity-0.18.json) compare les fonctions
+upstream inchangées : **8 192 étapes dans 128 séquences de survol**, puis **630
+transformations d’ancrage**, sans écart. La portée exclut le layout CSS et les
+mouvements globaux que GDK ne rapporte pas avant l’entrée sur une surface.
+
+[image-strips-lifecycle-0.18.json](image-strips-lifecycle-0.18.json) utilise un River
+headless privé et un faux jeu, réseau bloqué. Il vérifie plusieurs bandes,
+vignettes et aperçu, sortie de vignette, alternance réelle des pixels d’un GIF
+et arrêt des animations masquées. Le sélecteur GTK importe un PNG local ; les
+flèches changent l’ordre, sauvegardé seulement après Enregistrer. Le scénario
+vérifie déplacement/ancrage dessinés et persistés, annulation d’un maintien puis
+suppression ciblée, changement d’application, retour sans activation, restauration
+explicite après premier rendu, absence de frames masquées et redémarrage masqué
+avec ordre/fichiers conservés. Les sorties privées couvrent 1920×1080, puis
+2560×1600 au facteur 2 et au facteur 1. Aucun message GTK critical dans les logs.
+
+Les scénarios de [chronomètres](stopwatch-lifecycle-0.18.json),
+[réglages](settings-0.18.json), [cycle de vie](overlay-lifecycle-0.18.json),
+[Delve](delve-lifecycle-0.18.json) et [Heist](item-search-lifecycle-0.18.json)
+passent avec les empreintes des sources courantes. Le test des chronomètres
+vérifie la position aléatoire du nouvel ajout puis le masque par le gestionnaire,
+après défilement jusqu’à son bouton visible : un enfant GTK mappé peut être
+coupé par la zone défilante. Cela évite aussi de cliquer une commande recouverte
+par le nouveau widget. Le test de prix attend l’allocation des volets avant clic.
+
+Le scénario d’images a révélé une zone GDK d’aperçu interceptant le pointeur,
+une fermeture d’aperçu à chaque allocation inchangée et une propagation clavier
+vers une entrée GTK pas encore réalisée dans le sélecteur de fichiers. Les
+corrections sont vérifiées par les interactions natives : région d’entrée de
+l’aperçu vide, réaction seulement à une vraie modification de sortie, préparation
+de l’entrée de localisation du sélecteur hors propagation de l’événement clavier.
+
+### Observations sur le vrai PoE
+
+[image-strips-real-0.18.json](image-strips-real-0.18.json) décrit le binaire release
+sur Artix/River/XWayland à 2560×1600 au facteur 1. Le gestionnaire s’affiche
+passivement avec le focus dans PoE ; une action explicite autorise les commandes,
+puis un clic dans la vignette ouvre l’aperçu. La capture a été inspectée : image
+entière, transparence, crédit et mention 3.24 conservés. Quitter la vignette vers
+le gestionnaire ferme l’aperçu sans fermer l’interaction. Maj+Espace restaure la
+bande demandée après premier rendu. Le profil initial est ensuite retrouvé
+intégralement, et le jeu ainsi que River restent ouverts.
+
+Mesures courtes de ce processus à 100 ticks/s : image statique visible,
+**3 ticks CPU / 3 s**, **92 028 Kio RSS**, aucune nouvelle frame ni échéance
+d’animation ; toutes surfaces masquées, **0 tick CPU / 3 s**, **74 872 Kio RSS**,
+aucune nouvelle frame ni échéance. Ce ne sont pas des mesures comparatives
+Electron ni une promesse de consommation sur toute machine.
+
+Copie réelle avant et après les images : Driftwood Wand, **11 DPS physiques**.
+Trade en Covens : **485 résultats, 10 offres, 608 ms réseau**, panneau passif et
+clavier None. L’import, les GIF, les déplacements, les maintiens et les facteurs
+de sortie sont vérifiés sur le bureau privé ; seule la feuille fournie a été
+utilisée sur le vrai jeu. Les grands GIF, l’ordre de superposition persistant,
+les bords CSS exacts, la réduction réelle, plusieurs sorties, les autres
+compositeurs, X11 natif et Windows restent non validés ou à porter.

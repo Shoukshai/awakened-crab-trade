@@ -14,6 +14,11 @@ pub struct Settings {
     pub hotkeys: crate::hotkeys::Hotkeys,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub stopwatches: Vec<crate::stopwatch::Config>,
+    #[serde(
+        default = "crate::image_strip::defaults",
+        skip_serializing_if = "crate::image_strip::is_default"
+    )]
+    pub image_strips: Vec<crate::image_strip::Config>,
 }
 fn is_true(value: &bool) -> bool {
     *value
@@ -29,6 +34,7 @@ impl Default for Settings {
             map_check: crate::inspection::MapConfig::default(),
             hotkeys: crate::hotkeys::Hotkeys::default(),
             stopwatches: Vec::new(),
+            image_strips: crate::image_strip::defaults(),
         }
     }
 }
@@ -53,6 +59,16 @@ impl Settings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self.image_strips.len() > crate::image_strip::MAX_STRIPS {
+            return Err("Au plus 16 bandes d’images.".into());
+        }
+        let mut image_ids = std::collections::HashSet::new();
+        for c in &self.image_strips {
+            c.validate()?;
+            if !image_ids.insert(c.id) {
+                return Err("Identifiant de bande d’images dupliqué.".into());
+            }
+        }
         self.map_check.validate()?;
         self.hotkeys.bindings()?;
         if self.stopwatches.len() > crate::stopwatch::MAX_INSTANCES {

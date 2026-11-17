@@ -12,6 +12,9 @@ use crate::{
 };
 mod delve_grid;
 mod economy_panel;
+mod image_manager;
+mod image_panel;
+mod image_settings;
 mod inspection_panel;
 mod item_filters_panel;
 mod item_search_panel;
@@ -44,12 +47,15 @@ enum View {
     Settings,
     Catalogue,
     Stopwatches,
+    Images,
 }
 enum Event {
     Shortcut(&'static str),
     Hotkey(crate::hotkeys::Action),
     Stopwatch(stopwatch_panel::Action),
     StopwatchManager(stopwatch_manager::Action),
+    Image(image_panel::Action),
+    ImageManager(image_manager::Action),
     Windows(Snapshot),
     TrackerError(String),
     Captured(u64, View, Box<Result<(Item, u128), String>>),
@@ -89,7 +95,10 @@ struct Ui {
     delve: Result<Rc<delve_grid::Grid>, String>,
     stopwatches: Result<Rc<stopwatch_panel::Runtime>, String>,
     stopwatch_manager: stopwatch_manager::Manager,
-    stopwatch_transaction: Cell<bool>,
+    images: Result<Rc<image_panel::Runtime>, String>,
+    image_manager: image_manager::Panel,
+    pending_image_edit: Cell<Option<(u64, u64)>>,
+    widget_transaction: Cell<bool>,
     pending_interaction: Cell<Option<u64>>,
     pending_stopwatch_edit: Cell<Option<u64>>,
     started: Instant,
@@ -172,6 +181,22 @@ fn apply_input(window: &gtk::Window, interactive: bool) {
         w.input_shape_combine_region(&region, 0, 0);
     }
 }
+fn status_payload(value: &serde_json::Value) -> String {
+    let encoded = value.to_string();
+    if encoded.len() <= 60 * 1024 {
+        return encoded;
+    }
+    // The local client reads one 64 KiB datagram. A large collection of widget
+    // controls must still produce a useful, valid response instead of EMSGSIZE.
+    serde_json::json!({
+        "diagnostics_truncated":true,"diagnostics_bytes":encoded.len(),
+        "state":value["state"],"view":value["view"],"game_active":value["game_active"],
+        "visible":value["visible"],"rendered":value["rendered"],"keyboard_mode":value["keyboard_mode"],
+        "generation":value["generation"],"origin":value["origin"],"width":value["width"],"height":value["height"],
+        "shortcut_backend":value["shortcut_backend"],"preferences_pending":value["preferences_pending"],
+        "counts":{"image_strips":value["images"]["rows"].as_array().map(Vec::len),"stopwatches":value["stopwatches"]["rows"].as_array().map(Vec::len),"stat_controls":value["stat_controls"].as_array().map(Vec::len)}
+    }).to_string()
+}
 fn belongs_to_window(widget: &gtk::Widget, window: &gtk::Window, depth: u8) -> bool {
     if widget == window.upcast_ref::<gtk::Widget>() {
         return true;
@@ -235,8 +260,9 @@ impl Ui {
         // Observe settled state; never request activation or focus to compensate.
         glib::timeout_add_local_once(Duration::from_millis(30), move || {
             if let Some(ui) = weak.upgrade() {
-                let active =
-                    ui.window.is_active() || ui.stopwatches.as_ref().is_ok_and(|r| r.owns_focus());
+                let active = ui.window.is_active()
+                    || ui.stopwatches.as_ref().is_ok_and(|r| r.owns_focus())
+                    || ui.images.as_ref().is_ok_and(|r| r.owns_focus());
                 let popup = owned_popup(&ui.window).is_some();
                 let hide = ui
                     .state
@@ -279,6 +305,19 @@ impl Ui {
                 self.window.is_visible() && self.view.get() == View::Stopwatches,
             );
         }
+        if let Ok(r) = &self.images {
+            let d = self.desktop.borrow();
+            r.set_context(
+                self.state.borrow().state == State::Interactive
+                    && d.game_present()
+                    && !d.other_active(),
+                self.window.is_visible()
+                    && matches!(
+                        self.view.get(),
+                        View::Price | View::Inspection | View::Settings
+                    ),
+            );
+        }
     }
 
     fn toggle_delve(&self) {
@@ -311,10 +350,15 @@ impl Ui {
             .store(self.state.borrow().generation, Ordering::Release);
     }
     fn hide(&self, reason: HideReason) {
+        self.preferences.images.cancel_import();
         self.pending_interaction.set(None);
+        self.pending_image_edit.set(None);
         self.pending_stopwatch_edit.set(None);
         if matches!(reason, HideReason::Explicit | HideReason::Quit) {
             if let Ok(r) = &self.stopwatches {
+                r.dismiss();
+            }
+            if let Ok(r) = &self.images {
                 r.dismiss();
             }
         }
@@ -457,6 +501,109 @@ impl Ui {
             eprintln!("catalogue economy generation={generation} trade_http=false");
         }
     }
+    fn open_images(&self) {
+        if self.preferences_pending.get() {
+            return;
+        }
+        self.invalidate_prices();
+        self.view.set(View::Images);
+        self.title.set_text("Bandes d’images");
+        self.stack.set_visible_child_name("images");
+        if let Ok(r) = &self.images {
+            r.resume();
+        }
+        if !self.window.is_visible() {
+            self.show();
+        }
+        self.refresh_delve();
+    }
+    fn image_manager_action(&self, action: image_manager::Action) {
+        if self.view.get() != View::Images
+            || !self.window.is_visible()
+            || self.state.borrow().state != State::Interactive
+            || self.preferences_pending.get()
+        {
+            return;
+        }
+        match action {
+            image_manager::Action::Edit(id) => {
+                if let Ok(r) = &self.images {
+                    r.prepare_edit(id);
+                }
+                self.open_settings();
+                self.preferences.open_images(Some(id));
+            }
+            image_manager::Action::Add => {
+                let mut s = self.settings.borrow().clone();
+                if s.image_strips.len() >= crate::image_strip::MAX_STRIPS {
+                    return;
+                }
+                let id = s.image_strips.iter().map(|c| c.id).max().unwrap_or(0) + 1;
+                s.image_strips.push(crate::image_strip::Config::new(
+                    id,
+                    glib::random_double(),
+                    glib::random_double(),
+                ));
+                self.commit_widgets(s);
+            }
+            image_manager::Action::Wanted(id, wanted) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
+                    c.wanted = wanted;
+                    self.commit_widgets(s);
+                }
+            }
+        }
+    }
+    fn image_action(self: &Rc<Self>, action: image_panel::Action) {
+        let Ok(r) = &self.images else {
+            return;
+        };
+        use image_panel::Action;
+        match action {
+            Action::FocusChanged => {
+                if r.owns_focus() {
+                    self.state.borrow_mut().focus_restored();
+                } else {
+                    self.defer_focus_check();
+                }
+            }
+            Action::Escape(epoch) if r.accepts(epoch) => self.hide(HideReason::Escape),
+            Action::Edit(epoch, id) if r.accepts(epoch) && !self.preferences_pending.get() => {
+                r.prepare_edit(id);
+                self.hide(HideReason::Button);
+                if self.desktop.borrow().game_active() {
+                    self.open_settings();
+                    self.preferences.open_images(Some(id));
+                } else {
+                    self.pending_image_edit
+                        .set(Some((self.state.borrow().generation, id)));
+                }
+            }
+            Action::Hide(epoch, id) | Action::Remove(epoch, id)
+                if r.accepts(epoch) && !self.preferences_pending.get() =>
+            {
+                let remove = matches!(action, Action::Remove(..));
+                let mut s = self.settings.borrow().clone();
+                if remove {
+                    s.image_strips.retain(|c| c.id != id);
+                } else if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == id) {
+                    c.wanted = false;
+                }
+                self.commit_widgets(s);
+            }
+            Action::Move { epoch, config }
+                if r.accepts(epoch) && !self.preferences_pending.get() =>
+            {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.image_strips.iter_mut().find(|c| c.id == config.id) {
+                    *c = config;
+                    self.commit_widgets(s);
+                }
+            }
+            _ => (),
+        }
+    }
     fn open_stopwatches(&self) {
         if self.preferences_pending.get() {
             return;
@@ -493,7 +640,7 @@ impl Ui {
         }
         self.update_stopwatch_manager();
     }
-    fn commit_stopwatches(&self, candidate: Settings) {
+    fn commit_widgets(&self, candidate: Settings) {
         if self.preferences_pending.get() {
             return;
         }
@@ -503,8 +650,12 @@ impl Ui {
         }
         self.preferences_epoch.set(self.preferences_epoch.get() + 1);
         self.preferences_pending.set(true);
-        self.stopwatch_transaction.set(true);
+        self.widget_transaction.set(true);
         self.stopwatch_manager.busy(true);
+        self.image_manager.busy(true);
+        if let Ok(r) = &self.images {
+            r.set_busy(true);
+        }
         if let Ok(r) = &self.stopwatches {
             r.set_busy(true);
         }
@@ -516,8 +667,17 @@ impl Ui {
             })
         {
             self.preferences_pending.set(false);
-            self.stopwatch_transaction.set(false);
+            self.widget_transaction.set(false);
             self.stopwatch_manager.busy(false);
+            self.image_manager.busy(false);
+            self.image_manager.message(&e.to_string());
+            if let Ok(r) = &self.images {
+                r.set_busy(false);
+                r.reconcile(
+                    &self.settings.borrow().image_strips,
+                    self.settings.borrow().scale,
+                );
+            }
             self.stopwatch_manager.message(&e.to_string());
             if let Ok(r) = &self.stopwatches {
                 r.set_busy(false);
@@ -561,13 +721,13 @@ impl Ui {
                     glib::random_double(),
                     glib::random_double(),
                 ));
-                self.commit_stopwatches(s);
+                self.commit_widgets(s);
             }
             Action::Wanted(id, wanted) => {
                 let mut s = self.settings.borrow().clone();
                 if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
                     c.wanted = wanted;
-                    self.commit_stopwatches(s);
+                    self.commit_widgets(s);
                 }
             }
         }
@@ -606,7 +766,7 @@ impl Ui {
                 let mut s = self.settings.borrow().clone();
                 s.stopwatches.retain(|c| c.id != id);
                 s.hotkeys.stopwatch_keys.retain(|c| c.id != id);
-                self.commit_stopwatches(s);
+                self.commit_widgets(s);
             }
             Action::Move { epoch, id, x, y }
                 if r.accepts(epoch) && !self.preferences_pending.get() =>
@@ -615,7 +775,7 @@ impl Ui {
                 if let Some(c) = s.stopwatches.iter_mut().find(|c| c.id == id) {
                     c.x = x;
                     c.y = y;
-                    self.commit_stopwatches(s);
+                    self.commit_widgets(s);
                 }
             }
             _ => (),
@@ -651,8 +811,13 @@ impl Ui {
         if self.preferences_pending.get() {
             return;
         }
+        self.preferences.images.cancel_import();
         let view = self.preferences_return.get();
         self.view.set(view);
+        if view == View::Images {
+            self.open_images();
+            return;
+        }
         if view == View::Stopwatches {
             self.open_stopwatches();
             return;
@@ -698,7 +863,7 @@ impl Ui {
                 return;
             }
         };
-        self.stopwatch_transaction.set(false);
+        self.widget_transaction.set(false);
         self.preferences_pending.set(true);
         self.preferences.busy(true);
         self.stack.set_sensitive(false);
@@ -733,7 +898,17 @@ impl Ui {
                 self.preferences_pending.set(false);
                 self.stack.set_sensitive(true);
                 eprintln!("settings transaction rejected epoch={epoch} error={error}");
-                if self.stopwatch_transaction.replace(false) {
+                if self.widget_transaction.replace(false) {
+                    self.image_manager.busy(false);
+                    self.image_manager
+                        .message(&format!("Modifications non enregistrées : {error}"));
+                    if let Ok(r) = &self.images {
+                        r.set_busy(false);
+                        r.reconcile(
+                            &self.settings.borrow().image_strips,
+                            self.settings.borrow().scale,
+                        );
+                    }
                     self.stopwatch_manager.busy(false);
                     self.stopwatch_manager
                         .message(&format!("Modifications non enregistrées : {error}"));
@@ -765,14 +940,21 @@ impl Ui {
                     Err("Réglages enregistrés, mais la connexion aux raccourcis est perdue.".into())
                 });
                 self.settings.replace(settings.clone());
+                if let Ok(r) = &self.images {
+                    r.set_busy(false);
+                    r.reconcile(&settings.image_strips, settings.scale);
+                }
+                self.image_manager.configure(&settings.image_strips);
+                self.image_manager.busy(false);
                 if let Ok(r) = &self.stopwatches {
                     r.set_busy(false);
                     r.reconcile(&settings.stopwatches, settings.scale);
                 }
                 self.stopwatch_manager.configure(&settings.stopwatches);
                 self.stopwatch_manager.busy(false);
-                if self.stopwatch_transaction.replace(false) {
-                    self.stopwatch_manager.message("Chronomètres enregistrés.");
+                if self.widget_transaction.replace(false) {
+                    self.stopwatch_manager.message("Widgets enregistrés.");
+                    self.image_manager.message("Widgets enregistrés.");
                     self.update_stopwatch_manager();
                     self.refresh_delve();
                     return;
@@ -914,6 +1096,13 @@ impl Ui {
                                 .set(Some(self.state.borrow().generation));
                         }
                         return;
+                    } else if self.images.as_ref().is_ok_and(|r| r.has_wanted()) {
+                        self.open_images();
+                        if self.state.borrow().state == State::Preparing {
+                            self.pending_interaction
+                                .set(Some(self.state.borrow().generation));
+                        }
+                        return;
                     }
                 }
                 if self.state.borrow_mut().interact() {
@@ -937,6 +1126,7 @@ impl Ui {
             "settings" => self.open_settings(),
             "catalogue" => self.open_catalogue(),
             "stopwatches" => self.open_stopwatches(),
+            "images" => self.open_images(),
             "evaluate" => self.change_view(View::Inspection),
             "prices" => self.change_view(View::Price),
             "quit" => {
@@ -1393,6 +1583,8 @@ impl Ui {
             }
             Event::Stopwatch(action) => self.stopwatch_action(action),
             Event::StopwatchManager(action) => self.stopwatch_manager_action(action),
+            Event::Image(action) => self.image_action(action),
+            Event::ImageManager(action) => self.image_manager_action(action),
             Event::Catalogue(action) => self.catalogue_action(action),
             Event::CataloguePrices(generation, result) => {
                 if self.view.get() == View::Catalogue && self.state.borrow().accepts(generation) {
@@ -1420,6 +1612,7 @@ impl Ui {
                 });
                 if s.other_active() || !s.game_present() {
                     self.pending_stopwatch_edit.set(None);
+                    self.pending_image_edit.set(None);
                     self.pending_interaction.set(None);
                 }
                 self.game_active.store(active, Ordering::Release);
@@ -1427,6 +1620,15 @@ impl Ui {
                 self.refresh_delve();
                 if let Some(reason) = reason {
                     self.hide(reason);
+                }
+                if active {
+                    if let Some((token, id)) = self.pending_image_edit.get() {
+                        if token == self.state.borrow().generation {
+                            self.pending_image_edit.set(None);
+                            self.open_settings();
+                            self.preferences.open_images(Some(id));
+                        }
+                    }
                 }
                 if active
                     && self.pending_stopwatch_edit.get() == Some(self.state.borrow().generation)
@@ -1661,7 +1863,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
+        println!("awakened-poe-trade-rs [daemon|probe|demo|settings|catalogue [gem|replica [QUERY]]|delve|delve-hide|stopwatches|images|check|copy|interact|hide|quit|status|league NAME|windows|inspect FILE|analyze FILE|inspect-copy|inspect-check|evaluate|prices|lookup FILE [LEAGUE] [CURRENCY]|economy FILE [LEAGUE]]\nStart daemon, copy an item with Ctrl+Alt+C in PoE, then check.\ncopy sends the copy gesture to the active XWayland PoE only.\ninteract enables pointer controls after first render. No automatic focus requests.\nSettings: {}",crate::settings::path().display());
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1701,6 +1903,7 @@ pub fn run() -> Result<(), String> {
                 | "delve"
                 | "delve-hide"
                 | "stopwatches"
+                | "images"
         )
     }) {
         UnixDatagram::unbound()
@@ -1793,6 +1996,18 @@ pub fn run() -> Result<(), String> {
         let _ = manager_sender.send(Event::StopwatchManager(action));
     });
     stopwatch_manager.configure(&settings.stopwatches);
+    let image_sender = sender.clone();
+    let images = image_panel::Runtime::new(move |action| {
+        let _ = image_sender.send(Event::Image(action));
+    });
+    if let Ok(r) = &images {
+        r.reconcile(&settings.image_strips, settings.scale);
+    }
+    let manager_sender = sender.clone();
+    let image_manager = image_manager::Panel::new(move |action| {
+        let _ = manager_sender.send(Event::ImageManager(action));
+    });
+    image_manager.configure(&settings.image_strips);
     let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
     content.set_border_width(20);
     let title = gtk::Label::new(Some("AWAKENED POE TRADE · RUST"));
@@ -1909,6 +2124,8 @@ pub fn run() -> Result<(), String> {
             edit,
         ));
     });
+    stack.add_named(&image_manager.container, "images");
+    image_manager.container.show_all();
     stack.add_named(&stopwatch_manager.container, "stopwatches");
     stopwatch_manager.container.show_all();
     stack.add_named(&catalogue.container, "catalogue");
@@ -1924,7 +2141,11 @@ pub fn run() -> Result<(), String> {
     price_content.show_all();
     inspection.container.show_all();
     stack.set_visible_child_name("price");
+    let header = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    header.pack_start(&title, false, false, 0);
     let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let image_open = gtk::Button::with_label("Images");
+    image_open.set_sensitive(images.is_ok());
     let preferences_open = gtk::Button::with_label("Réglages");
     let catalogue_open = gtk::Button::with_label("Cibles Heist");
     let stopwatch_open = gtk::Button::with_label("Chronos");
@@ -1934,12 +2155,13 @@ pub fn run() -> Result<(), String> {
     delve_open.set_tooltip_text(Some(
         "Ferme ce panneau et affiche une grille passive ; configurez son raccourci dans Réglages.",
     ));
-    heading.pack_start(&title, true, true, 0);
+    heading.pack_start(&image_open, false, false, 0);
     heading.pack_start(&stopwatch_open, false, false, 0);
     heading.pack_start(&delve_open, false, false, 0);
     heading.pack_start(&catalogue_open, false, false, 0);
     heading.pack_start(&preferences_open, false, false, 0);
-    content.pack_start(&heading, false, false, 0);
+    header.pack_start(&heading, false, false, 0);
+    content.pack_start(&header, false, false, 0);
     content.pack_start(&stack, true, true, 0);
     content.pack_start(&hint, false, false, 0);
     window.add(&content);
@@ -2039,7 +2261,10 @@ pub fn run() -> Result<(), String> {
         delve,
         stopwatches,
         stopwatch_manager,
-        stopwatch_transaction: Cell::new(false),
+        images,
+        image_manager,
+        pending_image_edit: Cell::new(None),
+        widget_transaction: Cell::new(false),
         pending_interaction: Cell::new(None),
         pending_stopwatch_edit: Cell::new(None),
         started: Instant::now(),
@@ -2096,6 +2321,8 @@ pub fn run() -> Result<(), String> {
         preferences_open.connect_clicked(move |_| owner.open_settings());
         let owner = ui.clone();
         stopwatch_open.connect_clicked(move |_| owner.open_stopwatches());
+        let owner = ui.clone();
+        image_open.connect_clicked(move |_| owner.open_images());
         let owner = ui.clone();
         catalogue_open.connect_clicked(move |_| owner.open_catalogue());
         let owner = ui.clone();
@@ -2361,6 +2588,14 @@ pub fn run() -> Result<(), String> {
                             Err(error) => serde_json::json!({"available":false,"error":error}),
                         };
                         value["delve_button"]=serde_json::json!(delve_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":delve_open.allocated_width(),"height":delve_open.allocated_height()})));
+                        value["images"] = match &ui.images {
+                            Ok(r) => r.diagnostics(ui.state.borrow().state == State::Interactive),
+                            Err(e) => serde_json::json!({"available":false,"error":e}),
+                        };
+                        value["image_manager"] = ui
+                            .image_manager
+                            .diagnostics(&ui.window, ui.view.get() == View::Images);
+                        value["image_button"]=serde_json::json!(image_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":image_open.allocated_width(),"height":image_open.allocated_height()})));
                         value["stopwatches"] = match &ui.stopwatches {
                             Ok(r) => r.snapshot(ui.state.borrow().state == State::Interactive),
                             Err(e) => serde_json::json!({"available":false,"error":e}),
@@ -2376,13 +2611,13 @@ pub fn run() -> Result<(), String> {
                             serde_json::json!(ui.preferences_pending.get());
                         {
                             let settings = ui.settings.borrow();
-                            value["settings"] = serde_json::json!({"stopwatch_count":settings.stopwatches.len(),"league":settings.league,"scale":settings.scale,"search_range":settings.search_range,"automatic_search":settings.automatic_search,"hotkeys":settings.hotkeys,"filters":{"online":settings.filters.online,"merchant_only":settings.filters.merchant_only,"collapse_listings":settings.filters.collapse_listings,"bulk_currency":settings.filters.bulk_currency,"default_currency":settings.filters.default_currency,"activate_stock_filter":settings.filters.activate_stock_filter,"stats_count":settings.filters.stats.len()},"map_check":{"profile":settings.map_check.profile,"showNewStats":settings.map_check.show_new_stats,"selected_stats_count":settings.map_check.selected_stats.len()}});
+                            value["settings"] = serde_json::json!({"image_strip_count":settings.image_strips.len(),"stopwatch_count":settings.stopwatches.len(),"league":settings.league,"scale":settings.scale,"search_range":settings.search_range,"automatic_search":settings.automatic_search,"hotkeys":settings.hotkeys,"filters":{"online":settings.filters.online,"merchant_only":settings.filters.merchant_only,"collapse_listings":settings.filters.collapse_listings,"bulk_currency":settings.filters.bulk_currency,"default_currency":settings.filters.default_currency,"activate_stock_filter":settings.filters.activate_stock_filter,"stats_count":settings.filters.stats.len()},"map_check":{"profile":settings.map_check.profile,"showNewStats":settings.map_check.show_new_stats,"selected_stats_count":settings.map_check.selected_stats.len()}});
                         }
                         value["shortcut_backend"] = serde_json::json!({"connection":ui.backend_connection.get(),"status":*ui.backend_status.borrow()});
                         value["settings_button"]=serde_json::json!(preferences_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":preferences_open.allocated_width(),"height":preferences_open.allocated_height()})));
                         value["unidentified_resolver"] = ui.unidentified.diagnostics(&ui.window);
                         value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
-                        let _ = socket.send_to(value.to_string().as_bytes(), path);
+                        let _ = socket.send_to(status_payload(&value).as_bytes(), path);
                     }
                     continue;
                 }
@@ -2399,4 +2634,21 @@ pub fn run() -> Result<(), String> {
     gtk::main();
     let _ = std::fs::remove_file(path);
     Ok(())
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    #[test]
+    fn large_widget_diagnostics_still_fit_the_local_reply_buffer() {
+        let value = serde_json::json!({"state":"Hidden","view":"Images","game_active":true,"visible":false,"stat_controls":vec!["x".repeat(300);400],"images":{"rows":vec![0;16]},"stopwatches":{"rows":vec![0;32]}});
+        let encoded = super::status_payload(&value);
+        assert!(encoded.len() < 65536);
+        let reply: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(reply["state"], "Hidden");
+        assert_eq!(reply["game_active"], true);
+        assert_eq!(reply["diagnostics_truncated"], true);
+        assert_eq!(reply["counts"]["image_strips"], 16);
+        let small = serde_json::json!({"state":"Passive"});
+        assert_eq!(super::status_payload(&small), small.to_string());
+    }
 }

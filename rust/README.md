@@ -194,6 +194,30 @@ ne rouvre pas le panneau de prix. `hide` masque toutes les surfaces jusqu’à u
 nouvelle action explicite. Les vues prix, évaluation et réglages masquent les
 chronomètres pendant leur affichage.
 
+**Images** ouvre le gestionnaire de bandes d’images (`images` en ligne de commande).
+Appuyer sur **Maj+Espace** pour autoriser les clics, puis activer une bande avec **Afficher**.
+Les bandes apparaissent uniquement pendant l’interaction. Cliquer une vignette
+l’agrandit dans la sortie ; quitter la vignette ferme l’aperçu. **Déplacer** expose
+six poignées d’ancrage, en haut et en bas. **Supprimer** demande un maintien d’une
+seconde, annulé au relâchement ou à la sortie. Une autre application masque bandes,
+aperçu et entrées ; le retour au jeu ne les réactive pas. Une action explicite
+**Maj+Espace** peut rouvrir le gestionnaire si une bande est demandée et aucun
+chronomètre n’est configuré. Les vues Prix, Évaluation et Réglages les masquent.
+
+**Réglages → Images** permet d’ajouter des bandes, changer leur nom, position et
+ancrage, importer des fichiers locaux et réordonner les images avec les flèches.
+Les modifications du profil restent au brouillon jusqu’à **Enregistrer**.
+Les fichiers sont copiés dans `$XDG_DATA_HOME/awakened-poe-trade-rs/images`, sinon
+`~/.local/share/awakened-poe-trade-rs/images`. Annuler conserve les copies déjà
+importées, sans modifier le profil ni les fichiers d’origine. Limites natives :
+16 bandes, 32 images par bande, 16 Mo et 48 millions de pixels par fichier ; le
+décodage d’affichage est borné à 4096 pixels par dimension. Les GIF s’animent
+seulement lorsqu’ils sont visibles. Les URL distantes ne sont pas prises en charge.
+La feuille Syndicate fournie est l’image upstream inchangée, marquée **version
+3.24**, avec son crédit à elrincondelexiliado.com/syndicate ; elle ne constitue pas
+une référence des mécaniques de la ligue actuelle. L’ordre de superposition
+persistant et la disposition exacte des commandes upstream restent à porter.
+
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
 ni configuration système n'est modifiée. Les événements destinés aux autres
@@ -234,7 +258,7 @@ et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
 ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
-marchands, regroupement, profil de carte et sept raccourcis globaux et les chronomètres. **Annuler** ne
+marchands, regroupement, profil de carte, sept raccourcis globaux, chronomètres et images. **Annuler** ne
 persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
 l’application, puis masque le panneau ; cela ne lance aucune recherche.
 Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
@@ -263,7 +287,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.17.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.18.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -364,6 +388,8 @@ cargo build --locked --examples
 node scripts/compare-stopwatch.cjs
 node scripts/compare-delve.cjs
 python3 scripts/test-stopwatch.py
+node scripts/compare-image-strips.cjs target/debug/examples/image-strip docs/image-strips-parity-0.18.json
+python3 scripts/test-image-strips.py target/release/awakened-poe-trade-rs docs/image-strips-lifecycle-0.18.json
 ```
 
 Les deux comparaisons exigent les dépendances Node upstream dans `renderer/`.
