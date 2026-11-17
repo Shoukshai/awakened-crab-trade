@@ -197,11 +197,7 @@ fn now() -> u64 {
 }
 impl Economy {
     pub fn new() -> Result<Self, String> {
-        let cache = std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache")
-            });
+        let cache = crate::paths::cache_root();
         Ok(Self {
             client: Client::builder()
                 .user_agent(concat!(

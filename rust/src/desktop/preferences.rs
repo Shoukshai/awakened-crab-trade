@@ -1,6 +1,6 @@
 //! Serial settings transaction worker. X11 reads remain event-driven on their
 //! own thread, so registering shortcuts or persisting settings never blocks GTK.
-use super::xwayland_shortcuts::Backend;
+use super::shortcuts::Backend;
 use crate::{hotkeys::Hotkeys, settings::Settings};
 use std::sync::{atomic::AtomicBool, mpsc::Receiver, Arc};
 pub struct Request {

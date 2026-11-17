@@ -1,7 +1,10 @@
 //! Outside-click surfaces occupy only the space beside the full-height panel.
 //! No input-region hole: GTK decorations and popup grabs cannot turn it into
 //! an invisible full-screen click catcher.
+#[cfg(target_os = "windows")]
+use super::windows_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use gtk::{gdk, prelude::*};
+#[cfg(target_os = "linux")]
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{cell::Cell, rc::Rc};
 struct Side {
@@ -21,6 +24,12 @@ impl Side {
         if self.applied.get() == Some(ready) {
             return;
         }
+        #[cfg(target_os = "windows")]
+        {
+            self.applied.set(Some(ready));
+            super::windows_shell::set_input_enabled(&self.window, ready);
+        }
+        #[cfg(target_os = "linux")]
         if let Some(w) = self.window.window() {
             self.applied.set(Some(ready));
             let region = if ready {
@@ -57,6 +66,7 @@ impl Backdrop {
                 window.set_decorated(false);
                 window.set_app_paintable(true);
                 window.set_accept_focus(false);
+                #[cfg(target_os = "linux")]
                 if let Some(v) = GtkWindowExt::screen(&window).and_then(|s| s.rgba_visual()) {
                     window.set_visual(Some(&v));
                 }
@@ -81,7 +91,10 @@ impl Backdrop {
                 });
                 side.window.connect_draw(|_, cr| {
                     cr.set_operator(gtk::cairo::Operator::Source);
+                    #[cfg(target_os = "linux")]
                     cr.set_source_rgba(0., 0., 0., 0.18);
+                    #[cfg(target_os = "windows")]
+                    cr.set_source_rgb(0., 0., 0.);
                     let _ = cr.paint();
                     glib::Propagation::Stop
                 });

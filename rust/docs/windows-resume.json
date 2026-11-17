@@ -1,0 +1,44 @@
+{
+  "saved_at": "2026-11-17T16:08:11.912133+00:00",
+  "status": "paused_at_user_request_for_poweroff",
+  "branch": "rust-windows-price-checker",
+  "linux_validated_commit": "63320b7",
+  "linux_version": "0.27.0",
+  "linux_binary": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.27/usr/bin/awakened-poe-trade-rs",
+  "request": "Build a Windows version of the validated price checker. User uses Windows 11 and Steam and wants broad compatibility. Preserve the validated interface; Linux backend must keep working.",
+  "approach": "Reuse shared GTK3 UI and Rust engine. Add Win32 integration, target x86_64-pc-windows-gnullvm with LLVM-MinGW UCRT and MSYS2 UCRT64 GTK3 runtime. Deliver portable ZIP when validated.",
+  "completed": [
+    "Rust Windows gnullvm target installed.",
+    "LLVM-MinGW 20261104 UCRT toolchain downloaded and SHA256 verified.",
+    "60 pinned MSYS2 UCRT64 packages downloaded and SHA256 verified, extracted to local sysroot.",
+    "Windows dependencies compile; native desktop modules and shared UI refactor are written.",
+    "Win32 game detection checks class and executable, scoped low-level shortcut hook, guarded Ctrl+Alt+C clipboard capture, window tracking and geometry, per-user paths, authenticated UDP control, GTK Win32 shell adapter."
+  ],
+  "incomplete": [
+    "Windows build and link are not yet validated.",
+    "Linux regression checks after the shared UI refactor must run.",
+    "Windows tray icon, first-launch/settings without game, DPI awareness, runtime initialization and packaged DLL discovery remain to implement.",
+    "No Wine tests or Windows game tests have run. No Windows build has been delivered.",
+    "Need reproducible Windows dependency/packaging scripts, licensing/DLL closure, portable ZIP, isolated Wine fake-game validation and clear real-Windows test limits."
+  ],
+  "compiler_root": "/home/shouk/awakened-poe-trade/rust/dist/windows-tools/llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64",
+  "compiler_archive_sha256": "919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926",
+  "runtime_root": "/home/shouk/awakened-poe-trade/rust/dist/windows-tools/sysroot/ucrt64",
+  "runtime_manifest": "/home/shouk/awakened-poe-trade/rust/dist/windows-tools/runtime-lock.json",
+  "build_command": "sh rust/scripts/cargo-windows.sh build --locked --bin awakened-poe-trade-rs -j 3",
+  "windows_executable_present": false,
+  "saved_logs": "/home/shouk/awakened-poe-trade/rust/dist/windows-checkpoint",
+  "stopped_build_pids": [],
+  "next_steps": [
+    "Inspect saved logs and fix any remaining build/link errors.",
+    "Finish tray/startup/settings/DPI/runtime handling.",
+    "Test Linux, then build and test Windows on a private River/XWayland desktop and a new isolated Wine prefix. Never use the real Steam/PoE prefix or force focus/input on the user game.",
+    "Audit and package the Windows ZIP; report Wine coverage separately from actual Windows 11/Steam testing."
+  ],
+  "notes": [
+    "Current source version remains 0.27.0 during port development; bump only when preparing the Windows candidate.",
+    "The saved Linux 0.27 package is immutable and was left running during Windows work; the PC shutdown will stop it.",
+    "Do not spawn sub-agents unless explicitly requested.",
+    "Do not treat existing Windows source or a produced .exe as proof that the port is usable."
+  ]
+}

@@ -1,7 +1,7 @@
 use crate::{
     desktop::{
         clipboard,
-        wayland::{self, Snapshot},
+        tracker::{self, Snapshot},
     },
     economy::{Economy, Report},
     filters,
@@ -22,10 +22,12 @@ mod stat_row;
 mod summary_panel;
 mod unidentified_panel;
 use gtk::{gdk, prelude::*};
+#[cfg(target_os = "linux")]
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+#[cfg(target_os = "windows")]
+mod windows_shell;
 use std::{
     cell::{Cell, RefCell},
-    os::unix::{io::AsRawFd, net::UnixDatagram},
     rc::Rc,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -34,6 +36,8 @@ use std::{
     },
     time::{Duration, Instant},
 };
+#[cfg(target_os = "windows")]
+use windows_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 type EconomyResult = Result<Report, String>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +46,7 @@ enum View {
     Settings,
 }
 enum Event {
+    Control(crate::ipc::Request),
     Icon(u64, Result<std::path::PathBuf, String>),
     OutsideClick,
     Leagues(Result<crate::leagues::Selection, String>),
@@ -87,6 +92,7 @@ struct Ui {
     title: gtk::Label,
     text: gtk::Label,
     search_button: gtk::Button,
+    settings_button: gtk::Button,
     listings: listings_panel::Panel,
     league: gtk::Entry,
     league_label: gtk::Label,
@@ -149,18 +155,13 @@ fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result
         .map_err(|e| e.to_string())?;
     Ok(())
 }
-fn socket_path() -> Result<std::path::PathBuf, String> {
-    std::env::var_os("XDG_RUNTIME_DIR")
-        .map(std::path::PathBuf::from)
-        .map(|p| p.join("awakened-poe-trade-rs.sock"))
-        .ok_or("XDG_RUNTIME_DIR is required".into())
-}
 fn apply_input(window: &gtk::Window, interactive: bool) {
     window.set_keyboard_mode(if interactive {
         KeyboardMode::OnDemand
     } else {
         KeyboardMode::None
     });
+    #[cfg(target_os = "linux")]
     if let Some(w) = window.window() {
         let region = if interactive {
             gtk::cairo::Region::create_rectangle(&gtk::cairo::RectangleInt::new(
@@ -273,9 +274,16 @@ impl Ui {
             self.game_bounds.set(Some(bounds));
             self.game_window.set(Some(id));
         }
-        let Some(monitor) =
-            gtk::gdk::Display::default().and_then(|d| d.primary_monitor().or_else(|| d.monitor(0)))
-        else {
+        let Some(monitor) = gtk::gdk::Display::default().and_then(|d| {
+            #[cfg(target_os = "linux")]
+            {
+                d.primary_monitor().or_else(|| d.monitor(0))
+            }
+            #[cfg(target_os = "windows")]
+            {
+                windows_shell::monitor_for_game(&d, self.game_window.get())
+            }
+        }) else {
             return;
         };
         let g = monitor.geometry();
@@ -341,6 +349,32 @@ impl Ui {
                 }
             }
         });
+    }
+    fn diagnostics(&self) -> serde_json::Value {
+        let state = self.state.borrow();
+        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*self.desktop.borrow(),"mod_scroll":self.mod_scroll.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.mod_scroll.allocated_width(),"height":self.mod_scroll.allocated_height(),"value":self.mod_scroll.vadjustment().value(),"upper":self.mod_scroll.vadjustment().upper(),"page_size":self.mod_scroll.vadjustment().page_size()})),"mercenary_controls":self.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&self.window)),"stat_controls":self.stat_rows.borrow().iter().map(|r|r.diagnostics(&self.window)).collect::<Vec<_>>(),"preset_control":self.preset.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.preset.allocated_width(),"height":self.preset.allocated_height(),"popup":self.preset.is_popup_shown()})),"mod_expander":self.mod_expander.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.mod_expander.allocated_width(),"height":self.mod_expander.allocated_height(),"expanded":self.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":self.window.is_visible(),"width":self.window.allocated_width(),"height":self.window.allocated_height(),"scale":self.window.scale_factor(),"view":format!("{:?}",self.view.get()),"preset":self.preset.active_id().as_deref(),"app_scale":self.settings.borrow().scale,"keyboard_mode":format!("{:?}",self.window.keyboard_mode()),"owned_popup":owned_popup(&self.window).is_some(),"origin":{"x":self.window.layer_shell_margin(Edge::Left),"y":self.window.layer_shell_margin(Edge::Top)},"overlay_focused":self.window.is_active(),"payment_currency":self.currency.active_id().as_deref(),"minimum_stock":self.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":self.item_filters.read().ok(),"item":self.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":self.economy_panel.diagnostics(&self.window),"economy":self.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==self.quote_current.load(Ordering::Acquire)).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":self.url.borrow().clone(),"request":self.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":self.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
+        value["popup_controls"] = popup_controls(&self.window);
+        value["header_text"] = serde_json::json!(self.title.text().as_str());
+        value["status_text"] = serde_json::json!(self.text.text().as_str());
+        value["preferences"] = self.preferences.diagnostics(&self.window);
+        value["preferences_pending"] = serde_json::json!(self.preferences_pending.get());
+        value["settings"] = serde_json::to_value(&*self.settings.borrow()).unwrap_or_default();
+        value["shortcut_backend"] = serde_json::json!({"connection":self.backend_connection.get(),"status":*self.backend_status.borrow()});
+        value["settings_button"]=serde_json::json!(self.settings_button.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.settings_button.allocated_width(),"height":self.settings_button.allocated_height()})));
+        value["unidentified_resolver"] = self.unidentified.diagnostics(&self.window);
+        value["league_control"] = serde_json::json!(self.league.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.league.allocated_width(),"height":self.league.allocated_height(),"value":self.league.text().as_str()})));
+        value["capture_pending"] = serde_json::json!(self.capture_pending.get());
+        value["frames"] = serde_json::json!(self.frames.get());
+        value["summary"] = self.summary.diagnostics();
+        value["family"] = serde_json::json!(self.item.borrow().as_ref().map(|i| i.family()));
+        value["search_actions_visible"] = serde_json::json!(self.actions.is_visible());
+        value["backdrop"] = self.backdrop.diagnostics();
+        value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
+        value["listings"] = self.listings.diagnostics(&self.window);
+        value["league_selection"] = serde_json::json!({"automatic":self.settings.borrow().automatic_league,"ready":self.league_ready.get(),"label":self.league_label.text().as_str()});
+        value["panel_bounds"] = serde_json::json!(self.panel_bounds.get());
+        value["search_button"]=serde_json::json!(self.search_button.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.search_button.allocated_width(),"height":self.search_button.allocated_height(),"mapped":self.search_button.is_mapped()})));
+        value
     }
     fn sync_generation(&self) {
         let generation = self.state.borrow().generation;
@@ -1062,6 +1096,15 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::Control(request) => {
+                if request.command == "status" {
+                    if let Some(reply) = request.reply {
+                        let _ = reply.send(status_payload(&self.diagnostics()));
+                    }
+                } else {
+                    self.command(&request.command);
+                }
+            }
             Event::Icon(epoch, result) => {
                 if epoch == self.identity_epoch.get() {
                     if let Ok(path) = result {
@@ -1343,22 +1386,10 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
-        let client_path = socket_path()?.with_extension(format!("client-{}", std::process::id()));
-        let client = UnixDatagram::bind(&client_path).map_err(|e| e.to_string())?;
-        client
-            .set_read_timeout(Some(Duration::from_secs(2)))
-            .map_err(|e| e.to_string())?;
-        let result = (|| {
-            client
-                .send_to(b"status", socket_path()?)
-                .map_err(|e| e.to_string())?;
-            let mut buf = [0; 65536];
-            let n = client.recv(&mut buf).map_err(|e| e.to_string())?;
-            println!("{}", String::from_utf8_lossy(&buf[..n]));
-            Ok(())
-        })();
-        let _ = std::fs::remove_file(client_path);
-        return result;
+        if let Some(status) = crate::ipc::command("status")? {
+            println!("{status}");
+        }
+        return Ok(());
     }
     if let Some(command) = args.first().filter(|s| {
         matches!(
@@ -1375,61 +1406,48 @@ pub fn run() -> Result<(), String> {
                 | "settings"
         )
     }) {
-        UnixDatagram::unbound()
-            .map_err(|e| e.to_string())?
-            .send_to(
-                if command == "league" {
-                    args.join(" ")
-                } else {
-                    command.to_string()
-                }
-                .as_bytes(),
-                socket_path()?,
-            )
-            .map_err(|e| format!("start daemon first: {e}"))?;
+        crate::ipc::command(&if command == "league" {
+            args.join(" ")
+        } else {
+            command.to_string()
+        })?;
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "windows") {
-        return wayland::track(|s| eprintln!("{s:?}"));
+        return tracker::track(|s| eprintln!("{s:?}"));
     }
     if args.first().is_some_and(|a| a != "daemon" && a != "probe") {
         return Err("Unknown command; see --help".into());
     }
     let settings = Settings::load()?;
     gtk::init().map_err(|e| e.to_string())?;
-    if !gtk_layer_shell::is_supported() {
-        return Err(
+    #[cfg(target_os = "linux")]
+    {
+        if !gtk_layer_shell::is_supported() {
+            return Err(
             "Native Wayland layer-shell unavailable; no compatible overlay backend on this session"
                 .into(),
         );
-    }
-    if gtk_layer_shell::protocol_version() < 4 {
-        return Err("Layer-shell v4 is required for nonexclusive OnDemand interaction".into());
-    }
-    eprintln!(
-        "backend=wayland-layer-shell protocol={} desktop={:?} league={:?}",
-        gtk_layer_shell::protocol_version(),
-        std::env::var("XDG_CURRENT_DESKTOP"),
-        settings.league
-    );
-    let path = socket_path()?;
-    if path.exists() {
-        if UnixDatagram::unbound()
-            .map_err(|e| e.to_string())?
-            .connect(&path)
-            .is_ok()
-        {
-            return Err("daemon already running".into());
         }
-        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+        if gtk_layer_shell::protocol_version() < 4 {
+            return Err("Layer-shell v4 is required for nonexclusive OnDemand interaction".into());
+        }
+        eprintln!(
+            "backend=wayland-layer-shell protocol={} desktop={:?} league={:?}",
+            gtk_layer_shell::protocol_version(),
+            std::env::var("XDG_CURRENT_DESKTOP"),
+            settings.league
+        );
     }
-    let socket = UnixDatagram::bind(&path).map_err(|e| e.to_string())?;
-    socket.set_nonblocking(true).map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    eprintln!("backend=Win32 league={:?}", settings.league);
+    let control = crate::ipc::Server::bind()?;
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
     window.set_title("Awakened PoE Trade — Rust");
     window.set_widget_name("apt-native");
     window.set_decorated(false);
     window.set_size_request((480.0 * settings.scale) as i32, 0);
+    #[cfg(target_os = "linux")]
     if let Some(visual) = GtkWindowExt::screen(&window).and_then(|s| s.rgba_visual()) {
         window.set_visual(Some(&visual));
     }
@@ -1733,6 +1751,7 @@ pub fn run() -> Result<(), String> {
         title,
         text,
         search_button: search.clone(),
+        settings_button: preferences_open.clone(),
         listings,
         league,
         league_label,
@@ -1801,7 +1820,7 @@ pub fn run() -> Result<(), String> {
         open.connect_clicked(move |_| {
             if let Some(url) = ui.summary.url() {
                 ui.hide(HideReason::ExternalLink);
-                let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+                let _ = crate::desktop::open_url(&url);
             }
         });
     }
@@ -1882,7 +1901,7 @@ pub fn run() -> Result<(), String> {
         browser.connect_clicked(move |_| {
             if let Some(url) = ui.url.borrow().clone() {
                 ui.hide(HideReason::ExternalLink);
-                if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
+                if let Err(e) = crate::desktop::open_url(&url) {
                     eprintln!("open Trade: {e}");
                 }
             }
@@ -1894,7 +1913,7 @@ pub fn run() -> Result<(), String> {
         open.connect_clicked(move |_| {
             if let Some(url) = ui.economy_panel.url() {
                 ui.hide(HideReason::ExternalLink);
-                if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
+                if let Err(e) = crate::desktop::open_url(&url) {
                     eprintln!("open economy: {e}");
                 }
             }
@@ -2004,7 +2023,7 @@ pub fn run() -> Result<(), String> {
         let sender = sender.clone();
         std::thread::spawn(move || {
             let updates = sender.clone();
-            if let Err(e) = wayland::track(move |s| {
+            if let Err(e) = tracker::track(move |s| {
                 let _ = updates.send(Event::Windows(s));
             }) {
                 let _ = sender.send(Event::TrackerError(e));
@@ -2030,48 +2049,16 @@ pub fn run() -> Result<(), String> {
             )
         });
     }
-    let fd = socket.as_raw_fd();
     {
-        let ui = ui.clone();
-        glib::source::unix_fd_add_local(fd, glib::IOCondition::IN, move |_, _| {
-            let mut bytes = [0; 4096];
-            while let Ok((n, address)) = socket.recv_from(&mut bytes) {
-                if &bytes[..n] == b"status" {
-                    if let Some(path) = address.as_pathname() {
-                        let state = ui.state.borrow();
-                        let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*ui.desktop.borrow(),"mod_scroll":ui.mod_scroll.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_scroll.allocated_width(),"height":ui.mod_scroll.allocated_height(),"value":ui.mod_scroll.vadjustment().value(),"upper":ui.mod_scroll.vadjustment().upper(),"page_size":ui.mod_scroll.vadjustment().page_size()})),"mercenary_controls":ui.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&ui.window)),"stat_controls":ui.stat_rows.borrow().iter().map(|r|r.diagnostics(&ui.window)).collect::<Vec<_>>(),"preset_control":ui.preset.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.preset.allocated_width(),"height":ui.preset.allocated_height(),"popup":ui.preset.is_popup_shown()})),"mod_expander":ui.mod_expander.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.mod_expander.allocated_width(),"height":ui.mod_expander.allocated_height(),"expanded":ui.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":ui.window.is_visible(),"width":ui.window.allocated_width(),"height":ui.window.allocated_height(),"scale":ui.window.scale_factor(),"view":format!("{:?}",ui.view.get()),"preset":ui.preset.active_id().as_deref(),"app_scale":ui.settings.borrow().scale,"keyboard_mode":format!("{:?}",ui.window.keyboard_mode()),"owned_popup":owned_popup(&ui.window).is_some(),"origin":{"x":ui.window.layer_shell_margin(Edge::Left),"y":ui.window.layer_shell_margin(Edge::Top)},"overlay_focused":ui.window.is_active(),"payment_currency":ui.currency.active_id().as_deref(),"minimum_stock":ui.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":ui.item_filters.read().ok(),"item":ui.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":ui.economy_panel.diagnostics(&ui.window),"economy":ui.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==ui.quote_current.load(Ordering::Acquire)).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":ui.url.borrow().clone(),"request":ui.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":ui.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
-                        value["popup_controls"] = popup_controls(&ui.window);
-                        value["header_text"] = serde_json::json!(ui.title.text().as_str());
-                        value["status_text"] = serde_json::json!(ui.text.text().as_str());
-                        value["preferences"] = ui.preferences.diagnostics(&ui.window);
-                        value["preferences_pending"] =
-                            serde_json::json!(ui.preferences_pending.get());
-                        value["settings"] =
-                            serde_json::to_value(&*ui.settings.borrow()).unwrap_or_default();
-                        value["shortcut_backend"] = serde_json::json!({"connection":ui.backend_connection.get(),"status":*ui.backend_status.borrow()});
-                        value["settings_button"]=serde_json::json!(preferences_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":preferences_open.allocated_width(),"height":preferences_open.allocated_height()})));
-                        value["unidentified_resolver"] = ui.unidentified.diagnostics(&ui.window);
-                        value["league_control"] = serde_json::json!(ui.league.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.league.allocated_width(),"height":ui.league.allocated_height(),"value":ui.league.text().as_str()})));
-                        value["capture_pending"] = serde_json::json!(ui.capture_pending.get());
-                        value["frames"] = serde_json::json!(ui.frames.get());
-                        value["summary"] = ui.summary.diagnostics();
-                        value["family"] =
-                            serde_json::json!(ui.item.borrow().as_ref().map(|i| i.family()));
-                        value["search_actions_visible"] =
-                            serde_json::json!(ui.actions.is_visible());
-                        value["backdrop"] = ui.backdrop.diagnostics();
-                        value["item_filter_controls"] = ui.item_filters.diagnostics(&ui.window);
-                        value["listings"] = ui.listings.diagnostics(&ui.window);
-                        value["league_selection"] = serde_json::json!({"automatic":ui.settings.borrow().automatic_league,"ready":ui.league_ready.get(),"label":ui.league_label.text().as_str()});
-                        value["panel_bounds"] = serde_json::json!(ui.panel_bounds.get());
-                        value["search_button"]=serde_json::json!(search.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":search.allocated_width(),"height":search.allocated_height(),"mapped":search.is_mapped()})));
-                        let _ = socket.send_to(status_payload(&value).as_bytes(), path);
-                    }
-                    continue;
-                }
-                ui.command(std::str::from_utf8(&bytes[..n]).unwrap_or(""));
+        let sender = sender.clone();
+        std::thread::spawn(move || {
+            if let Err(error) = control.run(move |request| {
+                sender
+                    .send(Event::Control(request))
+                    .map_err(|e| e.to_string())
+            }) {
+                eprintln!("control worker: {error}");
             }
-            glib::ControlFlow::Continue
         });
     }
     if args.first().is_some_and(|a| a == "probe") {
@@ -2080,6 +2067,6 @@ pub fn run() -> Result<(), String> {
         glib::timeout_add_local_once(Duration::from_secs(12), gtk::main_quit);
     }
     gtk::main();
-    let _ = std::fs::remove_file(path);
+    crate::ipc::cleanup();
     Ok(())
 }

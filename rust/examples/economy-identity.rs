@@ -18,6 +18,9 @@ mod item_filters;
 #[path = "../src/modifiers.rs"]
 mod modifiers;
 #[allow(dead_code)]
+#[path = "../src/paths.rs"]
+mod paths;
+#[allow(dead_code)]
 #[path = "../src/presets.rs"]
 mod presets;
 #[allow(dead_code)]

@@ -39,12 +39,7 @@ impl Default for Settings {
     }
 }
 pub fn path() -> std::path::PathBuf {
-    std::env::var_os("XDG_CONFIG_HOME")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join(".config")
-        })
-        .join("awakened-poe-trade-rs/config.json")
+    crate::paths::config_root().join("awakened-poe-trade-rs/config.json")
 }
 impl Settings {
     pub fn load() -> Result<Self, String> {

@@ -1,9 +1,15 @@
 mod calculated;
 #[cfg(target_os = "linux")]
 mod desktop;
+#[cfg(target_os = "windows")]
+#[path = "desktop/windows/mod.rs"]
+mod desktop;
 mod economy;
 mod filters;
 mod hotkeys;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+mod ipc;
+mod paths;
 // Retained for local diagnostics and compatibility with earlier map profiles.
 #[allow(dead_code)]
 mod inspection;
@@ -19,17 +25,17 @@ mod pseudo;
 mod settings;
 mod trade;
 mod trade_item;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ui;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn main() {
     if let Err(e) = ui::run() {
         eprintln!("error: {e}");
         std::process::exit(1);
     }
 }
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 fn main() {
     eprintln!(
         "Desktop backend not implemented for {}. Linux Wayland is the first supported backend.",

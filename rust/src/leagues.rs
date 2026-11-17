@@ -85,12 +85,7 @@ fn valid_id(id: &str) -> Result<String, String> {
     }
 }
 fn cache_path() -> std::path::PathBuf {
-    std::env::var_os("XDG_CACHE_HOME")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join(".cache")
-        })
-        .join("awakened-poe-trade-rs/leagues.json")
+    crate::paths::cache_root().join("awakened-poe-trade-rs/leagues.json")
 }
 pub fn resolve() -> Result<Selection, String> {
     resolve_at(

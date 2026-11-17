@@ -46,12 +46,7 @@ pub fn fetch(client: &reqwest::blocking::Client, url: &str) -> Result<PathBuf, S
     {
         return Err("Unsupported image source".into());
     }
-    let cache = std::env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache")
-        })
-        .join("awakened-poe-trade-rs/icons");
+    let cache = crate::paths::cache_root().join("awakened-poe-trade-rs/icons");
     let mut key = std::collections::hash_map::DefaultHasher::new();
     url.hash(&mut key);
     let path = cache.join(format!("{:016x}.img", key.finish()));
