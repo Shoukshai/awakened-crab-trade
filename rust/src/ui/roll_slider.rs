@@ -1,4 +1,4 @@
-//! Two-tone roll selector. Bounds are copied item rolls, never invented tiers.
+//! Integer search thresholds around the copied rolls; no tier estimation.
 use gtk::prelude::*;
 use std::{cell::Cell, rc::Rc};
 
@@ -7,19 +7,17 @@ pub struct Bounds {
     pub min: f64,
     pub max: f64,
     pub roll: f64,
-    step: f64,
 }
 impl Bounds {
-    pub fn new(min: f64, max: f64, roll: f64, decimal: bool) -> Option<Self> {
+    pub fn new(min: f64, max: f64, roll: f64) -> Option<Self> {
         if ![min, max, roll].iter().all(|n| n.is_finite()) || min > max || !(max - min).is_finite()
         {
             return None;
         }
         Some(Self {
-            min,
-            max,
+            min: min.floor(),
+            max: max.ceil(),
             roll,
-            step: if decimal || max - min < 1. { 0.01 } else { 1. },
         })
     }
     fn fraction(self, value: f64) -> f64 {
@@ -30,11 +28,8 @@ impl Bounds {
         }
     }
     fn value(self, fraction: f64) -> f64 {
-        let raw = (self.max - self.min) * fraction.clamp(0., 1.) + self.min;
-        ((self.min + ((raw - self.min) / self.step).round() * self.step) * 100.)
-            .round()
-            .clamp(self.min * 100., self.max * 100.)
-            / 100.
+        (self.min + ((self.max - self.min) * fraction.clamp(0., 1.)).round())
+            .clamp(self.min, self.max)
     }
 }
 pub fn read(entry: &gtk::Entry) -> Result<Option<f64>, String> {
@@ -51,7 +46,7 @@ pub fn read(entry: &gtk::Entry) -> Result<Option<f64>, String> {
         .ok_or_else(|| "Valeur Min/Max invalide.".to_string())
 }
 fn set(entry: &gtk::Entry, value: f64) {
-    entry.set_text(&super::economy_panel::format_amount(value));
+    entry.set_text(&super::economy_panel::format_amount(value.round()));
 }
 #[derive(Clone, Copy, PartialEq)]
 enum End {
@@ -110,14 +105,14 @@ pub fn new(
             let h = area.allocated_height() as f64;
             let low = read(&min).ok().flatten();
             let high = read(&max).ok().flatten();
-            cr.set_source_rgb(0.16, 0.19, 0.23);
+            cr.set_source_rgb(0.15, 0.17, 0.20);
             cr.rectangle(6., 4., w, h - 8.);
             let _ = cr.fill();
             if selected.is_active() && (low.is_some() || high.is_some()) {
                 let l = bounds.fraction(low.unwrap_or(bounds.min));
                 let r = bounds.fraction(high.unwrap_or(bounds.max));
                 if l <= r {
-                    cr.set_source_rgb(0.39, 0.45, 0.52);
+                    cr.set_source_rgb(0.84, 0.72, 0.36);
                     cr.rectangle(6. + l * w, 4., ((r - l) * w).max(1.), h - 8.);
                     let _ = cr.fill();
                 }
@@ -137,15 +132,29 @@ pub fn new(
                 let _ = cr.stroke();
             }
             cr.set_font_size(11.);
+            let selected_at = |fraction: f64| {
+                selected.is_active()
+                    && (low.is_some() || high.is_some())
+                    && fraction >= bounds.fraction(low.unwrap_or(bounds.min))
+                    && fraction <= bounds.fraction(high.unwrap_or(bounds.max))
+            };
+            if selected_at(0.02) {
+                cr.set_source_rgb(0.09, 0.10, 0.12);
+            }
             cr.move_to(10., h / 2. + 4.);
             let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
             let text = super::economy_panel::format_amount(bounds.max);
             if let Ok(size) = cr.text_extents(&text) {
+                if selected_at(0.98) {
+                    cr.set_source_rgb(0.09, 0.10, 0.12);
+                } else {
+                    cr.set_source_rgb(0.9, 0.91, 0.93);
+                }
                 cr.move_to(2. + w - size.x_advance(), h / 2. + 4.);
                 let _ = cr.show_text(&text);
             }
             if area.has_focus() {
-                cr.set_source_rgb(0.77, 0.65, 0.42);
+                cr.set_source_rgb(0.84, 0.72, 0.36);
                 cr.rectangle(3., 1., w + 6., h - 2.);
                 let _ = cr.stroke();
             }
@@ -221,9 +230,21 @@ pub fn new(
             let mut value = bounds
                 .value((event.position().0 - 6.) / (area.allocated_width() as f64 - 12.).max(1.));
             if end == End::Min {
-                value = value.min(read(&max).ok().flatten().unwrap_or(bounds.max));
+                value = value.min(
+                    read(&max)
+                        .ok()
+                        .flatten()
+                        .map(f64::floor)
+                        .unwrap_or(bounds.max),
+                );
             } else {
-                value = value.max(read(&min).ok().flatten().unwrap_or(bounds.min));
+                value = value.max(
+                    read(&min)
+                        .ok()
+                        .flatten()
+                        .map(f64::ceil)
+                        .unwrap_or(bounds.min),
+                );
             }
             set(if end == End::Min { &min } else { &max }, value);
             glib::Propagation::Stop
@@ -268,8 +289,8 @@ pub fn new(
                     bounds.max
                 });
             let value = match event.keyval() {
-                constants::Left | constants::Down => old - bounds.step,
-                constants::Right | constants::Up => old + bounds.step,
+                constants::Left | constants::Down => old.round() - 1.,
+                constants::Right | constants::Up => old.round() + 1.,
                 constants::Home => bounds.min,
                 constants::End => bounds.max,
                 _ => return glib::Propagation::Proceed,
@@ -285,19 +306,25 @@ pub fn new(
 mod tests {
     use super::*;
     #[test]
-    fn slider_snaps_clamps_and_preserves_negative_and_decimal_rolls() {
-        let wand = Bounds::new(8., 12., 8., false).unwrap();
+    fn slider_snaps_clamps_and_never_emits_fractional_thresholds() {
+        let wand = Bounds::new(8., 12., 8.).unwrap();
         assert_eq!(wand.value(0.5), 10.);
         assert_eq!(wand.value(-1.), 8.);
         assert_eq!(wand.value(2.), 12.);
-        let negative = Bounds::new(-12., -9., -9., false).unwrap();
+        let negative = Bounds::new(-12., -9., -9.).unwrap();
         assert_eq!(negative.value(0.5), -10.);
         assert_eq!(negative.fraction(-9.), 1.);
-        let decimal = Bounds::new(0.1, 0.2, 0.13, true).unwrap();
-        assert_eq!(decimal.value(0.5), 0.15);
-        assert!(Bounds::new(f64::NAN, 1., 0., false).is_none());
-        assert!(Bounds::new(2., 1., 1., false).is_none());
-        let fixed = Bounds::new(5., 5., 5., false).unwrap();
+        for (min, max, roll) in [(0.1, 0.2, 0.13), (-4.8, -0.2, -2.3), (5.2, 9.8, 7.4)] {
+            let bounds = Bounds::new(min, max, roll).unwrap();
+            for step in 0..=100 {
+                assert_eq!(bounds.value(step as f64 / 100.).fract(), 0.);
+            }
+            assert_eq!(bounds.value(0.), min.floor());
+            assert_eq!(bounds.value(1.), max.ceil());
+        }
+        assert!(Bounds::new(f64::NAN, 1., 0.).is_none());
+        assert!(Bounds::new(2., 1., 1.).is_none());
+        let fixed = Bounds::new(5., 5., 5.).unwrap();
         assert_eq!(fixed.value(0.8), 5.);
     }
 }

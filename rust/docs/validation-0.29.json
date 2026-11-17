@@ -1,0 +1,53 @@
+{
+  "version": "0.29.0",
+  "saved_at": "2026-11-17T21:14:19.945488+00:00",
+  "changes": [
+    "Viscera clipboard without Rarity; real Sirens Tentacle fixture, Cold Ailments implicit and Lower Limb query",
+    "164 Viscera bases and slots cross-checked against PoEDB Wickerman",
+    "Integer slider thresholds; selected yellow, unselected dark grey",
+    "Closed dropdown wheel scrolls parent without editing its selection",
+    "Visible Options, Stats and Autres stats sections, secondary stats count; clearer stats/craft mode labels; French translations preserved"
+  ],
+  "tests": {
+    "linux_core": 130,
+    "windows_core": 126,
+    "portable_windows": 4,
+    "windows_ui_families": 8,
+    "linux_full_ui": true,
+    "linux_real_viscera_fixture": true,
+    "linux_slider_values_and_pixel_colors": true,
+    "linux_and_windows_clippy": true,
+    "packaged_linux_wand_and_real_viscera": true
+  },
+  "artifacts": {
+    "awakened-poe-trade-rs-0.29.0-windows-x64-portable.exe": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.0-windows-x64-portable.exe",
+      "sha256": "9e3cfd69c4d4498fd6b18663f3c532fb3c78140f40e77b0194efec92602f4148"
+    },
+    "awakened-poe-trade-rs-0.29.0-windows-x64.zip": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.0-windows-x64.zip",
+      "sha256": "4e50506e267b363fffcfa79fcd12b8caff389cd7e54a91feb9a5facf44c92c52"
+    },
+    "awakened-poe-trade-rs-0.29.0-1-x86_64.pkg.tar.zst": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/awakened-poe-trade-rs-0.29.0-1-x86_64.pkg.tar.zst",
+      "sha256": "cd9c5ae304e4117a4d5b896faf1abd641ca98d61945128b4bb45a325ac620b8a"
+    },
+    "native-source-0.29.0.tar.gz": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/native-source-0.29.0.tar.gz",
+      "sha256": "3954bf60d8a81826946548ead5996878ac8d6b084cd2f5455b32386c64dc6de2"
+    },
+    "awakened-poe-trade-rs": {
+      "path": "/home/shouk/awakened-poe-trade/rust/dist/unpacked-0.29/usr/bin/awakened-poe-trade-rs",
+      "sha256": "d11d909b1c2d4ddf6a2b3199cf65e27834c32d1045beac191a3c85945fad6d70"
+    }
+  },
+  "screenshots": [
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/sections-0.29.png",
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/viscera-siren-0.29.png",
+    "/home/shouk/awakened-poe-trade/rust/dist/previews/viscera-siren-hover-0.29.png"
+  ],
+  "limitations": [
+    "Windows UI tested under private Wine with fake game and synthetic market responses; real Windows 11 / PoE verification remains user-side.",
+    "PoEDB base coverage does not imply every PoEDB implicit is searchable in the current official Trade API; see viscera-audit-0.29.json."
+  ]
+}

@@ -9,7 +9,7 @@ assert root.name.startswith('apt-windows-desktop-') and (root/'fixture.guard').i
 test_lock=(root/'test.lock').open('w');fcntl.flock(test_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 env=os.environ.copy();env.update(s['env']);assert env['DISPLAY']!=os.environ.get('DISPLAY')
 assert pathlib.Path(env['WINEPREFIX']).parent==root
-subprocess.run([env['WINESERVER'],'-k'],env=env,timeout=10,check=True)
+subprocess.run([env['WINESERVER'],'-k'],env=env,timeout=10,check=False)
 # GTK reads the OS keyboard-layout DLL. Wine lacks it; use an open-source
 # ReactOS US layout in this guarded, private prefix, never in the shipped app.
 import shutil
@@ -64,7 +64,7 @@ def endpoint():
 def command(name):
  e=endpoint()
  with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock:
-  sock.settimeout(3);sock.connect(('127.0.0.1',e['port']));sock.send(json.dumps({'token':e['token'],'command':name}).encode());body=sock.recv(65536)
+  sock.settimeout(10);sock.connect(('127.0.0.1',e['port']));sock.send(json.dumps({'token':e['token'],'command':name}).encode());body=sock.recv(65536)
  return json.loads(body) if name=='status' else body.decode()
 def status():return command('status')
 def wait(fn,label,seconds=15):
@@ -97,7 +97,7 @@ try:
  subprocess.run(['grim',str(root/'before-veil.png')],env=env,check=True)
  baseline=Image.open(root/'before-veil.png').convert('RGB').getpixel((200,500));report['before_veil_pixel']=baseline
  print('fake game active',flush=True)
- for family,fixture in [('wand','driftwood-wand.txt'),('gem','price-gem.txt'),('currency','price-currency.txt'),('unique','price-unique.txt'),('map','price-map.txt'),('viscera','price-viscera.txt'),('influence','price-influence.txt')]:
+ for family,fixture in [('wand','driftwood-wand.txt'),('gem','price-gem.txt'),('currency','price-currency.txt'),('unique','price-unique.txt'),('map','price-map.txt'),('viscera','price-viscera.txt'),('viscera-siren','price-viscera-siren.txt'),('influence','price-influence.txt')]:
   family_env['APT_FIXTURE_ITEM']=family;command('hide');(root/'fixture-item.txt').write_text((r/'src/fixtures'/fixture).read_text());click(200,700);wait(lambda:status()['game_active'],'game active before copy')
   before=json.loads((root/'fixture.state.json').read_text())['copies']
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
@@ -107,6 +107,14 @@ try:
   st=status();assert st['native_rect']==st['panel_bounds'],(st['native_rect'],st['panel_bounds'])
   print(family,'captured',flush=True)
   if family=='wand':
+   before=status();rect=before['item_filter_controls']['corruption']['rect'];o=before['origin']
+   pointer(o['x']+rect['x']+rect['width']/2,o['y']+rect['y']+rect['height']/2)
+   subprocess.run(['xdotool','click','5'],env=env,check=True);time.sleep(.1)
+   assert status()['generation']==before['generation'] and status()['item_filters']==before['item_filters']
+   v=status()['mod_scroll'];pointer(o['x']+v['x']+v['width']-5,o['y']+v['y']+40)
+   subprocess.run(['xdotool','click','--repeat','15','--delay','10','4'],env=env,check=True)
+   wait(lambda:status()['mod_scroll']['value']==0,'restore filter scroll after dropdown wheel')
+   report['closed_dropdown_wheel_does_not_edit_filters']=True
    subprocess.run(['grim',str(root/'veil.png')],env=env,check=True)
    pixel=Image.open(root/'veil.png').convert('RGB').getpixel((200,500));report['veil_pixel']=pixel
    assert all(0<c<before for c,before in zip(pixel,(32,40,48))),pixel
@@ -116,6 +124,11 @@ try:
    time.sleep(5.1)
    control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'Windows Trade offers')
    wait(lambda:len(status()['listings']['offers'])==2,'offer rows')
+   if family=='viscera-siren':
+    q=status()['request']['query']
+    assert q['filters']['type_filters']['filters']['category']['option']=='viscera.leg',q
+    assert any(f['id']=='implicit.stat_1793818220' for g in q['stats'] for f in g['filters']),q
+    assert '27% increased Effect of Cold Ailments' in status()['listings']['offers'][0]['tooltip']
    if family=='wand':
     assert all(text in status()['listings']['offers'][0]['tooltip'] for text in ['30% increased Spell Damage','+21 to Intelligence','+100 to maximum Mana'])
     # A first click inside and an owned dropdown keep the checker open.

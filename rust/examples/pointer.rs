@@ -92,6 +92,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 ["down"] => p.button(timestamp(), 0x110, wl_pointer::ButtonState::Pressed),
                 ["up"] => p.button(timestamp(), 0x110, wl_pointer::ButtonState::Released),
+                ["scroll", value] => {
+                    p.axis_source(wl_pointer::AxisSource::Wheel);
+                    let value: f64 = value.parse()?;
+                    p.axis_discrete(
+                        timestamp(),
+                        wl_pointer::Axis::VerticalScroll,
+                        value,
+                        (value / 15.).round() as i32,
+                    );
+                }
                 _ => return Err("expected move X Y, down or up".into()),
             }
             p.frame();
@@ -150,8 +160,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         q.roundtrip(&mut s)?;
     }
     if let Some(value) = scroll {
+        // Let the entered surface process pointer focus before the wheel frame.
+        std::thread::sleep(std::time::Duration::from_millis(80));
         p.axis_source(wl_pointer::AxisSource::Wheel);
-        p.axis(timestamp(), wl_pointer::Axis::VerticalScroll, value);
+        p.axis_discrete(
+            timestamp(),
+            wl_pointer::Axis::VerticalScroll,
+            value,
+            (value / 15.).round() as i32,
+        );
         p.frame();
         q.roundtrip(&mut s)?;
     }

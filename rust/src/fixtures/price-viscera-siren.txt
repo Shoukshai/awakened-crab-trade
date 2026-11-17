@@ -1,0 +1,12 @@
+Item Class: Viscera
+Siren's Tentacle
+--------
+Lower Limb
+--------
+Item Level: 71
+--------
+{ Implicit Modifier }
+27(20-30)% increased Effect of Cold Ailments
+(Cold Ailments are Chilled, Frozen and Brittle)
+--------
+Take this to the Wickerman in a town or hideout to attach it.

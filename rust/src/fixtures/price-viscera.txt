@@ -1,5 +1,4 @@
 Item Class: Viscera
-Rarity: Normal
 Greater Severed Rhoa Head
 --------
 Head

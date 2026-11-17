@@ -21,6 +21,7 @@ mod settings_panel;
 mod stat_row;
 mod summary_panel;
 mod unidentified_panel;
+mod wheel;
 use gtk::{gdk, prelude::*};
 #[cfg(target_os = "linux")]
 use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -387,6 +388,11 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
+        value["preset_label"] = serde_json::json!(self.preset.active_text().as_deref());
+        value["stat_sections"] = serde_json::json!(self.mod_box.children().into_iter().filter_map(|w|w.downcast::<gtk::Expander>().ok()).map(|e| {
+            let header=e.label_widget().and_then(|w|w.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height()})));
+            serde_json::json!({"label":e.label().as_deref(),"expanded":e.is_expanded(),"header":header})
+        }).collect::<Vec<_>>());
         value["league_selection"] = serde_json::json!({"automatic":self.settings.borrow().automatic_league,"ready":self.league_ready.get(),"label":self.league_label.text().as_str()});
         value["panel_bounds"] = serde_json::json!(self.panel_bounds.get());
         value["search_button"]=serde_json::json!(self.search_button.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.search_button.allocated_width(),"height":self.search_button.allocated_height(),"mapped":self.search_button.is_mapped()})));
@@ -873,6 +879,11 @@ impl Ui {
         let mode = crate::presets::available(item)
             .into_iter()
             .find(|m| Some(m.id()) == self.preset.active_id().as_deref());
+        self.preset.set_tooltip_text(Some(match mode {
+            Some(crate::presets::Mode::Calculated) => "Compare les stats de l’objet, dont les totaux pseudo. Chaque filtre reste modifiable.",
+            Some(crate::presets::Mode::Base) => "Présélectionne les mods utiles au craft : Fractured, Implicit, Enchant… Le choix de la même base est indépendant.",
+            _ => "Présélection des filtres de recherche.",
+        }));
         let mut candidates = if let Some(mode) = mode {
             crate::presets::create(item, self.search_range.value(), mode).filters
         } else {
@@ -898,7 +909,13 @@ impl Ui {
             candidates.retain(|c| matches!(c.modifier.kind.as_str(), "imbued" | "enchant"));
         }
         let advanced = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        let expander = gtk::Expander::new(Some("Autres stats"));
+        let expander = gtk::Expander::new(Some(&format!(
+            "Autres stats · {}",
+            candidates.iter().filter(|c| c.hidden.is_some()).count()
+        )));
+        expander.style_context().add_class("filter-section");
+        expander.set_label_fill(true);
+        advanced.set_margin_top(8);
         expander.add(&advanced);
         for candidate in &candidates {
             let row = stat_row::StatRow::new(candidate);
@@ -1597,6 +1614,7 @@ pub fn run() -> Result<(), String> {
     let bulk_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     bulk_row.set_no_show_all(true);
     let currency = gtk::ComboBoxText::new();
+    wheel::protect_combo(&currency);
     for &(id, label) in filters::PAYMENT_CURRENCIES {
         currency.append(Some(id), label);
     }
@@ -1623,9 +1641,13 @@ pub fn run() -> Result<(), String> {
     let filter_content = gtk::Box::new(gtk::Orientation::Vertical, 8);
     mod_scroll.add(&filter_content);
     let mod_expander = gtk::Expander::new(Some("Stats"));
+    mod_expander.style_context().add_class("filter-section");
+    mod_expander.set_label_fill(true);
+    mod_box.set_margin_top(8);
     mod_expander.add(&mod_box);
     mod_expander.set_expanded(true);
     let preset = gtk::ComboBoxText::new();
+    wheel::protect_combo(&preset);
     preset.set_no_show_all(true);
     let current = Arc::new(AtomicU64::new(0));
     let quote_current = Arc::new(AtomicU64::new(0));

@@ -75,7 +75,9 @@ impl Panel {
         let price_currency = gtk::ComboBoxText::new();
         price_currency.append(Some("any"), "Automatique (selon l’objet)");
         price_currency.append(Some("chaos_divine"), "Chaos ou Divine");
+        super::wheel::protect_combo(&price_currency);
         let bulk_currency = gtk::ComboBoxText::new();
+        super::wheel::protect_combo(&bulk_currency);
         for (tag, name) in crate::filters::PAYMENT_CURRENCIES {
             price_currency.append(Some(tag), name);
             bulk_currency.append(Some(tag), name);

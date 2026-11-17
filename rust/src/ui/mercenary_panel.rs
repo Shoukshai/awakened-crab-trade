@@ -21,35 +21,6 @@ pub struct Panel {
 fn rect(widget: &gtk::Widget, window: &gtk::Window) -> Option<serde_json::Value> {
     widget.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":widget.allocated_width(),"height":widget.allocated_height(),"mapped":widget.is_mapped()}))
 }
-// Scroll the enclosing list instead of changing a support mode or tier count.
-fn scroll_list(widget: &gtk::Widget, event: &gtk::gdk::EventScroll) -> glib::Propagation {
-    let Some(list) = widget
-        .ancestor(gtk::ScrolledWindow::static_type())
-        .and_then(|w| w.downcast::<gtk::ScrolledWindow>().ok())
-    else {
-        return glib::Propagation::Proceed;
-    };
-    match event.direction() {
-        gtk::gdk::ScrollDirection::Up => {
-            list.emit_scroll_child(gtk::ScrollType::StepUp, false);
-        }
-        gtk::gdk::ScrollDirection::Down => {
-            list.emit_scroll_child(gtk::ScrollType::StepDown, false);
-        }
-        gtk::gdk::ScrollDirection::Smooth => {
-            let adjustment = list.vadjustment();
-            let delta = event.delta().1;
-            adjustment.set_value(
-                (adjustment.value() + delta * adjustment.step_increment()).clamp(
-                    adjustment.lower(),
-                    (adjustment.upper() - adjustment.page_size()).max(adjustment.lower()),
-                ),
-            );
-        }
-        _ => return glib::Propagation::Proceed,
-    }
-    glib::Propagation::Stop
-}
 impl Panel {
     pub fn new(preset: Preset, changed: impl Fn() + 'static) -> Self {
         let changed: Rc<dyn Fn()> = Rc::new(changed);
@@ -145,7 +116,7 @@ impl Panel {
             combo.append(Some("0"), "Optionnel · choix N−1");
             combo.set_active_id(Some(&v.to_string()));
             combo.set_sensitive(!f.disabled);
-            combo.connect_scroll_event(|w, e| scroll_list(w.upcast_ref(), e));
+            super::wheel::protect_combo(&combo);
             let weak = combo.downgrade();
             selected.connect_toggled(move |c| {
                 if let Some(w) = weak.upgrade() {
@@ -163,7 +134,7 @@ impl Panel {
             enabled.set_active(f.min.is_some());
             let minimum = gtk::SpinButton::with_range(0., 5., 1.);
             minimum.set_value(f.min.unwrap_or(0.));
-            minimum.connect_scroll_event(|w, e| scroll_list(w.upcast_ref(), e));
+            minimum.connect_scroll_event(|w, e| super::wheel::scroll_parent(w.upcast_ref(), e));
             minimum.set_sensitive(enabled.is_active());
             inputs.pack_start(&enabled, false, false, 0);
             inputs.pack_start(&minimum, false, false, 0);

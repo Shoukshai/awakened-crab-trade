@@ -110,6 +110,7 @@ fn label(text: &str) -> gtk::Label {
 }
 fn combo(values: &[(&str, &str)], active: &str) -> gtk::ComboBoxText {
     let c = gtk::ComboBoxText::new();
+    super::wheel::protect_combo(&c);
     for (id, name) in values {
         c.append(Some(id), name);
     }
@@ -122,7 +123,10 @@ impl Panel {
         let summary = label("");
         summary.set_no_show_all(true);
         let expander = gtk::Expander::new(Some("Options"));
+        expander.style_context().add_class("filter-section");
+        expander.set_label_fill(true);
         let fields = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        fields.set_margin_top(8);
         expander.add(&fields);
         let quick = gtk::Box::new(gtk::Orientation::Vertical, 8);
         container.pack_start(&summary, false, false, 0);

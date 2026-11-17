@@ -25,7 +25,7 @@ def make_handler(root,env,posts,ninja_requests):
                   {'type':'SkillGem','lines':[line('Impale Support','20/20c',5)]},
                   {'type':'UniqueArmour','lines':[line('Goldrim','Leather Cap',8)]},
                   {'type':'Map','lines':[line('Map (Tier 16)','T0, Gen-24',3)]},
-                  {'type':'Viscera','lines':[line('Greater Severed Rhoa Head','Every second, inflict Withered on Enemies within # metres for # seconds',5)]}]});return
+                  {'type':'Viscera','lines':[line('Greater Severed Rhoa Head','Every second, inflict Withered on Enemies within # metres for # seconds',5),line("Siren's Tentacle",'#% increased Effect of Cold Ailments',5)]}]});return
             assert self.path.startswith('/api/trade/fetch/'),self.path
             def offered(suffix,life):
                 item={'name':f'Fixture offered ring {suffix}','typeLine':'Gold Ring','frameType':2,'ilvl':84,'properties':[{'name':'Quality','values':[['+20%',1]]}],'implicitMods':['15% increased Rarity of Items found'],'explicitMods':[f'+{life} to maximum Life','+42% to Fire Resistance'],'craftedMods':['+16% to Chaos Resistance'],'identified':True,'corrupted':suffix=='B'}
@@ -36,6 +36,7 @@ def make_handler(root,env,posts,ninja_requests):
                 if family=='map':item.update(name='',typeLine='Map (Tier 16)',frameType=0,properties=[{'name':'Map Tier','values':[['16',0]]},{'name':'Quality','values':[['+20%',1]]}])
                 if family=='influence':item.update(name=f'Fixture circlet {suffix}',typeLine='Hubris Circlet',properties=[{'name':'Energy Shield','values':[['100',0]]}],implicitMods=[],explicitMods=['Nearby Enemies have -9% to Chaos Resistance'],craftedMods=[])
                 if family=='viscera':item.update(name='',typeLine='Greater Severed Rhoa Head',frameType=0,ilvl=1,implicitMods=['Every second, inflict Withered on Enemies within 6 metres for 5 seconds'],explicitMods=[],craftedMods=[])
+                if family=='viscera-siren':item.update(name='',typeLine="Siren's Tentacle",frameType=0,ilvl=71,properties=[],implicitMods=['27% increased Effect of Cold Ailments'],explicitMods=[],craftedMods=[])
                 # Current Trade uses structured mods; keep one legacy row for compatibility.
                 if suffix=='A':
                     for key in ['implicitMods','explicitMods','craftedMods','fracturedMods','enchantMods']:

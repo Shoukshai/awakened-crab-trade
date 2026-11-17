@@ -96,6 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok("unique") => include_str!("../src/fixtures/price-unique.txt"),
                     Ok("map") => include_str!("../src/fixtures/price-map.txt"),
                     Ok("viscera") => include_str!("../src/fixtures/price-viscera.txt"),
+                    Ok("viscera-siren") => include_str!("../src/fixtures/price-viscera-siren.txt"),
                     Ok("influence") => include_str!("../src/fixtures/price-influence.txt"),
                     _ => include_str!("../src/fixtures/driftwood-wand.txt"),
                 };

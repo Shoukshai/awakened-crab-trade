@@ -37,8 +37,8 @@ impl Mode {
             Self::Properties => "Propriétés de zone",
             Self::Bulk => "Cartes en lot (plage ≤ 2 %)",
             Self::Exact => "Objet exact (plage ≤ 2 %)",
-            Self::Calculated => "Objet fini · filtres calculés",
-            Self::Base => "Base d’artisanat (plage ≤ 2 %)",
+            Self::Calculated => "Recherche par stats",
+            Self::Base => "Recherche pour craft",
         }
     }
     pub fn exact(self) -> bool {

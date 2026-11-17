@@ -63,6 +63,13 @@
       "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvUmluZzQiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/2164e44179/Ring4.png",
       "sha256": "0b695b5611dc147b7f557f9b1066c70fc7ab056cd0453d26ccf4ada62d925295",
       "source": "poe.ninja public economy overview / pinned Awakened catalogue"
+    },
+    {
+      "fixture": "viscera-siren",
+      "name": "Siren's Tentacle",
+      "url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFNZXJ2ZWlsTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/233e4553e4/VisceraMerveilLeg.png",
+      "sha256": "a69daf944af270d71155a069fb88f1b3b8534a64305294c696334a6b38bb91e8",
+      "source": "PoEDB Sirens_Tentacle / current catalogue; Grinding Gear Games artwork"
     }
   ]
 }

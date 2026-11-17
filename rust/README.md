@@ -5,7 +5,7 @@ stats et leurs bornes, rechercher les objets comparables sur Trade et lire les
 offres dans le panneau. Le périmètre est limité au **price checker**.
 
 Configuration Linux vérifiée : Artix x86_64, River avec layer-shell, PoE Steam /
-DWProton sous XWayland, écran 2560×1600 au facteur 1. **Windows x64 dispose d’une première version portable 0.28**, avec intégration
+DWProton sous XWayland, écran 2560×1600 au facteur 1. **Windows x64 dispose d’une version portable 0.29**, avec intégration
 Win32 et validation dans un bureau Wine isolé. Le test réel sous Windows 11 /
 PoE Steam reste à faire : voir [Windows](docs/windows.md). Aucun Electron ni WebView.
 
@@ -41,11 +41,18 @@ requête dans le navigateur sur une action explicite.
 Les puces de **base** et d’**ilvl** sont désactivées par défaut. La base porte
 son nom ; ilvl active un champ de minimum prérempli avec le niveau de l’objet.
 Rareté et corruption se choisissent dans leurs listes. Qualité, niveau de
-gemme et liens restent disponibles selon l’objet. **Filtres d’objet** conserve les options complémentaires, dont les
+gemme et liens restent disponibles selon l’objet. **Options** conserve les options complémentaires, dont les
 influences et le regroupement Trade. Les presets proposent les filtres
-adaptés à son type. **Autres filtres et sources exactes** donne accès aux stats
+adaptés à son type. **Autres stats** donne accès aux stats
 masquées par les calculs pseudo. Une comparaison par base seule ne suffit pas à
 estimer un rare. Les cotes poe.ninja sont indicatives.
+
+La version 0.29 accepte la copie réelle des Viscera sans ligne « Rarity », dont
+Siren’s Tentacle. Les 164 bases et leurs emplacements ont été comparés à PoEDB.
+Les sliders règlent des seuils entiers : jaune pour la plage sélectionnée, gris
+foncé en dehors. La molette sur une liste fermée fait défiler les filtres sans
+changer son choix. Les modes se nomment **Recherche par stats** et
+**Recherche pour craft** ; les sections secondaires affichent leur nombre de stats.
 
 Après une copie manuelle Ctrl+Alt+C, on peut aussi lancer :
 

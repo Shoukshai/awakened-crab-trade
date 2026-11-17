@@ -121,7 +121,7 @@ try:
         family=os.environ['APT_FAMILY_CASE']
         command('hide');focus_game();subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
         wait_for(lambda:state(state='Interactive',visible=True,rendered=True) and status()['item'],'family copied')
-        expected={'gem':'Gem','currency':'Currency','unique':'Unique','map':'Map','viscera':'Viscera','influence':'Equipment','wand':'Equipment'}[family]
+        expected={'gem':'Gem','currency':'Currency','unique':'Unique','map':'Map','viscera':'Viscera','viscera-siren':'Viscera','influence':'Equipment','wand':'Equipment'}[family]
         assert status()['family']==expected,status()
         wait_for(lambda:status()['summary']['image_ready'],'item image fetched through fixture',10)
         if family not in ['influence','wand']:wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
@@ -155,6 +155,19 @@ try:
             click(status()['search_button']);wait_for(lambda:status()['status_text']=='Min doit être inférieur ou égal à Max.','inverted bounds refuse search')
             assert not posts and status()['request'] is None
             click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','40'],env=env,check=True)
+            for fraction in [.12,.27,.53,.88]:
+                drag_slider(row['slider'],fraction,fraction)
+                assert all(r['min_value'] is None or float(r['min_value']).is_integer() for r in status()['stat_controls'])
+            drag_slider(row['slider'],.5,.5)
+            s1=status();o=s1['origin'];slider=next(r for r in s1['stat_controls'] if r['id']=='implicit.stat_2974417149')['slider']
+            subprocess.run(['grim',str(runtime/'slider-colors.png')],env=env,check=True)
+            picture=Image.open(runtime/'slider-colors.png').convert('RGB');y=o['y']+slider['y']+7
+            gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
+            yellow=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
+            assert max(gray)<80 and yellow[0]>180 and yellow[1]>150 and yellow[2]<130,(gray,yellow)
+            report['slider_integer_thresholds_and_yellow_gray_colors']={'gray':gray,'yellow':yellow}
+            for field,text in [(row['min'],'9'),(row['max'],'40')]:
+                click(field);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--',text],env=env,check=True)
             report['slider_click_drag_both_handles_and_joined_fields']=True
             report['blank_bound_is_removed_and_invalid_ranges_send_no_trade_request']=True
         if family=='currency':
@@ -180,6 +193,11 @@ try:
                 assert q['filters']['type_filters']['filters']['category']['option']=='viscera.head',q
                 assert status()['item']['reference']=='Severed Rhoa Head',status()['item']
                 assert any(f['id']=='implicit.stat_1417918566' for g in q['stats'] for f in g['filters']),q
+            if family=='viscera-siren':
+                assert q['filters']['type_filters']['filters']['category']['option']=='viscera.leg',q
+                assert status()['item']['reference']=="Siren's Tentacle",status()['item']
+                assert any(f['id']=='implicit.stat_1793818220' for g in q['stats'] for f in g['filters']),q
+                assert '27% increased Effect of Cold Ailments' in status()['listings']['offers'][0]['tooltip']
             if family=='influence':assert any(r['influence_icons'] for r in status()['stat_controls']),status()['stat_controls']
             pointer(status()['origin']['x']+8,1500)
             wait_for(lambda:not status()['listings']['tooltip_visible'],'no hover')
@@ -234,6 +252,19 @@ try:
     for dx,y in [(4,80),(status()['width']-4,80),(status()['width']/2,1250)]:
         o=status()['origin'];pointer(o['x']+dx,y,True);time.sleep(.08)
         assert status()['state']=='Interactive','inside click closed checker'
+    # Wheel over a closed dropdown scrolls the enclosing list without editing filters.
+    section=next(s for s in status()['stat_sections'] if s['label'].startswith('Autres stats'))
+    click(section['header']);wait_for(lambda:status()['mod_scroll']['upper']>status()['mod_scroll']['page_size'],'expanded secondary stats overflow')
+    before=status();combo=before['item_filter_controls']['corruption']['rect'];o=before['origin']
+    pointer(o['x']+combo['x']+combo['width']/2,o['y']+combo['y']+combo['height']/2);time.sleep(.1);pointer_command('scroll 45')
+    wait_for(lambda:status()['mod_scroll']['value']>before['mod_scroll']['value'],'wheel scrolls parent over dropdown')
+    assert status()['generation']==before['generation'] and status()['item_filters']==before['item_filters']
+    o=status()['origin'];v=status()['mod_scroll']
+    pointer(o['x']+v['x']+v['width']-8,o['y']+v['y']+80);time.sleep(.1);pointer_command('scroll -1000')
+    wait_for(lambda:status()['mod_scroll']['value']==0,'restore filter scroll')
+    if os.environ.get('APT_SECTIONS_SCREENSHOT'):capture_panel(os.environ['APT_SECTIONS_SCREENSHOT'])
+    click(next(s for s in status()['stat_sections'] if s['label'].startswith('Autres stats'))['header'])
+    report['closed_dropdown_wheel_keeps_filters_and_scrolls_parent']=True
     click(status()['item_filter_controls']['corruption']['rect']);wait_for(lambda:status()['owned_popup'],'corruption dropdown grabbed')
     pointer(2300,1200,True)
     wait_for(lambda:not status()['owned_popup'] and state(state='Interactive'),'outside click dismisses dropdown only')

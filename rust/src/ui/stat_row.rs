@@ -110,7 +110,7 @@ impl StatRow {
             attrs.insert(gtk::pango::AttrFontFeatures::new("tnum=1"));
             entry.set_attributes(&attrs);
             if let Some(value) = value {
-                entry.set_text(&super::economy_panel::format_amount(value));
+                entry.set_text(&super::economy_panel::format_amount(value.round()));
             }
         }
         let bounds = modifier
@@ -120,7 +120,7 @@ impl StatRow {
             .and_then(|((min, max), roll)| {
                 let negate = crate::modifiers::translation::display(modifier).1;
                 let (min, max) = if negate { (-max, -min) } else { (min, max) };
-                super::roll_slider::Bounds::new(min, max, roll, modifier.decimal)
+                super::roll_slider::Bounds::new(min, max, roll)
             });
         let slider = bounds.map(|bounds| {
             super::roll_slider::new(

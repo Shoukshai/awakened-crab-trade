@@ -25,14 +25,14 @@
 }
 #apt-native button:hover { background: #252c36; }
 #apt-native button:disabled, #apt-native entry:disabled { color: #626a75; background: #151a21; border-color: #2c323c; }
-#apt-native button.primary { color: #171a1e; background: #c4a56b; border-color: #c4a56b; }
-#apt-native button.primary:hover { background: #d0b47f; }
+#apt-native button.primary { color: #171a1e; background: #d6b85c; border-color: #d6b85c; }
+#apt-native button.primary:hover { background: #e2c86f; }
 #apt-native button.secondary, #apt-native button.close { background: transparent; border-color: transparent; }
 #apt-native button.close { padding: 0px 4px; min-width: 16px; }
 #apt-native button.chip { color: #8e959f; background: transparent; }
-#apt-native button.chip:checked { color: #e3c995; background: #332d23; border-color: #c4a56b; }
+#apt-native button.chip:checked { color: #e3c995; background: #332d23; border-color: #d6b85c; }
 #apt-native .mod-row { border: 1px solid #343b45; border-radius: 4px; background: transparent; }
-#apt-native .mod-row.selected { border-color: #c4a56b; background: #25251f; }
+#apt-native .mod-row.selected { border-color: #d6b85c; background: #25251f; }
 #apt-native .trade-row { border: none; border-bottom: 1px solid #2b313a; border-radius: 4px; background: transparent; }
 #apt-native .trade-row:hover { background: #1c222b; }
 #apt-native .price { font-size: 16px; color: #eeeeef; }
@@ -53,7 +53,7 @@ menuitem { color: #c8cdd3; padding: 4px 8px; }
 menuitem:hover { background: #303641; color: #eeeeef; }
 menuitem label { color: inherit; }
 #apt-native check { border-radius: 4px; border-color: #414752; background: #1b2028; }
-#apt-native check:checked { background: #c4a56b; border-color: #c4a56b; color: #171a1e; }
+#apt-native check:checked { background: #d6b85c; border-color: #d6b85c; color: #171a1e; }
 #apt-native spinbutton { padding: 0px; }
 #apt-native spinbutton button { padding: 0px 4px; min-width: 14px; border: none; background: transparent; }
 #apt-native button.primary label { color: #171a1e; }
@@ -70,3 +70,14 @@ menuitem label { color: inherit; }
 #apt-native .mod-bounds entry.bound-min { border-top-right-radius: 0px; border-bottom-right-radius: 0px; }
 #apt-native .mod-bounds entry.bound-max { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left-width: 0px; }
 #apt-native entry.error { border-color: #bc6262; }
+
+#apt-native expander.filter-section { margin-top: 8px; }
+#apt-native expander.filter-section > title {
+  background: #1b2028;
+  border-bottom: 1px solid #414752;
+  border-radius: 4px;
+  padding: 8px;
+}
+#apt-native expander.filter-section > title:hover { background: #252c36; }
+#apt-native expander.filter-section > title > label { color: #d6d8dc; }
+#apt-native expander.filter-section > title > arrow { color: #b8bdc6; }

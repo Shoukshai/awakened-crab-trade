@@ -329,11 +329,16 @@ impl Item {
             Some("Gem") => Rarity::Gem,
             Some("Currency") => Rarity::Currency,
             Some("Divination Card") => Rarity::Divination,
+            None if class == "Viscera" => Rarity::Normal,
             _ => return Err("Unsupported or missing item rarity".into()),
         };
         let names: Vec<_> = lines
             .iter()
-            .skip(2)
+            .skip(if lines.get(1).is_some_and(|s| s.starts_with("Rarity: ")) {
+                2
+            } else {
+                1
+            })
             .take_while(|s| **s != "--------")
             .filter(|s| !s.is_empty())
             .copied()
@@ -579,7 +584,18 @@ impl Item {
         }
         let market = MarketMetadata {
             known: info.is_some(),
-            viscera_slot: info.and_then(|v| v.viscera_slot.clone()),
+            viscera_slot: info.and_then(|v| v.viscera_slot.clone()).or_else(|| {
+                if class != "Viscera" {
+                    return None;
+                }
+                lines.iter().find_map(|line| match *line {
+                    "Head" => Some("Head".into()),
+                    "Torso" => Some("Body".into()),
+                    "Upper Limb" => Some("Arm".into()),
+                    "Lower Limb" => Some("Leg".into()),
+                    _ => None,
+                })
+            }),
             name: info
                 .map(|v| v.name.clone())
                 .unwrap_or_else(|| identity.clone()),
@@ -749,15 +765,62 @@ mod tests {
             .filter(|e| e.category.as_deref() == Some("Viscera"))
             .collect();
         assert_eq!(entries.len(), 164);
+        let poedb: serde_json::Value =
+            serde_json::from_str(include_str!("../docs/poedb-viscera-0.29.json")).unwrap();
+        for row in poedb["rows"].as_array().unwrap() {
+            let entry = entries
+                .iter()
+                .find(|entry| entry.name == row["name"])
+                .unwrap();
+            let slot = match row["slot"].as_str().unwrap() {
+                "Head" => "Head",
+                "Torso" => "Body",
+                "Upper Limb" => "Arm",
+                "Lower Limb" => "Leg",
+                other => panic!("Unknown PoEDB Viscera slot: {other}"),
+            };
+            assert_eq!(entry.viscera_slot.as_deref(), Some(slot), "{}", entry.name);
+        }
         for entry in entries {
             let text = format!(
-                "Item Class: Viscera\nRarity: Normal\n{}\n--------\nItem Level: 1\n--------",
+                "Item Class: Viscera\n{}\n--------\nItem Level: 1\n--------",
                 entry.name
             );
             let item = Item::parse(&text).unwrap();
             assert_eq!(item.family(), Family::Viscera, "{}", entry.name);
             assert!(item.market.viscera_slot.is_some(), "{}", entry.name);
         }
+    }
+
+    #[test]
+    fn real_siren_viscera_without_rarity_preserves_implicit_and_trade_identity() {
+        let item = Item::parse(include_str!("fixtures/price-viscera-siren.txt")).unwrap();
+        assert_eq!(item.family(), Family::Viscera);
+        assert_eq!(item.reference, "Siren's Tentacle");
+        assert_eq!(item.item_level, Some(71));
+        assert_eq!(item.market.viscera_slot.as_deref(), Some("Leg"));
+        assert!(icon_url(&item).is_some());
+        let stat = item
+            .modifiers
+            .iter()
+            .find(|m| m.ids.iter().any(|id| id == "implicit.stat_1793818220"))
+            .unwrap();
+        assert_eq!(
+            (stat.value, stat.min, stat.max),
+            (Some(27.), Some(20.), Some(30.))
+        );
+        let key = crate::economy::Key::for_item(&item).unwrap();
+        assert_eq!(key.name, "Siren's Tentacle");
+        let mut filters = crate::filters::Filters::default();
+        let mut plan = crate::filters::plan(&item, &filters).unwrap();
+        plan.editor_defaults(&item);
+        filters.item = Some(plan);
+        let query = crate::filters::search_query(&item, &filters).unwrap();
+        assert_eq!(
+            query["query"]["filters"]["type_filters"]["filters"]["category"]["option"],
+            "viscera.leg"
+        );
+        assert!(Item::parse("Item Class: Rings\nGold Ring\n--------").is_err());
     }
     #[test]
     fn real_advanced_clipboard_item_preserves_identity_and_implicit() {
