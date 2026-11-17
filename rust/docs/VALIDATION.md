@@ -1418,3 +1418,79 @@ Collage, déplacements, refus IO et changements de sortie sont testés sur le bu
 privé. Aucun réglage de l’écran réel n’est modifié. Réduction réelle, plusieurs
 sorties, alignement Delve réel, grands GIF, X11 natif, Windows et autres
 compositeurs restent non validés. L’inventaire de portage reste incomplet.
+
+## Jalon 0.21 : recherches coffre et restauration du texte
+
+### Comparaisons et bureau privé
+
+**129 tests unitaires réussis**, formatage et Clippy toutes cibles avec
+`-D warnings` passent. [stash-search-parity-0.21.json](stash-search-parity-0.21.json)
+compare les callbacks TypeScript upstream inchangés : deux listes par défaut,
+**24 initialisations**, **256 séquences / 8 192 opérations** d’ajout/retrait,
+10 libellés et filtres de recherche similaire cités en JSON, sans écart. Les
+limites natives sont testées séparément, notamment 250 unités UTF-16, contrôles
+interdits et identifiants dupliqués. Ce corpus exclut CSS, dessin et saisie au jeu.
+
+[stash-search-lifecycle-0.21.json](stash-search-lifecycle-0.21.json) lance un River
+privé et une véritable entrée GTK X11 servant de faux coffre. La fenêtre a la
+classe et le titre du jeu ; l’exécutable refuse le runtime/Display du bureau réel.
+Le scénario vérifie le collage reçu et l’activation Entrée de ce champ, après
+masquage de l’overlay ; le texte précédent est restauré à la fin du worker. Un
+raccourci de filtre fonctionne depuis l’état masqué, puis sa désactivation native
+libère la combinaison. L’inspecteur envoie exactement `"Driftwood Wand"`. Une
+copie avancée depuis le faux jeu restaure le texte avant l’affichage passif.
+Aucun de ces envois de recherche/Entrée n’est exécuté sur le vrai PoE.
+
+L’éditeur natif vérifie capture et remplacement d’un raccourci, refus d’un doublon
+global, modification et réordonnement des filtres, échec réel d’écriture, maintien
+du brouillon puis enregistrement réussi. Le déplacement conserve son mode après
+sauvegarde et un refus IO rétablit la position prévisualisée. Une suppression au
+maintien est annulable et retire seulement la bonne instance. Un fournisseur de
+presse-papiers confirme une lecture puis retarde sa réponse de 600 ms : changer
+d’application et revenir avant la fin n’envoie aucune recherche.
+
+Le menu de **66 boutons** est atteint jusqu’à la dernière instance ; son panneau
+de **64 filtres** est ensuite défilé jusqu’au dernier bouton, réellement appliqué
+au faux coffre. Échelle UI **2,5**, sortie privée 2560×1600 au facteur **2**, espace
+logique 1280×800. La vérification attend l’allocation GTK puis son clamp à la sortie.
+La surface statique visible et la surface masquée ne demandent pas de frames
+périodiques. Les journaux restent sans GTK critical ni requête Trade.
+
+Les huit autres scénarios passent sur les mêmes sources :
+[menu](widget-menu-lifecycle-0.21.json), [ordre](widget-order-lifecycle-0.21.json),
+[images](image-strips-lifecycle-0.21.json),
+[chronomètres](stopwatch-lifecycle-0.21.json), [réglages](settings-0.21.json),
+[cycle de vie](overlay-lifecycle-0.21.json), [Delve](delve-lifecycle-0.21.json) et
+[Heist](item-search-lifecycle-0.21.json). Le scénario historique d’ordre conserve
+son profil explicite images/chronomètres ; le scénario coffre couvre les nouveaux
+panneaux. L’oracle [ordre](widget-order-parity-0.21.json) inclut maintenant les
+quatre types menu/images/chronomètres/coffre : **32 768 opérations sans écart**.
+L’oracle [menu](widget-menu-parity-0.21.json) reste sans écart sur ses 664 cas.
+
+### Observations sur le vrai PoE
+
+[stash-search-real-0.21.json](stash-search-real-0.21.json) décrit le release
+Artix/River/XWayland, 2560×1600 au facteur 1. Les deux panneaux de filtres par
+défaut s’affichent au-dessus du jeu et leurs commandes Masquer fonctionnent.
+Les captures ont été inspectées. Aucun filtre n’est appliqué : Ctrl+F/Coller/Entrée
+et la restauration du presse-papiers restent validés sur le bureau privé.
+
+Le test reprend aussi le menu, l’ajout/retrait d’un chronomètre et les réglages
+avec annulation. Les instances temporaires sont retirées par le brouillon ; les
+instances par défaut sont affichées puis masquées dans l’ordre canonique pour
+retrouver le profil initial intégral, y compris l’absence d’un ordre sauvegardé.
+Le délai observé raccourci → interaction du menu est **36,6 ms**, incluant injection
+et interrogation IPC ; ce n’est pas le temps isolé du rendu.
+
+Sur trois secondes à 100 ticks/s : deux panneaux coffre et menu statiques,
+**1 tick CPU**, **93 508 Kio RSS**, aucune nouvelle frame ; masqué, **1 tick CPU**,
+**77 508 Kio RSS**, aucune nouvelle frame. Menu seul : 1 tick, 92 964 Kio RSS.
+Mesures courtes de ce processus, sans comparaison Electron ni garantie universelle.
+Copie réelle avant/après : Driftwood Wand, **11 DPS physiques**. Trade Covens :
+**459 résultats, 10 offres, 676 ms réseau**, affichage passif. PoE et River restent
+ouverts et le service finit masqué.
+
+Application des filtres et recherche similaire dans le vrai coffre, restauration
+réelle du presse-papiers, défilement des onglets du jeu, réduction réelle, plusieurs
+sorties, grands GIF, autres compositeurs, X11 natif et Windows restent à valider
+ou à porter. L’inventaire global reste incomplet.

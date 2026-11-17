@@ -1,0 +1,11 @@
+{
+  "menu_cases": 664,
+  "widget_entries": 13457,
+  "corner_cases": 588,
+  "mismatch_count": 0,
+  "scope": "Unchanged WidgetMenu computed filtering/title/icon callback and initInstance; Widget corner transforms only. Excludes CSS layout, icon artwork, native drawing and game input; native operations are tested separately.",
+  "source_sha256": {
+    "renderer/src/web/overlay/WidgetMenu.vue": "ff9cac636f4178d89d9e6c4733db076b2a003caccd2870e68b6012672143dbb6",
+    "renderer/src/web/overlay/Widget.vue": "e2129af40868168fb57b99fbc1b4ef81406034b77e6afd63c73e9b3c30b8339d"
+  }
+}

@@ -15,6 +15,7 @@ mod presets;
 mod properties;
 mod pseudo;
 mod settings;
+mod stash_search;
 mod stopwatch;
 mod trade;
 #[cfg(target_os = "linux")]

@@ -20,6 +20,8 @@ mod item_filters_panel;
 mod item_search_panel;
 mod mercenary_panel;
 mod settings_panel;
+mod stash_panel;
+mod stash_settings;
 mod stat_row;
 mod stopwatch_manager;
 mod stopwatch_panel;
@@ -53,6 +55,8 @@ enum View {
     Menu,
 }
 enum Event {
+    Stash(stash_panel::Action),
+    StashDone(u64, Result<(), String>),
     Menu(widget_menu::Action),
     WidgetOrder,
     Shortcut(&'static str),
@@ -85,7 +89,13 @@ enum EconomyJob {
         choices: Vec<crate::item::search::Choice>,
     },
 }
+struct StashJob {
+    generation: u64,
+    text: String,
+    restore: bool,
+}
 struct CaptureJob {
+    restore: bool,
     text: Option<String>,
     generation: u64,
     copy: bool,
@@ -102,8 +112,14 @@ enum MenuRoute {
     Settings,
     Catalogue,
     Paste(String),
+    Stash(String),
+    StashSettings(u64),
 }
 struct Ui {
+    stash: Result<Rc<stash_panel::Runtime>, String>,
+    stash_worker: SyncSender<StashJob>,
+    stash_pending: Cell<Option<u64>>,
+    stash_result: RefCell<Option<Result<(), String>>>,
     menu: Result<Rc<widget_menu::Menu>, String>,
     pending_menu: RefCell<Option<(u64, MenuRoute)>>,
     deferred_menu: RefCell<std::collections::VecDeque<widget_menu::Action>>,
@@ -213,7 +229,7 @@ fn status_payload(value: &serde_json::Value) -> String {
         "visible":value["visible"],"rendered":value["rendered"],"keyboard_mode":value["keyboard_mode"],
         "generation":value["generation"],"origin":value["origin"],"width":value["width"],"height":value["height"],
         "shortcut_backend":value["shortcut_backend"],"preferences_pending":value["preferences_pending"],
-        "counts":{"image_strips":value["images"]["rows"].as_array().map(Vec::len),"stopwatches":value["stopwatches"]["rows"].as_array().map(Vec::len),"stat_controls":value["stat_controls"].as_array().map(Vec::len)}
+        "counts":{"stash_searches":value["stash"]["rows"].as_array().map(Vec::len),"image_strips":value["images"]["rows"].as_array().map(Vec::len),"stopwatches":value["stopwatches"]["rows"].as_array().map(Vec::len),"stat_controls":value["stat_controls"].as_array().map(Vec::len)}
     }).to_string()
 }
 fn belongs_to_window(widget: &gtk::Widget, window: &gtk::Window, depth: u8) -> bool {
@@ -270,6 +286,82 @@ fn dismiss_owned_popup(window: &gtk::Window) {
     }
 }
 impl Ui {
+    fn stash_search(&self, id: u64, entry: u64, hotkey: bool) {
+        if self.preferences_pending.get() || self.stash_pending.get().is_some() {
+            return;
+        }
+        if hotkey && !self.state.borrow().game_active {
+            return;
+        }
+        let text = {
+            let s = self.settings.borrow();
+            s.stash_searches
+                .iter()
+                .find(|c| c.id == id && (!hotkey || c.enable_hotkeys))
+                .and_then(|c| {
+                    c.entries
+                        .iter()
+                        .find(|e| e.id == entry && (!hotkey || e.hotkey.is_some()))
+                })
+                .map(|e| e.text.clone())
+        };
+        if let Some(text) = text {
+            self.route_menu(MenuRoute::Stash(text));
+        }
+    }
+    fn stash_action(&self, action: stash_panel::Action) {
+        use stash_panel::Action;
+        let Ok(r) = &self.stash else {
+            return;
+        };
+        let epoch = match &action {
+            Action::Escape(e)
+            | Action::Edit(e, _)
+            | Action::Hide(e, _)
+            | Action::Remove(e, _)
+            | Action::Search(e, _, _)
+            | Action::Enable(e, _, _)
+            | Action::Move(e, _) => *e,
+        };
+        if !r.accepts(epoch) {
+            return;
+        }
+        if matches!(action, Action::Escape(_)) {
+            self.hide(HideReason::Escape);
+            return;
+        }
+        if self.preferences_pending.get() {
+            return;
+        }
+        match action {
+            Action::Search(_, id, entry) => self.stash_search(id, entry, false),
+            Action::Edit(_, id) => self.route_menu(MenuRoute::StashSettings(id)),
+            Action::Hide(_, id) | Action::Remove(_, id) => {
+                let mut s = self.settings.borrow().clone();
+                if matches!(action, Action::Remove(..)) {
+                    s.stash_searches.retain(|c| c.id != id);
+                } else if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
+                    c.wanted = false;
+                }
+                self.commit_widgets(s);
+            }
+            Action::Enable(_, id, enable) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
+                    c.enable_hotkeys = enable;
+                }
+                self.commit_widgets(s);
+            }
+            Action::Move(_, config) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == config.id) {
+                    *c = config;
+                }
+                self.commit_widgets(s);
+            }
+            _ => (),
+        }
+    }
     fn refresh_menu(&self) {
         let Ok(menu) = &self.menu else {
             return;
@@ -301,6 +393,13 @@ impl Ui {
         }));
         entries.extend(s.image_strips.iter().map(|c| Entry {
             target: Target::Image(c.id),
+            id: c.id,
+            title: c.title.clone(),
+            wanted: c.wanted,
+            skip: false,
+        }));
+        entries.extend(s.stash_searches.iter().map(|c| Entry {
+            target: Target::Stash(c.id),
             id: c.id,
             title: c.title.clone(),
             wanted: c.wanted,
@@ -383,11 +482,39 @@ impl Ui {
                         .set(Some(self.state.borrow().generation));
                 }
             }
+            MenuRoute::StashSettings(id) => {
+                self.open_settings();
+                self.preferences.open_stash(id);
+                if self.state.borrow().state == State::Preparing {
+                    self.pending_interaction
+                        .set(Some(self.state.borrow().generation));
+                }
+            }
+            MenuRoute::Stash(text) => {
+                let generation = self.state.borrow().generation;
+                let restore = self.settings.borrow().restore_clipboard;
+                self.stash_result.replace(None);
+                if self
+                    .stash_worker
+                    .try_send(StashJob {
+                        generation,
+                        text,
+                        restore,
+                    })
+                    .is_ok()
+                {
+                    self.stash_pending.set(Some(generation));
+                } else {
+                    self.stash_result
+                        .replace(Some(Err("Une recherche coffre est déjà en cours.".into())));
+                }
+            }
             MenuRoute::Paste(text) => {
                 let generation = self.state.borrow().generation;
                 if self
                     .capture_worker
                     .try_send(CaptureJob {
+                        restore: self.settings.borrow().restore_clipboard,
                         generation,
                         text: Some(text),
                         copy: false,
@@ -442,6 +569,7 @@ impl Ui {
         let epoch = match &action {
             Action::Escape(e)
             | Action::Toggle(e, _)
+            | Action::AddStash(e)
             | Action::Add(e, _)
             | Action::Configure(e, _)
             | Action::Paste(e, _) => *e,
@@ -501,6 +629,31 @@ impl Ui {
                     self.commit_widgets(s);
                 }
             }
+            Action::Toggle(_, Target::Stash(id)) => {
+                let mut s = self.settings.borrow().clone();
+                if let Some(c) = s.stash_searches.iter_mut().find(|c| c.id == id) {
+                    c.wanted = !c.wanted;
+                    if c.wanted {
+                        if let Ok(canvas) = &self.widget_canvas {
+                            canvas.raise(Key::Stash(id));
+                        }
+                    }
+                    self.commit_widgets(s);
+                }
+            }
+            Action::AddStash(_) => {
+                let mut s = self.settings.borrow().clone();
+                if s.stash_searches.len() >= crate::stash_search::MAX_WIDGETS {
+                    return;
+                }
+                let id = s.stash_searches.iter().map(|c| c.id).max().unwrap_or(0) + 1;
+                s.stash_searches.push(crate::stash_search::Config::new(
+                    id,
+                    glib::random_double(),
+                    glib::random_double(),
+                ));
+                self.commit_widgets(s);
+            }
             Action::Add(_, images) => {
                 let mut s = self.settings.borrow().clone();
                 if images {
@@ -553,7 +706,8 @@ impl Ui {
                 let active = ui.window.is_active()
                     || ui.menu.as_ref().is_ok_and(|m| m.owns_focus())
                     || ui.stopwatches.as_ref().is_ok_and(|r| r.owns_focus())
-                    || ui.images.as_ref().is_ok_and(|r| r.owns_focus());
+                    || ui.images.as_ref().is_ok_and(|r| r.owns_focus())
+                    || ui.stash.as_ref().is_ok_and(|r| r.owns_focus());
                 let popup = owned_popup(&ui.window).is_some()
                     || ui
                         .widget_canvas
@@ -571,6 +725,20 @@ impl Ui {
         });
     }
     fn refresh_delve(&self) {
+        if let Ok(r) = &self.stash {
+            let d = self.desktop.borrow();
+            r.set_context(
+                self.state.borrow().state == State::Interactive
+                    && d.game_present()
+                    && !d.other_active(),
+                self.window.is_visible()
+                    && matches!(
+                        self.view.get(),
+                        View::Price | View::Inspection | View::Settings
+                    ),
+                self.state.borrow().generation,
+            );
+        }
         self.refresh_menu();
         if let Ok(grid) = &self.delve {
             let desktop = self.desktop.borrow();
@@ -643,6 +811,9 @@ impl Ui {
     }
     fn sync_generation(&self) {
         let generation = self.state.borrow().generation;
+        if self.stash_pending.get().is_some_and(|g| g != generation) {
+            self.stash_pending.set(None);
+        }
         if self.capture_pending.get().is_some_and(|g| g != generation) {
             self.capture_pending.set(None);
         }
@@ -962,6 +1133,10 @@ impl Ui {
             return;
         }
         if let Err(e) = candidate.validate() {
+            if let Ok(r) = &self.stash {
+                let s = self.settings.borrow();
+                r.reconcile(&s.stash_searches, s.scale);
+            }
             if let Ok(m) = &self.menu {
                 m.error(&e);
             }
@@ -976,9 +1151,13 @@ impl Ui {
             candidate.stopwatches == old.stopwatches
                 && candidate.image_strips == old.image_strips
                 && candidate.widget_menu == old.widget_menu
+                && candidate.stash_searches == old.stash_searches
         };
         self.order_transaction.set(order_only);
         if !order_only {
+            if let Ok(r) = &self.stash {
+                r.set_busy(true);
+            }
             if let Ok(m) = &self.menu {
                 m.set_busy(true);
             }
@@ -1010,6 +1189,11 @@ impl Ui {
                 self.image_manager
                     .message(&format!("Modifications non enregistrées : {e}"));
                 return;
+            }
+            if let Ok(r) = &self.stash {
+                r.set_busy(false);
+                let s = self.settings.borrow();
+                r.reconcile(&s.stash_searches, s.scale);
             }
             if let Ok(m) = &self.menu {
                 m.set_busy(false);
@@ -1273,6 +1457,11 @@ impl Ui {
                         .message(&format!("Modifications non enregistrées : {error}"));
                     return;
                 }
+                if let Ok(r) = &self.stash {
+                    r.set_busy(false);
+                    let s = self.settings.borrow();
+                    r.reconcile(&s.stash_searches, s.scale);
+                }
                 if let Ok(m) = &self.menu {
                     m.set_busy(false);
                 }
@@ -1330,6 +1519,11 @@ impl Ui {
                     self.widget_transaction.set(false);
                     eprintln!("widgets order saved epoch={epoch} activation_requested=false");
                     return;
+                }
+                if let Ok(r) = &self.stash {
+                    r.set_busy(false);
+                    let s = self.settings.borrow();
+                    r.reconcile(&s.stash_searches, s.scale);
                 }
                 if let Ok(m) = &self.menu {
                     m.set_busy(false);
@@ -1465,6 +1659,7 @@ impl Ui {
                 self.hide(HideReason::Capture);
                 let generation = self.state.borrow().generation;
                 if let Err(e) = self.capture_worker.try_send(CaptureJob {
+                    restore: self.settings.borrow().restore_clipboard,
                     generation,
                     text: None,
                     copy: command.ends_with("copy"),
@@ -1953,6 +2148,23 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::Stash(action) => self.stash_action(action),
+            Event::StashDone(generation, result) => {
+                if self.stash_pending.get() == Some(generation) {
+                    self.stash_pending.set(None);
+                }
+                eprintln!(
+                    "stash action finished generation={generation} current={} success={}",
+                    self.state.borrow().generation,
+                    result.is_ok()
+                );
+                if generation == self.state.borrow().generation {
+                    self.stash_result.replace(Some(result));
+                }
+            }
+            Event::Hotkey(crate::hotkeys::Action::StashSearch(id, entry)) => {
+                self.stash_search(id, entry, true)
+            }
             Event::Menu(action) => self.menu_action(action),
             Event::WidgetOrder => self.save_widget_order(),
             Event::Shortcut(command) => self.command(command),
@@ -1984,7 +2196,11 @@ impl Ui {
             Event::IdentifyUnique(epoch, reference) => self.identify_unique(epoch, &reference),
             Event::Windows(s) => {
                 let active = s.game_active();
-                if !active && self.capture_pending.take().is_some() {
+                if !active
+                    && (self.capture_pending.get().is_some() || self.stash_pending.get().is_some())
+                {
+                    self.capture_pending.set(None);
+                    self.stash_pending.set(None);
                     self.state.borrow_mut().generation += 1;
                     self.sync_generation();
                     eprintln!("capture cancelled on game context loss");
@@ -2427,6 +2643,18 @@ pub fn run() -> Result<(), String> {
     });
     stopwatch_manager.configure(&settings.stopwatches);
     let image_sender = sender.clone();
+    let stash = widget_canvas
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|canvas| {
+            let sender = sender.clone();
+            stash_panel::Runtime::new(canvas.clone(), move |a| {
+                let _ = sender.send(Event::Stash(a));
+            })
+        });
+    if let Ok(r) = &stash {
+        r.reconcile(&settings.stash_searches, settings.scale);
+    }
     let images = widget_canvas
         .as_ref()
         .map_err(Clone::clone)
@@ -2612,6 +2840,28 @@ pub fn run() -> Result<(), String> {
 
     let game_active = Arc::new(AtomicBool::new(false));
 
+    let (stash_worker, stash_jobs) = mpsc::sync_channel::<StashJob>(1);
+    {
+        let sender = sender.clone();
+        let current = current.clone();
+        let active = game_active.clone();
+        std::thread::spawn(move || {
+            while let Ok(job) = stash_jobs.recv() {
+                let context = crate::desktop::game_input::Context {
+                    active: &active,
+                    generation: &current,
+                    token: job.generation,
+                };
+                let result = clipboard::stash_search(&job.text, job.restore, &context);
+                if sender
+                    .send(Event::StashDone(job.generation, result))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+    }
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
     {
         let sender = sender.clone();
@@ -2627,7 +2877,7 @@ pub fn run() -> Result<(), String> {
                 let result = (if let Some(text) = job.text {
                     Ok(text)
                 } else if job.copy {
-                    clipboard::copy_from_game(&active)
+                    clipboard::copy_from_game(&active, job.restore)
                 } else {
                     clipboard::read()
                 })
@@ -2709,6 +2959,10 @@ pub fn run() -> Result<(), String> {
     }
     let (preferences_worker, preferences_jobs) = mpsc::sync_channel(1);
     let ui = Rc::new(Ui {
+        stash,
+        stash_worker,
+        stash_pending: Cell::new(None),
+        stash_result: RefCell::new(None),
         menu,
         pending_menu: RefCell::new(None),
         deferred_menu: RefCell::new(std::collections::VecDeque::new()),
@@ -2883,6 +3137,22 @@ pub fn run() -> Result<(), String> {
             .close
             .connect_clicked(move |_| ui.hide(HideReason::Button));
     }
+    {
+        let ui = ui.clone();
+        let button = ui.inspection.stash.clone();
+        button.connect_clicked(move |_| {
+            if ui.view.get() == View::Inspection && ui.state.borrow().state == State::Interactive {
+                let text = ui
+                    .item
+                    .borrow()
+                    .as_ref()
+                    .map(|i| crate::stash_search::similar_filter(&i.market.name));
+                if let Some(text) = text {
+                    ui.route_menu(MenuRoute::Stash(text));
+                }
+            }
+        });
+    }
     for (button, kind) in [
         (ui.inspection.wiki.clone(), 0),
         (ui.inspection.poedb.clone(), 1),
@@ -3056,6 +3326,13 @@ pub fn run() -> Result<(), String> {
                         value["menu_button"]=serde_json::json!(menu_open.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":menu_open.allocated_width(),"height":menu_open.allocated_height()})));
                         value["widget_canvas"] = match &ui.widget_canvas {
                             Ok(c) => c.diagnostics(),
+                            Err(e) => serde_json::json!({"available":false,"error":e}),
+                        };
+                        value["stash_pending"] = serde_json::json!(ui.stash_pending.get());
+                        value["inspection_stash"]=ui.inspection.stash.translate_coordinates(&ui.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":ui.inspection.stash.allocated_width(),"height":ui.inspection.stash.allocated_height(),"mapped":ui.inspection.stash.is_mapped()})).unwrap_or_default();
+                        value["stash_result"] = serde_json::json!(*ui.stash_result.borrow());
+                        value["stash"] = match &ui.stash {
+                            Ok(r) => r.diagnostics(),
                             Err(e) => serde_json::json!({"available":false,"error":e}),
                         };
                         value["images"] = match &ui.images {

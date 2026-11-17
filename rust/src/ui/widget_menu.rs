@@ -15,6 +15,7 @@ pub enum Action {
     Escape(u64),
     Toggle(u64, Target),
     Add(u64, bool),
+    AddStash(u64),
     Configure(u64, Config),
     Paste(u64, String),
 }
@@ -38,6 +39,7 @@ pub struct Menu {
     add_box: gtk::Box,
     add_timer: gtk::Button,
     add_images: gtk::Button,
+    add_stash: gtk::Button,
     rows: RefCell<Vec<(Target, gtk::Button)>>,
     labels: RefCell<Vec<Label>>,
     config: RefCell<Config>,
@@ -93,8 +95,6 @@ impl Menu {
         let add_timer = gtk::Button::with_label("Chronomètre");
         let add_images = gtk::Button::with_label("Bande d’images");
         let stash = gtk::Button::with_label("Recherche de coffre");
-        stash.set_sensitive(false);
-        stash.set_tooltip_text(Some("Pas encore disponible dans cet aperçu."));
         for b in [&add_timer, &stash, &add_images] {
             add_box.pack_start(b, false, false, 0);
         }
@@ -142,6 +142,7 @@ impl Menu {
             add_box,
             add_timer,
             add_images,
+            add_stash: stash,
             rows: RefCell::new(Vec::new()),
             labels: RefCell::new(Vec::new()),
             config: RefCell::new(Config::default()),
@@ -206,6 +207,14 @@ impl Menu {
             });
         }
         r.reset_paste();
+        let weak = Rc::downgrade(&r);
+        r.add_stash.connect_clicked(move |_| {
+            if let Some(r) = weak.upgrade() {
+                let epoch = r.epoch.get();
+                r.plus.set_active(false);
+                (r.send)(Action::AddStash(epoch));
+            }
+        });
         let weak = Rc::downgrade(&r);
         r.root.connect_enter_notify_event(move |_, _| {
             if let Some(r) = weak.upgrade() {
@@ -426,6 +435,13 @@ impl Menu {
                 < crate::image_strip::MAX_STRIPS,
         );
         self.filling.set(true);
+        self.add_stash.set_sensitive(
+            items
+                .iter()
+                .filter(|e| matches!(e.target, Target::Stash(_)))
+                .count()
+                < crate::stash_search::MAX_WIDGETS,
+        );
         self.always.set_active(c.always_show);
         self.filling.set(false);
         let labels = crate::widget_menu::entries(items, c.always_show);
@@ -465,6 +481,7 @@ impl Menu {
                     Target::Catalogue => "Recherche des cibles Heist".into(),
                     Target::Stopwatch(id) => format!("Chronomètre #{id}"),
                     Target::Image(id) => format!("Bande d’images #{id}"),
+                    Target::Stash(id) => format!("Recherche coffre #{id}"),
                 };
                 b.set_tooltip_text(Some(&tip));
                 let target = item.target.clone();
@@ -543,6 +560,14 @@ impl Menu {
         self.scroll.set_max_content_width((w * 0.82) as i32);
         self.scroll
             .set_max_content_height((h * 0.5).max(36.) as i32);
+        if self.scroll.allocated_width() > 1 {
+            let needed = self
+                .flow
+                .preferred_height_for_width(self.scroll.allocated_width())
+                .1;
+            self.scroll
+                .set_min_content_height(needed.clamp(36, (h * 0.5).max(36.) as i32));
+        }
         // FlowBox/ScrolledWindow are height-for-width widgets. Their generic
         // preferred height need not equal the allocation that was painted.
         let preferred = self.body.preferred_size().1;
@@ -611,6 +636,6 @@ impl Menu {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(&self.canvas.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"visible":self.visible.get(),"rendered":self.painted.get(),"epoch":self.epoch.get(),"interactive":self.interactive.get(),"config":self.config.borrow().clone(),"scale":self.scale.get(),"buffer_scale":self.canvas.window.scale_factor(),"viewport":[self.canvas.window.allocated_width(),self.canvas.window.allocated_height()],"message":self.message.text().as_str(),"always_value":self.always.is_active(),"paste_length":self.paste.buffer().map(|b|b.char_count()),"rect":rect(self.root.upcast_ref()),"body":rect(self.body.upcast_ref()),"edit":rect(self.edit.upcast_ref()),"move":rect(self.mover.upcast_ref()),"moving":self.mover.is_active(),"always":rect(self.always.upcast_ref()),"plus":rect(self.plus.upcast_ref()),"add_timer":rect(self.add_timer.upcast_ref()),"add_images":rect(self.add_images.upcast_ref()),"paste":rect(self.paste.upcast_ref()),"paste_focused":self.paste.has_focus(),"scroll":self.scroll.translate_coordinates(&self.canvas.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.scroll.allocated_width(),"height":self.scroll.allocated_height(),"mapped":self.scroll.is_mapped(),"value":self.scroll.vadjustment().value(),"upper":self.scroll.vadjustment().upper(),"page":self.scroll.vadjustment().page_size()})),"rows":self.rows.borrow().iter().map(|(t,b)|serde_json::json!({"target":t,"rect":rect(b.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"visible":self.visible.get(),"rendered":self.painted.get(),"epoch":self.epoch.get(),"interactive":self.interactive.get(),"config":self.config.borrow().clone(),"scale":self.scale.get(),"buffer_scale":self.canvas.window.scale_factor(),"viewport":[self.canvas.window.allocated_width(),self.canvas.window.allocated_height()],"message":self.message.text().as_str(),"always_value":self.always.is_active(),"paste_length":self.paste.buffer().map(|b|b.char_count()),"rect":rect(self.root.upcast_ref()),"body":rect(self.body.upcast_ref()),"edit":rect(self.edit.upcast_ref()),"move":rect(self.mover.upcast_ref()),"moving":self.mover.is_active(),"always":rect(self.always.upcast_ref()),"plus":rect(self.plus.upcast_ref()),"add_timer":rect(self.add_timer.upcast_ref()),"add_images":rect(self.add_images.upcast_ref()),"add_stash":rect(self.add_stash.upcast_ref()),"paste":rect(self.paste.upcast_ref()),"paste_focused":self.paste.has_focus(),"scroll":self.scroll.translate_coordinates(&self.canvas.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.scroll.allocated_width(),"height":self.scroll.allocated_height(),"mapped":self.scroll.is_mapped(),"value":self.scroll.vadjustment().value(),"upper":self.scroll.vadjustment().upper(),"page":self.scroll.vadjustment().page_size()})),"rows":self.rows.borrow().iter().map(|(t,b)|serde_json::json!({"target":t,"rect":rect(b.upcast_ref())})).collect::<Vec<_>>()})
     }
 }

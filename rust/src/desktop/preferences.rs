@@ -70,7 +70,7 @@ pub fn run<A, R>(
     };
     if let Some(backend) = backend.as_ref() {
         if let Err(error) = backend.replace_and_notify(
-            &initial.hotkeys,
+            &initial.effective_hotkeys(),
             || Ok(()),
             |_, _| {
                 reports(Update::Backend {
@@ -104,7 +104,7 @@ pub fn run<A, R>(
         let applied = Box::new(settings.clone());
         let published = reports.clone();
         let result = backend.as_ref().unwrap().replace_and_notify(
-            &settings.hotkeys,
+            &settings.effective_hotkeys(),
             || settings.save(),
             move |_, available| {
                 published(Update::Applied {

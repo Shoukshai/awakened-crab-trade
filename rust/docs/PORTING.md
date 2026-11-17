@@ -14,7 +14,7 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Fonction / source upstream | À porter | Implémentée Rust | Testée | Restante |
 |---|---|---|---|---|
 | Overlay, zones de clic, focus (`main/src/windowing`) | oui | layer-shell natif, suivi Wayland | panneau au-dessus de PoE, clics, 5 cycles, focus passif, changement d’app confirmé par l’utilisateur ; cycle de vie et menus sur River privé | réduction, plusieurs écrans/facteurs de sortie |
-| Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control | vraie Driftwood Wand copiée avant affichage | restauration optionnelle, autres jeux/langues/backends |
+| Copie et restauration presse-papiers (`HostClipboard`) | oui | marqueur Proton, copie XWayland, lecture data-control, restauration optionnelle du texte et exclusion des mutations concurrentes | vraie Driftwood Wand copiée avant affichage ; copie et recherche coffre avec restauration sur bureau privé | formats riches/images, autres jeux/langues/backends |
 | Raccourcis (`Shortcuts`) | oui | grabs X11 limités à XWayland + IPC ; configuration/capture natives, remplacement transactionnel | copie réelle ; 816 comparaisons de noms ; capture, conflit, rollback et replay pendant écriture bloquée sur serveur privé | backend River/portail pour Wayland natif, suivi des changements de disposition clavier |
 | Parsing multilingue, descriptions avancées (`renderer/src/parser`) | oui | anglais, catalogue typé, propriétés, identifiants Trade/bulk, piles, influences ; traduction des plages, flags, multilignes, variantes par catégorie ; cumul et effet des mods | copies réelles wand/Wisdom ; 55 961 comparaisons traduction/effet avec le TypeScript inchangé ; tests des blocs | parité du parser d’objet entier et enrichissements spécialisés restants, autres langues |
 | Filtres et recherche Trade, bulk | oui | base, unique, ilvl, gemme, qualité, tier, liens, bornes Min/Max, options, alternatives OR ; 35 règles pseudo générales ; propriétés équipement/Q20, bornes suggérées et IDs internes ; Trade et bulk | recherches réelles Covens ; 1 651 comparaisons objet→calculs/bornes avec TypeScript ; DPS de la vraie wand et suggestions d'une fixture dans l'UI | presets cartes/charts/flacons/Heist portés au jalon 0.6 (voir validation) ; équipement/base, ajustements finaux, clusters/Timeless/anointments portés au jalon 0.8 ; logbooks multi-zones/Atzoatl/Mirrored Tablet portés au jalon 0.10 (rejet serveur Tablet documenté) ; Mercenary Warrant porté au jalon 0.11 ; politique des filtres d’objet portée au jalon 0.7, éditeur encore partiel |
@@ -23,8 +23,8 @@ que le travail reste à faire, y compris pour les implémentations partielles.
 | Résolution des non-identifiés (`unidentified-resolver`) | oui | choix natif avec défilement, première variante par référence, résolution automatique si choix unique ; propriétés/texte/statut préservés ; aucune recherche avant choix | 5 773 comparaisons sur 547 bases et 1 259 identités ; sélection/automatisme/sans candidat/inspection testés sur River privé ; fixtures consultées au-dessus de PoE | icônes, variantes distinguées ; copies réelles de ces uniques non identifiés |
 | Évaluation objets, cartes et mods dangereux | oui | calcul local DPS/poussière ; trois profils persistés, couleurs/vu/nouveaux ; catalogue 340 mods, inconnus et obsolètes | 3 144 cas parseur/calculs et 1 875 décisions comparés au TypeScript upstream ; tests natifs documentés dans VALIDATION | images des cartes, autres objets réels et langues |
 | Recherche objets, wiki et liens externes | oui | liens Wiki/PoEDB/CoE ; recherche Heist native, cinq sélections/cotes et consultation virtuelle ; raccourci configurable | 1 552 recherches, 1 025 consultations virtuelles, 228 opérations comparées ; scénario graphique privé et refus serveur de la requête upstream | images, OCR, autres recherches que les cibles du widget upstream, validation navigateur |
-| Recherche coffre et défilement | oui | non | non | intégration et configuration |
-| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF ; menu flottant, collage, ajout, filtrage et quatre ancrages ; surface commune et ordre mémorisé menu/images/chronomètres | Delve : 12 966 géométries et 3 840 transitions ; chronomètres : 12 296 transitions ; images : 8 192 étapes et 630 ancrages ; menu : 664 cas, 13 457 entrées et 588 positions comparées ; huit scénarios GTK privés, menu/chronomètre et prix réels au-dessus de PoE | alignement Delve réel ; recherche coffre, URL distantes, édition et présentation upstream complètes |
+| Recherche coffre et défilement | oui | widgets multiples, filtres/réordonnement/raccourcis, recherche similaire depuis l’inspecteur, saisie XWayland contrôlée et restauration du texte | 8 192 opérations et 24 initialisations comparées ; application et annulations sur faux jeu GTK privé ; affichage natif au-dessus de PoE | application des filtres dans le vrai coffre, raccourci de copie/recherche similaire, défilement des onglets du jeu |
+| Widgets minuteur, images, grille Delve, menu | oui | grille Delve passive ; chronomètres multiples ; bandes d’images locales, import/ordre/aperçu/GIF ; menu flottant, collage, ajout, filtrage et quatre ancrages ; surface commune et ordre mémorisé menu/images/chronomètres/coffre | Delve : 12 966 géométries et 3 840 transitions ; chronomètres : 12 296 transitions ; images : 8 192 étapes et 630 ancrages ; menu : 664 cas, 13 457 entrées et 588 positions comparées ; neuf scénarios GTK privés, menu/chronomètre et prix réels au-dessus de PoE | alignement Delve réel ; URL distantes, édition et présentation upstream complètes |
 | Réglages, raccourcis configurables, langues, échelle | oui | JSON compatible 0.1, brouillon natif Général/Raccourcis/Cartes/Chronomètres/Images ; échelle à chaud, recherche manuelle, devises et stock par défaut ; filtres d’objet transitoires | migration JSON, validation, annulation, refus IO, conservation des règles avancées, échelle 1,25 et nouvelles liaisons sur River privé | préférences upstream restantes, langues, plein écran de réglages dédié |
 | Chat / commandes / journal client | oui | non | non | port sans déclencher de commandes pendant les tests |
 | OCR gemmes Heist (`vision`) | oui | non | non | upstream Windows uniquement, backend futur |
@@ -473,3 +473,45 @@ maximal restent accessibles à l’échelle UI 2,5 sur une sortie privée au fac
 Icônes GTK, ajout inline et défilement sont des adaptations natives ; les oracles
 ne prouvent pas une identité des pixels CSS. Les fonctions restantes de
 l’inventaire demeurent à porter.
+
+## Jalon 0.21 : recherches coffre et restauration du texte
+
+`stash_search.rs` porte les deux listes par défaut, l’initialisation des instances,
+les libellés, les identifiants de filtres et le nom d’objet cité en JSON.
+`ui/stash_panel.rs` ajoute les instances à la surface commune et à l’ordre typé ;
+les panneaux restent invisibles hors interaction, conformément à invisible-on-blur.
+Chaque panneau attend son propre dessin avant d’ajouter ses rectangles d’entrée.
+Une sauvegarde de position conserve les commandes et le mode déplacement ; un
+refus d’écriture rétablit aussi la position dessinée et les commutateurs.
+
+`ui/stash_settings.rs` édite titre, quatre ancrages, filtres, noms, ordre et
+raccourcis dans un brouillon. Les flèches remplacent le glisser-déposer de lignes
+upstream. Les raccourcis actifs sont dérivés du profil et passent par la même
+réservation/écriture/publication que les raccourcis existants ; désactiver une
+instance libère ses combinaisons sans effacer ses choix. Les champs par défaut
+sont omis du JSON, ce qui préserve les profils précédents. Limites natives :
+16 widgets, 64 filtres chacun, une ligne de 250 unités UTF-16 par filtre.
+
+`desktop/game_input.rs` vérifie génération, activité, identité X11 et fenêtre
+restée identique avant chacun des trois raccourcis Ctrl+F, Ctrl+V, Entrée.
+Le coordinateur masque les surfaces puis attend le retour observé du jeu ; aucun
+appel ne force son activation. Un worker borné effectue la saisie hors GTK.
+Une perte de contexte annule aussi une lecture de presse-papiers encore en attente,
+même si le jeu revient avant sa réponse. Ce backend ne détecte pas l’ouverture
+du coffre : l’utilisateur l’ouvre avant d’appliquer un filtre. Les recherches
+similaires de l’inspecteur suivent le même parcours avec le nom du catalogue.
+
+`desktop/clipboard.rs` sérialise les mutations et conserve le délai upstream de
+120 ms des actions de texte. L’option de restauration, désactivée par défaut,
+rétablit le texte précédent s’il est disponible et encore applicable ; une
+sélection changée entre-temps est conservée. Après copie d’un objet, la restauration
+précède la publication du résultat à l’interface. Les formats riches/images ne
+sont pas sauvegardés. Les filtres et la saisie ne sont jamais journalisés.
+
+Le test maximum couvre 66 boutons de menu puis le 64ᵉ filtre d’un panneau à
+l’échelle UI 2,5 sur une sortie privée au facteur 2. Les diagnostics omettent
+explicitement les entrées des panneaux masqués ; le résumé global reste borné.
+Les commandes sont adaptées à GTK ; aucune parité des pixels CSS n’est revendiquée.
+La recherche coffre réelle, le défilement des onglets du jeu, les autres préférences
+et services de l’inventaire, les autres backends et les validations restantes
+demeurent dans le travail à poursuivre.

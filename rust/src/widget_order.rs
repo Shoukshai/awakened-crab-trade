@@ -7,6 +7,7 @@ pub enum Key {
     Menu,
     Stopwatch(u64),
     Image(u64),
+    Stash(u64),
 }
 pub fn reconcile(order: &[Key], known: &[Key]) -> Vec<Key> {
     let mut result = Vec::with_capacity(known.len());

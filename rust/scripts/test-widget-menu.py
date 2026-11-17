@@ -70,7 +70,7 @@ try:
     configdir=pathlib.Path(env['XDG_CONFIG_HOME'])/'awakened-poe-trade-rs';configdir.mkdir(parents=True)
     configpath=configdir/'config.json'
     maps=json.loads((root/'src/data/map-check-defaults.json').read_text())['config'];maps['selectedStats'][0]['decision']='gws'
-    original={'league':'Standard','automatic_search':False,'stopwatches':[{'id':1,'title':'Premier','x':50,'y':50,'wanted':True}]}
+    original={'league':'Standard','automatic_search':False,'stash_searches':[],'stopwatches':[{'id':1,'title':'Premier','x':50,'y':50,'wanted':True}]}
     configpath.write_text(json.dumps(original));original_bytes=configpath.read_bytes()
     daemon=start([str(app),'daemon'],'overlay')
     wait_for(lambda:(runtime/'awakened-poe-trade-rs.sock').exists(),'daemon socket')

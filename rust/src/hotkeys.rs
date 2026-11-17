@@ -7,6 +7,7 @@ pub enum Action {
     Command(&'static str),
     StopwatchToggle(u64),
     StopwatchReset(u64),
+    StashSearch(u64, u64),
 }
 impl Action {
     pub fn is_copy(self) -> bool {
@@ -22,6 +23,8 @@ pub struct StopwatchKeys {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct Hotkeys {
+    #[serde(skip)]
+    pub stash_keys: Vec<(u64, u64, String)>,
     pub price: Option<String>,
     pub inspect: Option<String>,
     pub interact: Option<String>,
@@ -37,6 +40,7 @@ pub struct Hotkeys {
 impl Default for Hotkeys {
     fn default() -> Self {
         Self {
+            stash_keys: Vec::new(),
             price: Some("Ctrl + D".into()),
             inspect: Some("Ctrl + Alt + D".into()),
             interact: Some("Shift + Space".into()),
@@ -222,6 +226,7 @@ fn key_name(part: &str) -> Option<(String, u32)> {
 impl Hotkeys {
     pub fn disabled() -> Self {
         Self {
+            stash_keys: Vec::new(),
             price: None,
             inspect: None,
             interact: None,
@@ -254,6 +259,14 @@ impl Hotkeys {
             }
             raw.push((&keys.toggle, Action::StopwatchToggle(keys.id)));
             raw.push((&keys.reset, Action::StopwatchReset(keys.id)));
+        }
+        let stash: Vec<_> = self
+            .stash_keys
+            .iter()
+            .map(|(id, entry, text)| (Some(text.clone()), Action::StashSearch(*id, *entry)))
+            .collect();
+        for (key, action) in &stash {
+            raw.push((key, *action));
         }
         for (value, command) in raw {
             if let Some(value) = value {
@@ -299,6 +312,7 @@ impl Hotkeys {
                 .transpose()
         };
         Ok(Self {
+            stash_keys: self.stash_keys.clone(),
             price: normalize(&self.price)?,
             inspect: normalize(&self.inspect)?,
             interact: normalize(&self.interact)?,
@@ -376,6 +390,7 @@ mod tests {
             assert!(h.bindings().is_err(), "{key}");
         }
         h = Hotkeys {
+            stash_keys: Vec::new(),
             price: None,
             inspect: None,
             interact: None,

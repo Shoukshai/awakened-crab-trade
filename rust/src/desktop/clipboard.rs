@@ -3,10 +3,11 @@ use std::{
     process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
+static MUTATION: Mutex<()> = Mutex::new(());
 pub fn read() -> Result<String, String> {
     let output = Command::new("timeout")
         .args(["2", "wl-paste", "--no-newline", "--type", "text"])
@@ -41,8 +42,11 @@ fn write(text: &str) -> Result<(), String> {
 }
 /// Explicit user command only. Never runs while the overlay owns keyboard input.
 /// The marker prevents accepting a previous item (also works around Proton 10+).
-pub fn copy_from_game(active: &Arc<AtomicBool>) -> Result<String, String> {
-    let previous = read().unwrap_or_default();
+pub fn copy_from_game(active: &Arc<AtomicBool>, restore: bool) -> Result<String, String> {
+    let _mutation = MUTATION
+        .try_lock()
+        .map_err(|_| "Clipboard action already in progress")?;
+    let previous = read().ok();
     if !active.load(Ordering::Acquire) {
         return Err("PoE is not active; copy cancelled".into());
     }
@@ -56,7 +60,9 @@ pub fn copy_from_game(active: &Arc<AtomicBool>) -> Result<String, String> {
         || String::from_utf8_lossy(&focused.stdout).trim() != "Path of Exile"
     {
         if read().is_ok_and(|s| s == marker) {
-            let _ = write(&previous);
+            if let Some(previous) = &previous {
+                let _ = write(previous);
+            }
         }
         return Err("PoE focus changed before copy; no keys sent".into());
     }
@@ -75,13 +81,57 @@ pub fn copy_from_game(active: &Arc<AtomicBool>) -> Result<String, String> {
         }
         if let Ok(text) = read() {
             if text.starts_with("Item Class: ") {
+                if restore {
+                    restore_if_unchanged(&text, previous.as_deref());
+                }
                 return Ok(text);
             }
         }
         std::thread::sleep(Duration::from_millis(40));
     }
     if read().is_ok_and(|s| s == marker) {
-        let _ = write(&previous);
+        if let Some(previous) = &previous {
+            let _ = write(previous);
+        }
     }
     Err("No new item copied. Hover an item in PoE; alternatively Ctrl+Alt+C then run check.".into())
+}
+fn restore_if_unchanged(owned: &str, previous: Option<&str>) {
+    if let Some(previous) = previous {
+        if read().is_ok_and(|s| s == owned) {
+            if let Err(e) = write(previous) {
+                eprintln!("clipboard text restoration failed: {e}");
+            }
+        }
+    }
+}
+/// Explicit search only. The caller first hides the overlay and observes game focus.
+/// Hold the mutation gate for the upstream 120 ms throttling/restoration interval.
+pub fn stash_search(
+    text: &str,
+    restore: bool,
+    context: &super::game_input::Context<'_>,
+) -> Result<(), String> {
+    crate::stash_search::validate_text(text)?;
+    let _mutation = MUTATION
+        .try_lock()
+        .map_err(|_| "Une action de presse-papiers est déjà en cours.")?;
+    let guard = super::game_input::Guard::new(context)?;
+    let previous = if restore { read().ok() } else { None };
+    guard.check()?;
+    write(text)?;
+    let started = Instant::now();
+    let result = (|| {
+        guard.key("ctrl+f")?;
+        guard.key("ctrl+v")?;
+        guard.key("Return")
+    })();
+    if let Some(delay) = Duration::from_millis(120).checked_sub(started.elapsed()) {
+        std::thread::sleep(delay);
+    }
+    // Never overwrite a clipboard selection changed by the user in the meantime.
+    if restore {
+        restore_if_unchanged(text, previous.as_deref());
+    }
+    result
 }

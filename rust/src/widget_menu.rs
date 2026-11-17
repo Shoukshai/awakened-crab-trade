@@ -81,6 +81,7 @@ pub enum Target {
     Catalogue,
     Stopwatch(u64),
     Image(u64),
+    Stash(u64),
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {

@@ -20,7 +20,7 @@ tar --exclude='__pycache__' --exclude='*.pyc' -czf "$rust_dir/dist/native-source
     renderer/src/web/background/Leagues.ts renderer/src/web/background/Prices.ts \
     renderer/src/web/price-check/unidentified-resolver renderer/src/web/price-check/trends renderer/src/web/price-check/related-items renderer/src/web/price-check/expected-value \
     renderer/src/web/overlay/WidgetDelveGrid.vue renderer/src/web/overlay/OverlayWindow.vue renderer/src/web/overlay/Widget.vue renderer/src/web/overlay/WidgetImageStrip.vue renderer/src/web/overlay/WidgetMenu.vue renderer/src/web/overlay/widget-registry.ts renderer/src/web/overlay/widgets.ts renderer/src/web/ui/Popover.vue renderer/src/web/ui/FullscreenImage.vue renderer/public/images/syndicate.jpg renderer/src/web/stopwatch renderer/tailwind.config.js \
-    renderer/src/web/item-search renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
+    renderer/src/web/stash-search renderer/src/web/item-check/hotkeyable-actions.ts main/src/shortcuts/text-box.ts main/src/shortcuts/HostClipboard.ts renderer/src/web/item-search renderer/src/web/map-check renderer/src/web/item-check/WidgetItemCheck.vue \
     renderer/src/web/item-check/ItemInfo.vue \
     renderer/package.json renderer/package-lock.json \
     ipc/KeyToCode.ts main/build/icons/128x128.png -C "$rust_dir/dist" license-bundle

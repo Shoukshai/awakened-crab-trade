@@ -12,6 +12,7 @@ pub struct Panel {
     pub wiki: gtk::Button,
     pub poedb: gtk::Button,
     pub coe: gtk::Button,
+    pub stash: gtk::Button,
     profiles: Vec<gtk::Button>,
     show_new: gtk::CheckButton,
     summary: gtk::Label,
@@ -70,7 +71,8 @@ impl Panel {
         let wiki = gtk::Button::with_label("Wiki");
         let poedb = gtk::Button::with_label("PoEDB");
         let coe = gtk::Button::with_label("Craft of Exile");
-        for b in [&wiki, &poedb, &coe] {
+        let stash = gtk::Button::with_label("Trouver dans le coffre");
+        for b in [&wiki, &poedb, &coe, &stash] {
             links.pack_start(b, true, true, 0);
         }
         links.set_no_show_all(true);
@@ -160,6 +162,7 @@ impl Panel {
             wiki,
             poedb,
             coe,
+            stash,
             profiles,
             show_new,
             summary,

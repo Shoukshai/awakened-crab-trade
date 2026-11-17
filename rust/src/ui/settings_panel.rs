@@ -22,6 +22,7 @@ pub struct Panel {
     scale: gtk::SpinButton,
     range: gtk::SpinButton,
     automatic: gtk::CheckButton,
+    restore_clipboard: gtk::CheckButton,
     merchant: gtk::CheckButton,
     collapse: gtk::CheckButton,
     stock: gtk::CheckButton,
@@ -34,6 +35,7 @@ pub struct Panel {
     capture: Rc<Cell<Option<usize>>>,
     pub stopwatches: Rc<super::stopwatch_settings::Editor>,
     pub images: Rc<super::image_settings::Editor>,
+    pub stash: Rc<super::stash_settings::Editor>,
     message: gtk::Label,
     base: RefCell<Settings>,
 }
@@ -83,15 +85,24 @@ impl Panel {
         }
         row(&general, 3, "Devise des prix par défaut", &price_currency);
         row(&general, 4, "Paiement des échanges", &bulk_currency);
+        let restore_clipboard =
+            gtk::CheckButton::with_label("Restaurer le texte du presse-papiers après une action");
         let online = gtk::CheckButton::with_label("Rechercher en ligne");
         let automatic = gtk::CheckButton::with_label("Rechercher automatiquement après la copie");
         let merchant = gtk::CheckButton::with_label("Offres disponibles auprès des marchands");
         let collapse =
             gtk::CheckButton::with_label("Regrouper les offres par compte via le service Trade");
         let stock = gtk::CheckButton::with_label("Activer le filtre du stock de la pile copiée");
-        for (index, w) in [&online, &automatic, &merchant, &collapse, &stock]
-            .into_iter()
-            .enumerate()
+        for (index, w) in [
+            &online,
+            &automatic,
+            &merchant,
+            &collapse,
+            &stock,
+            &restore_clipboard,
+        ]
+        .into_iter()
+        .enumerate()
         {
             general.attach(w, 0, 5 + index as i32, 2, 1);
         }
@@ -173,6 +184,8 @@ impl Panel {
         );
         let images = super::image_settings::Editor::new();
         form.append_page(&images.container, Some(&gtk::Label::new(Some("Images"))));
+        let stash = super::stash_settings::Editor::new(capture.clone());
+        form.append_page(&stash.container, Some(&gtk::Label::new(Some("Coffre"))));
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
         message.set_line_wrap(true);
@@ -199,6 +212,7 @@ impl Panel {
             scale,
             range,
             automatic,
+            restore_clipboard,
             merchant,
             collapse,
             stock,
@@ -211,6 +225,7 @@ impl Panel {
             capture,
             stopwatches,
             images,
+            stash,
             message,
             base: RefCell::new(Settings::default()),
         }
@@ -224,6 +239,7 @@ impl Panel {
         self.stopwatches
             .fill(&settings.stopwatches, &settings.hotkeys.stopwatch_keys);
         self.images.fill(&settings.image_strips);
+        self.stash.fill(&settings.stash_searches);
         self.capture.set(None);
         self.message
             .set_text("Les modifications restent en brouillon jusqu’à Enregistrer.");
@@ -243,6 +259,7 @@ impl Panel {
         self.range.set_value(s.search_range);
         self.range.set_text(&s.search_range.to_string());
         self.automatic.set_active(s.automatic_search);
+        self.restore_clipboard.set_active(s.restore_clipboard);
         self.merchant.set_active(s.filters.merchant_only);
         self.collapse.set_active(s.filters.collapse_listings);
         self.stock.set_active(s.filters.activate_stock_filter);
@@ -274,6 +291,7 @@ impl Panel {
         s.scale = self.scale.value();
         s.search_range = self.range.value();
         s.automatic_search = self.automatic.is_active();
+        s.restore_clipboard = self.restore_clipboard.is_active();
         s.filters.merchant_only = self.merchant.is_active();
         s.filters.collapse_listings = self.collapse.is_active();
         s.filters.activate_stock_filter = self.stock.is_active();
@@ -298,6 +316,7 @@ impl Panel {
             })
             .collect();
         s.hotkeys = Hotkeys {
+            stash_keys: Vec::new(),
             price: values[0].clone(),
             inspect: values[1].clone(),
             interact: values[2].clone(),
@@ -309,6 +328,7 @@ impl Panel {
         };
         let (configs, keys) = self.stopwatches.read()?;
         s.image_strips = self.images.read()?;
+        s.stash_searches = self.stash.read()?;
         s.stopwatches = configs;
         s.hotkeys.stopwatch_keys = keys;
         // Removing a draft instance also removes its saved stacking reference.
@@ -331,6 +351,7 @@ impl Panel {
         self.message.set_text(error);
     }
     pub fn arm_capture(&self, index: usize) {
+        self.stash.cancel_capture();
         self.stopwatches.cancel_capture();
         self.capture.set(Some(index));
         self.message
@@ -340,6 +361,9 @@ impl Panel {
         let Some(index) = self.capture.get() else {
             return self.stopwatches.capture_key(event);
         };
+        if index == super::stash_settings::CAPTURE {
+            return self.stash.capture_key(event);
+        }
         if event.keyval() == gdk::keys::constants::BackSpace {
             self.keys[index].set_text("");
             self.capture.set(None);
@@ -371,6 +395,7 @@ impl Panel {
         self.record.clone()
     }
     pub fn cancel_capture(&self) {
+        self.stash.cancel_capture();
         self.capture.set(None);
         self.stopwatches.cancel_capture();
     }
@@ -380,6 +405,10 @@ impl Panel {
             self.images.select(id);
         }
     }
+    pub fn open_stash(&self, id: u64) {
+        self.form.set_current_page(Some(5));
+        self.stash.select(id);
+    }
     pub fn open_stopwatches(&self) {
         self.form.set_current_page(Some(3));
     }
@@ -387,7 +416,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..5).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"stash":self.stash.diagnostics(window,self.form.current_page()==Some(5)),"images":self.images.diagnostics(window,self.form.current_page()==Some(4)),"stopwatches":self.stopwatches.diagnostics(window,self.form.current_page()==Some(3)),"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..6).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"focus":self.league.has_focus(),"editable":self.league.is_editable(),"selection":self.league.selection_bounds(),"position":self.league.position(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"text":self.scale.text().as_str(),"focus":self.scale.has_focus(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"text":self.range.text().as_str(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"notebook":rect(self.form.upcast_ref()),"shortcuts_scroll":self.shortcuts_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.shortcuts_scroll.allocated_width(),"height":self.shortcuts_scroll.allocated_height(),"value":self.shortcuts_scroll.vadjustment().value(),"upper":self.shortcuts_scroll.vadjustment().upper()})),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"online":{"value":self.online.is_active(),"rect":rect(self.online.upcast_ref())},"merchant":{"value":self.merchant.is_active(),"rect":rect(self.merchant.upcast_ref())},"collapse":{"value":self.collapse.is_active(),"rect":rect(self.collapse.upcast_ref())},"stock":{"value":self.stock.is_active(),"rect":rect(self.stock.upcast_ref())},"price_currency":{"value":self.price_currency.active_id().as_deref(),"rect":rect(self.price_currency.upcast_ref())},"bulk_currency":{"value":self.bulk_currency.active_id().as_deref(),"rect":rect(self.bulk_currency.upcast_ref())},"profile":{"value":self.profile.value_as_int(),"rect":rect(self.profile.upcast_ref())},"show_new":{"value":self.show_new.is_active(),"rect":rect(self.show_new.upcast_ref())},"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

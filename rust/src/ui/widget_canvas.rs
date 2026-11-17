@@ -12,13 +12,14 @@ pub enum Owner {
     Stopwatch = 0,
     Image = 1,
     Menu = 2,
+    Stash = 3,
 }
 pub struct Canvas {
     pub window: gtk::Window,
     pub layout: gtk::Layout,
     pub overlay: gtk::Overlay,
-    visible: Cell<[bool; 3]>,
-    regions: RefCell<[gtk::cairo::Region; 3]>,
+    visible: Cell<[bool; 4]>,
+    regions: RefCell<[gtk::cairo::Region; 4]>,
     applied_region: RefCell<gtk::cairo::Region>,
     roots: RefCell<HashMap<Key, gtk::EventBox>>,
     known: RefCell<Vec<Key>>,
@@ -73,8 +74,9 @@ impl Canvas {
             window,
             layout,
             overlay,
-            visible: Cell::new([false; 3]),
+            visible: Cell::new([false; 4]),
             regions: RefCell::new([
+                gtk::cairo::Region::create(),
                 gtk::cairo::Region::create(),
                 gtk::cairo::Region::create(),
                 gtk::cairo::Region::create(),

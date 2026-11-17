@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub restore_clipboard: bool,
+    #[serde(
+        default = "crate::stash_search::defaults",
+        skip_serializing_if = "crate::stash_search::is_default"
+    )]
+    pub stash_searches: Vec<crate::stash_search::Config>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub widget_order: Vec<crate::widget_order::Key>,
     #[serde(skip_serializing_if = "crate::widget_menu::Config::is_default")]
@@ -30,6 +37,8 @@ fn is_true(value: &bool) -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            restore_clipboard: false,
+            stash_searches: crate::stash_search::defaults(),
             widget_order: Vec::new(),
             widget_menu: crate::widget_menu::Config::default(),
             league: "Standard".into(),
@@ -74,11 +83,27 @@ impl Settings {
                         self.image_strips
                             .iter()
                             .map(|c| crate::widget_order::Key::Image(c.id)),
+                    )
+                    .chain(
+                        self.stash_searches
+                            .iter()
+                            .map(|c| crate::widget_order::Key::Stash(c.id)),
                     ),
             )
             .collect()
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self.stash_searches.len() > crate::stash_search::MAX_WIDGETS {
+            return Err("Au plus 16 recherches coffre.".into());
+        }
+        let mut stash_ids = std::collections::HashSet::new();
+        for c in &self.stash_searches {
+            c.validate()?;
+            if !stash_ids.insert(c.id) {
+                return Err("Identifiant de recherche coffre dupliqué.".into());
+            }
+        }
+        self.effective_hotkeys().bindings()?;
         self.widget_menu.validate()?;
         let keys = self.widget_keys();
         let mut order_ids = std::collections::HashSet::new();
@@ -162,10 +187,47 @@ impl Settings {
         .map_err(|e| e.to_string())?;
         std::fs::rename(tmp, path).map_err(|e| e.to_string())
     }
+    pub fn effective_hotkeys(&self) -> crate::hotkeys::Hotkeys {
+        let mut h = self.hotkeys.clone();
+        h.stash_keys = self
+            .stash_searches
+            .iter()
+            .filter(|c| c.enable_hotkeys)
+            .flat_map(|c| {
+                c.entries
+                    .iter()
+                    .filter_map(move |e| e.hotkey.as_ref().map(|h| (c.id, e.id, h.clone())))
+            })
+            .collect();
+        h
+    }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_profiles_keep_stash_defaults_and_enabled_keys_share_global_reservations() {
+        let mut s: Settings = serde_json::from_str("{}").unwrap();
+        s.validate().unwrap();
+        let value = serde_json::to_value(&s).unwrap();
+        assert!(value.get("stash_searches").is_none());
+        assert!(value.get("restore_clipboard").is_none());
+        s.stash_searches[0].entries[0].hotkey = Some("Ctrl + J".into());
+        s.validate().unwrap();
+        assert!(s
+            .effective_hotkeys()
+            .bindings()
+            .unwrap()
+            .iter()
+            .any(|(_, a)| *a == crate::hotkeys::Action::StashSearch(1, 1)));
+        s.stash_searches[0].entries[1].hotkey = Some("Ctrl + D".into());
+        assert!(s.validate().is_err());
+        s.stash_searches[0].enable_hotkeys = false;
+        s.validate().unwrap();
+        assert!(s.effective_hotkeys().stash_keys.is_empty());
+        s.stash_searches.push(s.stash_searches[0].clone());
+        assert!(s.validate().is_err());
+    }
     #[test]
     fn version_01_settings_keep_new_exchange_defaults() {
         let settings:Settings=serde_json::from_str(r#"{"league":"Covens","filters":{"online":true,"min_item_level":null,"min_links":null,"stats":[]},"scale":1}"#).unwrap();

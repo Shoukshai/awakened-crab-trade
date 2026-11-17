@@ -1,0 +1,22 @@
+{
+  "cross_type_native_pixels_and_persisted_raise": true,
+  "overlap_click_routed_to_top_widget_only": true,
+  "real_io_failure_restores_native_stack_without_retry": true,
+  "restart_restores_cross_type_pixels_and_starts_hidden": true,
+  "native_draft_deletion_prunes_saved_order": true,
+  "hiding_images_preserves_clock_input_on_one_surface": true,
+  "exclusive_and_hidden_revoke_union_without_frames": true,
+  "no_network": true,
+  "scope": "Private River/XWayland only; native overlapping GTK image/timer pixels, mouse routing, profile IO failure and restart",
+  "binary_version": "awakened-poe-trade-rs 0.21.0",
+  "source_sha256": {
+    "scripts/test-widget-order.py": "ac606aad5ebfc98d849251f976f0ba663cb45f3a9c2ec1eb2595835a75231ead",
+    "src/widget_order.rs": "7e33da627fba53d9dc81940b88833975372f09e9c509c8241e325dba0d82ff3e",
+    "src/ui/widget_canvas.rs": "6908208780771ba82784e581de6f08c8fdb5f9bf12ee565f99c7f997508b43f3",
+    "src/ui/stopwatch_panel.rs": "ac4436a9831846eb2a998d1e4f246473ae464fdd33c22d4be73a3900be16a3a4",
+    "src/ui/image_panel.rs": "82cc22c001a85a669ce9a27014d079ba1253a8797b87c60066a171b747db65d7",
+    "src/settings.rs": "0d3947ba0860864162208fd3fab5b675e10de262c97fff378c5129450940e274",
+    "src/ui.rs": "a30f2bc91b5447ae5612144038168202fd211cbe897a3599e9fe5eda27cec733",
+    "src/ui/settings_panel.rs": "24656e1df9b97b039fd4506649070a45a027fbe37ef9d94895c7a5db612e33ea"
+  }
+}

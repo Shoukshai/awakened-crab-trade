@@ -73,7 +73,7 @@ try:
     source=runtime/'stack.png';Image.new('RGB',(64,48),(240,60,80)).save(source)
     uploads=pathlib.Path(env['XDG_DATA_HOME'])/'awakened-poe-trade-rs/images';uploads.mkdir(parents=True)
     url=hashlib.sha256(source.read_bytes()).hexdigest()+'.png';(uploads/url).write_bytes(source.read_bytes())
-    original={'league':'Standard','automatic_search':False,'stopwatches':[{'id':1,'title':'Premier','x':50,'y':50,'wanted':True}],'image_strips':[{'id':1,'title':'Image','x':46,'y':47,'anchor':'tl','wanted':True,'images':[{'id':1,'url':url}]}]}
+    original={'stash_searches':[],'league':'Standard','automatic_search':False,'stopwatches':[{'id':1,'title':'Premier','x':50,'y':50,'wanted':True}],'image_strips':[{'id':1,'title':'Image','x':46,'y':47,'anchor':'tl','wanted':True,'images':[{'id':1,'url':url}]}]}
     configpath.write_text(json.dumps(original));original_bytes=configpath.read_bytes()
     if os.environ.get('APT_STACK_WAYLAND_DEBUG')=='1':env['WAYLAND_DEBUG']='1'
     daemon=start([str(app),'daemon'],'overlay')

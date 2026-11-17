@@ -133,7 +133,7 @@ uniques utilise les données et facteurs upstream. Wiki, PoEDB et import Craft o
 Exile s’ouvrent sur clic explicite ; le panneau se ferme avant le navigateur.
 L’import CoE est désactivé pour les objets corrompus ou mirrored. Ce mode ne
 consulte ni Trade ni poe.ninja. **Consulter les prix** revient à la recherche.
-Les images de cartes, la recherche coffre et les autres widgets restent à porter.
+Les images de cartes et les autres fonctions restantes sont inventoriées dans PORTING.md.
 
 Le bouton **Cibles Heist** ouvre la recherche native du catalogue upstream :
 répliques d’uniques et anciennes gemmes à qualité alternative. Tous les mots
@@ -227,18 +227,46 @@ des widgets. Les boutons proposent les réglages, les cibles Heist et les instan
 masquées ; **Configurer → Toujours afficher** conserve aussi les boutons des
 instances déjà affichées. Cliquer une instance l’affiche et la place devant les
 autres. Le bouton **+** ajoute un chronomètre ou une bande d’images ; la recherche
-coffre est désactivée car elle reste à porter. Le champ de collage accepte le
+coffre crée un panneau de filtres. Le champ de collage accepte le
 texte d’un objet et prépare ses prix selon le réglage de recherche automatique,
 sans envoyer de raccourci de copie au jeu. Limite du collage : 1 Mio.
 
 Au survol, **Déplacer** expose les quatre ancrages de coin. Position, ancrage et
 option d’affichage sont mémorisés ; les valeurs par défaut sont 5 % depuis le
 coin supérieur gauche. Le menu partage la surface et l’ordre des chronomètres
-et images. Son contenu défile si nécessaire. Les icônes et la présentation sont
+images et recherches coffre. Son contenu défile si nécessaire. Les icônes et la présentation sont
 adaptées à GTK. Le menu peut coexister avec les cibles Heist ; les gestionnaires
 Images/Chronos et les vues Prix/Évaluation/Réglages le masquent. Un changement
 d’application le ferme, et le retour au jeu ne le rouvre pas. **Échap**, **Fermer**
 ou `hide` ferment les surfaces selon le contexte d’interaction.
+
+**Recherche coffre** : ouvrir le coffre dans PoE, puis **Maj+Espace** et le
+bouton du widget souhaité. Les deux listes par défaut reprennent Map rolling et
+Dump sorting upstream. Cliquer un filtre masque l’overlay, attend le focus du jeu,
+ouvre sa recherche avec Ctrl+F, colle le texte puis valide avec Entrée. Le backend
+vérifie le contexte et la même fenêtre XWayland avant chaque combinaison ; il ne
+force pas son activation. Un changement d’application annule l’action en attente.
+Ce parcours d’application des filtres est validé sur le faux jeu privé ; sur le
+PoE réel, seuls l’affichage et les contrôles du widget ont été vérifiés.
+
+**+ → Recherche coffre** ajoute une instance. Le bouton **Configurer** au survol
+ouvre **Réglages → Coffre** : titre, coordonnées, quatre ancrages, affichage,
+filtres, noms facultatifs, réordonnement et raccourcis par filtre. Les changements
+restent au brouillon jusqu’à **Enregistrer**. Le commutateur **Raccourcis** du
+widget active ou libère ses combinaisons ; elles peuvent agir lorsque le panneau
+est masqué. Un conflit conserve l’ancien profil. **Déplacer**, **Masquer** et la
+suppression au maintien d’une seconde suivent les autres widgets. Limites natives :
+16 instances, 64 filtres par instance et 250 unités UTF-16 par filtre sur une ligne.
+Le bouton **Trouver dans le coffre** de l’inspecteur utilise le nom du catalogue
+entre guillemets, selon la règle upstream.
+
+L’option **Général → Restaurer le texte du presse-papiers après une action** est
+désactivée par défaut. Elle restaure le texte précédent après une copie d’objet,
+ou après le délai de 120 ms d’une recherche coffre, s’il est disponible et si la
+sélection contient encore le texte de l’action. Les actions de modification du
+presse-papiers sont sérialisées ; une action concurrente est refusée. Les formats
+riches et images ne sont pas sauvegardés. Une lecture de texte existant par `check`
+ou un collage dans le menu ne déclenche pas cette restauration.
 
 Les raccourcis utilisent des grabs X11, vérifiés avec le jeu XWayland de cette
 machine. Ils ne constituent pas des raccourcis globaux Wayland. Aucune règle River
@@ -281,7 +309,7 @@ et `analyze` restent locaux. Les journaux séparent traitement, réseau et cache
 Réglages : `$XDG_CONFIG_HOME/awakened-poe-trade-rs/config.json`, sinon
 `~/.config/awakened-poe-trade-rs/config.json`. Le bouton **Réglages** ouvre un brouillon natif :
 ligue, échelle (0,75–2,5), plage, devises, recherche automatique, stock copié,
-marchands, regroupement, profil de carte, sept raccourcis globaux, chronomètres et images. **Annuler** ne
+marchands, regroupement, profil de carte, sept raccourcis globaux, chronomètres, images et recherches coffre. **Annuler** ne
 persiste rien. **Enregistrer** applique l’échelle et les raccourcis sans relancer
 l’application, puis masque le panneau ; cela ne lance aucune recherche.
 Désactiver la recherche automatique permet de vérifier les filtres après Ctrl+D
@@ -295,7 +323,7 @@ avec les valeurs par défaut et conserve les règles avancées de mods. L’édi
 ne couvre pas encore toutes les préférences upstream. Les filtres de mods
 cochés concernent l’objet courant.
 Une copie utilise un marqueur pour rejeter l'ancien objet et contourner le cas
-Proton 10+ ; elle ne restaure pas le presse-papiers après une copie réussie.
+Proton 10+ ; la restauration du texte précédent dépend de l’option Général décrite plus haut.
 
 ## Paquet Artix / Arch
 
@@ -310,7 +338,7 @@ Le paquet et son archive source sont dans `dist/`, avec les sommes SHA256. Le
 script ne les installe pas. Installation explicite :
 
 ```sh
-sudo pacman -U dist/awakened-poe-trade-rs-0.20.0-1-x86_64.pkg.tar.zst
+sudo pacman -U dist/awakened-poe-trade-rs-0.21.0-1-x86_64.pkg.tar.zst
 ```
 
 L'entrée du menu lance le service masqué et écrit les journaux dans
@@ -423,18 +451,30 @@ Validation de l’ordre des widgets :
 
 ```sh
 cargo build --locked --example widget-order
-node scripts/compare-widget-order.cjs target/debug/examples/widget-order docs/widget-order-parity-0.19.json
-python3 scripts/test-widget-order.py target/release/awakened-poe-trade-rs docs/widget-order-lifecycle-0.20.json
+node scripts/compare-widget-order.cjs target/debug/examples/widget-order docs/widget-order-parity-0.21.json
+python3 scripts/test-widget-order.py target/release/awakened-poe-trade-rs docs/widget-order-lifecycle-0.21.json
 ```
 
 Validation du menu sur le bureau privé :
 
 ```sh
 cargo build --locked --examples
-node scripts/compare-widget-menu.cjs target/debug/examples/widget-menu docs/widget-menu-parity-0.20.json
-python3 scripts/test-widget-menu.py target/release/awakened-poe-trade-rs docs/widget-menu-lifecycle-0.20.json
+node scripts/compare-widget-menu.cjs target/debug/examples/widget-menu docs/widget-menu-parity-0.21.json
+python3 scripts/test-widget-menu.py target/release/awakened-poe-trade-rs docs/widget-menu-lifecycle-0.21.json
 ```
 
 Ce scénario exige aussi `xkbcli`, grim et Pillow. Les outils de clavier virtuel
 et de presse-papiers retardé refusent le bureau réel : ils vérifient le runtime
 privé et son nom de socket. Ils ne font pas partie du backend de production.
+
+Validation des recherches coffre :
+
+```sh
+cargo build --locked --examples
+node scripts/compare-stash-search.cjs target/debug/examples/stash-search docs/stash-search-parity-0.21.json
+python3 scripts/test-stash-search.py target/release/awakened-poe-trade-rs docs/stash-search-lifecycle-0.21.json
+```
+
+Le scénario crée une fenêtre GTK X11 de test dans son River privé. Les touches
+Ctrl+F, Ctrl+V et Entrée ne sont envoyées qu’à ce faux jeu. Il vérifie aussi la
+restauration du texte après une copie avancée et les annulations tardives.

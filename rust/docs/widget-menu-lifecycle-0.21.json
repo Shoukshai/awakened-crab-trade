@@ -1,0 +1,64 @@
+{
+  "fresh_menu_settings_handoff_no_lost_click": true,
+  "native_filter_always_show_and_toggle_show_raises": true,
+  "native_menu_add_timer_and_image": true,
+  "native_corner_drag_and_config_io_rollback": true,
+  "native_paste_parses_without_game_copy_or_automatic_http": true,
+  "settings_cancel_and_owned_focus_handoffs": 3,
+  "removing_buttons_keeps_painted_menu_under_pointer": true,
+  "native_catalogue_toggle_preserves_menu": true,
+  "restart_retains_menu_config_and_starts_hidden": true,
+  "private_menu_output_reconfiguration": [
+    {
+      "physical": [
+        1920,
+        1080
+      ],
+      "scale": 1,
+      "logical": [
+        1920,
+        1080
+      ]
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "scale": 2,
+      "logical": [
+        1280,
+        800
+      ]
+    },
+    {
+      "physical": [
+        2560,
+        1600
+      ],
+      "scale": 1,
+      "logical": [
+        2560,
+        1600
+      ]
+    }
+  ],
+  "foreign_app_hides_menu_without_return_activation": true,
+  "late_gtk_paste_dropped_after_menu_close_and_reopen": true,
+  "delayed_capture_does_not_reopen_after_foreign_app_and_return": true,
+  "maximum_profile_50_buttons_scale_2_5_on_factor_2_output_reachable": true,
+  "no_network": true,
+  "scope": "Private River/XWayland only; native menu controls, clipboard paste and fake game; no real game inputs",
+  "binary_version": "awakened-poe-trade-rs 0.21.0",
+  "source_sha256": {
+    "scripts/test-widget-menu.py": "de6f64e4f93aa648cded5208939886e94faf550ba080b54e743485f4045d88a3",
+    "src/widget_menu.rs": "e4b13f73828344c3da6b3504588ecb369da6217d04ea1c195006fbe14d9cc024",
+    "src/ui/widget_menu.rs": "4ca1bbaba1260d93485d43173f6606e45be9aa2dd8f28106a3d5aa15e571b39b",
+    "src/ui/widget_canvas.rs": "6908208780771ba82784e581de6f08c8fdb5f9bf12ee565f99c7f997508b43f3",
+    "src/widget_order.rs": "7e33da627fba53d9dc81940b88833975372f09e9c509c8241e325dba0d82ff3e",
+    "src/ui.rs": "a30f2bc91b5447ae5612144038168202fd211cbe897a3599e9fe5eda27cec733",
+    "examples/native-key.rs": "3ead0b09591e99d09c7a0546c1b4b4d9c11f6e9bd08e2dd12b0892b72d09e25e",
+    "examples/slow-clipboard.rs": "1f9a6e230a4aa16b29cde84c849432926ec40e36f7f82a82c54aea4b69255949",
+    "examples/protocols/virtual-keyboard-unstable-v1.xml": "7ad7870003ecd592cae47dc19d277a609b7f18fd7b7be012623cf3225a7294f5"
+  }
+}
