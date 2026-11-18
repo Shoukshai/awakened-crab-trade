@@ -216,6 +216,7 @@ impl Image {
             width,
             height,
             source,
+            readings: Vec::new(),
         }
     }
 
@@ -474,12 +475,13 @@ pub fn fallback(
     image: &Image,
     check: &impl Fn() -> Result<(), String>,
 ) -> Result<Vec<Line>, String> {
-    fallback_pass(image, check, false)
+    fallback_pass(image, check, false, 2)
 }
 fn fallback_pass(
     image: &Image,
     check: &impl Fn() -> Result<(), String>,
     scout: bool,
+    detail_scale: usize,
 ) -> Result<Vec<Line>, String> {
     use std::os::windows::process::CommandExt;
     let runtime = std::env::current_exe()
@@ -491,7 +493,7 @@ fn fallback_pass(
     let mut f = Vec::new();
     // Upscale small PoE text, invert bright glyphs for the English LSTM model.
     let scale = if !scout && image.width <= 2560 && image.height <= 1600 {
-        2
+        detail_scale
     } else {
         1
     };
@@ -625,7 +627,10 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         .first()
         .is_none_or(|(lines, _)| crate::ocr::tooltip_bounds(lines).is_err())
     {
-        passes.push((fallback_pass(scout, check, rough.is_none())?, "Local OCR"));
+        passes.push((
+            fallback_pass(scout, check, rough.is_none(), 2)?,
+            "Local OCR",
+        ));
     }
     let mut source = scout;
     let mut detailed_scout = rough.is_some();
@@ -640,7 +645,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         detailed_scout = false;
         let (lines, engine) = match native_ocr(image, check) {
             Ok(lines) if crate::ocr::tooltip_bounds(&lines).is_ok() => (lines, "Windows OCR"),
-            _ => (fallback_pass(image, check, true)?, "Local OCR"),
+            _ => (fallback_pass(image, check, true, 2)?, "Local OCR"),
         };
         let r = crate::ocr::tooltip_bounds(&lines)?;
         located = Some((lines, engine, r));
@@ -707,8 +712,16 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     // Independent colored glyphs recover stats obscured by translucent map
     // labels. Only exact catalogue stat matches are merged into the reading.
     match fallback(&focused.colored(), check) {
-        Ok(extra) => crate::ocr::merge_stats(&mut refined, extra),
+        Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 1),
         Err(_) => check()?,
+    }
+    if crate::ocr::needs_retry(&refined) {
+        // A separate enlarged grayscale reading recovers faded source labels,
+        // gold socket lines and split properties, and can break a value tie.
+        match fallback_pass(&focused, check, false, 3) {
+            Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 2),
+            Err(_) => check()?,
+        }
     }
     check()?;
     crate::ocr::draft(refined, engine.into()).or_else(|_| crate::ocr::draft(lines, engine.into()))

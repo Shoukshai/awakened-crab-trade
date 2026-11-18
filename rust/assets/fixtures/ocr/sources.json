@@ -40,5 +40,19 @@
     "sha256": "b57087fda32ed2e722f304573dda83b5535ba986c97d97a0d84eac040413a357",
     "advanced_tooltip": true,
     "expected_ilvl": 86
+  },
+  {
+    "file": "boots-stream.png",
+    "source": "PoE tooltip only, cropped from user-provided Discord screen, 2026-11-18; stream is compressed",
+    "original_sha256": "7543e652775511a32660950a5e565e8ba6beab4eb5adb262542b330fe80f0c2a",
+    "crop_xyxy": [
+      2473,
+      305,
+      2939,
+      714
+    ],
+    "sha256": "d0472b147e8698a918128da434961a9e204c5cceb12c0fad772669eb110e6b2c",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
   }
 ]

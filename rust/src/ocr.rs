@@ -15,6 +15,13 @@ pub struct Line {
     /// Color evidence for special modifier sources, independent of faint labels.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub readings: Vec<Reading>,
+}
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Reading {
+    pub pass: u8,
+    pub text: String,
 }
 #[derive(Debug)]
 pub struct Draft {
@@ -61,6 +68,11 @@ fn stat(s: &str) -> Option<String> {
                 for m in a {
                     if let Some(s) = m["string"].as_str() {
                         for s in s.lines() {
+                            // Some multi-line catalogue matchers contain a
+                            // bare '#'. A detached ilvl is never a modifier.
+                            if !s.chars().any(|c| c.is_ascii_alphabetic()) {
+                                continue;
+                            }
                             let list = out.entry(stat_key(s)).or_default();
                             if !list.iter().any(|v| v == s) {
                                 list.push(s.into());
@@ -73,6 +85,11 @@ fn stat(s: &str) -> Option<String> {
         out
     });
     let original = s.replace('−', "-").replace('’', "'");
+    static UNSCALABLE: OnceLock<Regex> = OnceLock::new();
+    let unscalable =
+        UNSCALABLE.get_or_init(|| Regex::new(r"(?i)\s*[—–-]\s*unscalable\s+value\s*$").unwrap());
+    let has_marker = unscalable.is_match(&original);
+    let original = unscalable.replace(&original, "");
     static RANGE: OnceLock<Regex> = OnceLock::new();
     let range = RANGE
         .get_or_init(|| Regex::new(r"\([+-]?\d+(?:\.\d+)?\s*[-–]\s*[+-]?\d+(?:\.\d+)?\)").unwrap());
@@ -84,6 +101,22 @@ fn stat(s: &str) -> Option<String> {
             .unwrap()
     });
     let values: Vec<_> = rolls.captures_iter(&original).collect();
+    static BOUNDS: OnceLock<Regex> = OnceLock::new();
+    let bounds = BOUNDS.get_or_init(|| {
+        Regex::new(r"^\(([+-]?\d+(?:\.\d+)?)\s*[-–]\s*([+-]?\d+(?:\.\d+)?)\)$").unwrap()
+    });
+    for value in &values {
+        if let Some(b) = value.get(2).and_then(|m| bounds.captures(m.as_str())) {
+            let (v, lo, hi) = (
+                value[1].parse::<f64>().ok()?,
+                b[1].parse::<f64>().ok()?,
+                b[2].parse::<f64>().ok()?,
+            );
+            if v < lo.min(hi) || v > lo.max(hi) {
+                return None;
+            }
+        }
+    }
     let mut results = Vec::new();
     static TOKENS: OnceLock<Regex> = OnceLock::new();
     let tokens = TOKENS.get_or_init(|| Regex::new(r"#|-?\d+(?:\.\d+)?").unwrap());
@@ -111,6 +144,11 @@ fn stat(s: &str) -> Option<String> {
         }
         result.push_str(&template[offset..]);
         let result = result.trim().to_string();
+        let result = if has_marker {
+            format!("{result} — Unscalable Value")
+        } else {
+            result
+        };
         if !results.contains(&result) {
             results.push(result);
         }
@@ -118,32 +156,8 @@ fn stat(s: &str) -> Option<String> {
     (results.len() == 1).then(|| results.remove(0))
 }
 
-/// An independent color reading can recover a line obscured by map labels.
-/// Conflicting recognized values are left for review, never chosen silently.
-pub fn merge_stats(lines: &mut Vec<Line>, extra: Vec<Line>) {
-    for line in extra {
-        let Some(value) = stat(&line.text) else {
-            continue;
-        };
-        let nearby = lines.iter().position(|l| {
-            (l.y + l.height / 2. - line.y - line.height / 2.).abs()
-                < l.height.min(line.height).max(8.) * 0.6
-                && (l.x + l.width / 2. - line.x - line.width / 2.).abs() < 90.
-        });
-        if let Some(i) = nearby {
-            match stat(&lines[i].text) {
-                Some(old) if old != value => {
-                    lines[i].text = format!("Conflicting OCR readings: {old} / {value}");
-                    lines[i].source = None;
-                }
-                Some(_) => {}
-                None => lines[i] = line,
-            }
-        } else {
-            lines.push(line);
-        }
-    }
-}
+mod readings;
+pub use readings::{merge_stats, needs_retry, repair_properties};
 
 fn modifier_header(text: &str) -> Option<(String, String)> {
     let k = key(text);
@@ -301,6 +315,7 @@ fn select_item(lines: &[Line]) -> Result<(usize, &'static Identity), String> {
 /// to influence ornaments. Coordinates remain relative to the source image.
 pub fn anchors(lines: &[Line]) -> Vec<Line> {
     let mut sorted = lines.to_vec();
+    repair_properties(&mut sorted);
     sorted.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
     let Ok((i, _)) = select_item(&sorted) else {
         return Vec::new();
@@ -321,6 +336,7 @@ pub fn anchors(lines: &[Line]) -> Vec<Line> {
 /// tooltip's centered text column. No coordinates or manual region are needed.
 pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
     let mut sorted = lines.to_vec();
+    repair_properties(&mut sorted);
     sorted.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
     let (i, _) = select_item(&sorted)?;
     let h = &sorted[i];
@@ -349,6 +365,7 @@ pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
     ])
 }
 pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
+    repair_properties(&mut lines);
     if lines.len() > 4096 || lines.iter().map(|l| l.text.len()).sum::<usize>() > 65536 {
         return Err(
             "Too much text in the capture. Hover a single item tooltip and try again.".into(),
@@ -453,20 +470,6 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     }
     let mut unknown = Vec::new();
     let mut last_y = header.y + header.height;
-    let properties = [
-        "Item Level",
-        "Quality",
-        "Level",
-        "Map Tier",
-        "Armour",
-        "Evasion Rating",
-        "Energy Shield",
-        "Physical Damage",
-        "Elemental Damage",
-        "Critical Strike Chance",
-        "Attacks per Second",
-        "Stack Size",
-    ];
     let mut kind = "explicit".to_string();
     let mut modifier = "Explicit Modifier".to_string();
     let mut written = false;
@@ -476,6 +479,9 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         }
         last_y = line.y + line.height;
         let k = key(&line.text);
+        if k.is_empty() || reminder(&line.text) {
+            continue;
+        }
         if let Some((source, header)) = modifier_header(&line.text) {
             kind = source;
             modifier = header;
@@ -493,17 +499,14 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
             });
             continue;
         }
-        if let Some(property) = properties
-            .iter()
-            .find(|p| k.starts_with(&key(p)) && line.text.contains(':'))
-        {
-            let value = line.text.split_once(':').unwrap().1.trim();
-            if *property == "Item Level" && !value.parse::<u32>().is_ok_and(|v| v <= 100) {
-                unknown.push(line.text.clone());
-                continue;
-            }
+        if let Some((property, value)) = readings::property(&line.text) {
             // Only explicit Item Level, never "Requires Level" or a tier.
-            text.push_str(&format!("{property}: {value}\n"));
+            let base = ["Armour", "Evasion Rating", "Energy Shield", "Ward"].contains(&property)
+                && base_roll(&value).is_some();
+            text.push_str(&format!(
+                "{}{property}: {value}\n",
+                if base { "Base " } else { "" }
+            ));
             continue;
         }
         if let Some(s) = stat(&line.text) {
@@ -533,6 +536,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     for line in &unknown {
         text.push_str(&format!("{{ Unrecognized OCR }}\n{line}\n"));
     }
+    let text = check_defences(&restore_defences(&text), &mut unknown);
     Ok(Draft {
         text,
         unknown,
@@ -545,11 +549,188 @@ pub fn normalize_review(text: &str) -> Result<String, String> {
     if text.len() > 65536 || text.lines().count() > 256 {
         return Err("OCR review text is too large.".into());
     }
-    Ok(text
+    let text = restore_defences(
+        &text
+            .lines()
+            .map(|line| stat(line).unwrap_or_else(|| line.to_string()))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    Ok(check_defences(&text, &mut Vec::new()))
+}
+
+/// A displayed defence and its local modifiers must permit a base inside the
+/// catalogue range. Contradictory pixels stay editable, never become filters.
+fn check_defences(text: &str, unknown: &mut Vec<String>) -> String {
+    let Ok(item) = crate::item::Item::parse(text) else {
+        return text.into();
+    };
+    if item.rarity == Rarity::Unique || !item.unknown_modifiers.is_empty() {
+        return text.into();
+    }
+    let mut fields = Vec::new();
+    let mut refs = Vec::new();
+    for (name, bounds, total, flat, incr) in [
+        (
+            "Armour",
+            item.armour_base.ar,
+            item.properties.armour,
+            "+# to Armour",
+            crate::properties::ARMOUR_INCR,
+        ),
+        (
+            "Evasion Rating",
+            item.armour_base.ev,
+            item.properties.evasion,
+            "+# to Evasion Rating",
+            crate::properties::EVASION_INCR,
+        ),
+        (
+            "Energy Shield",
+            item.armour_base.es,
+            item.properties.energy_shield,
+            "+# to maximum Energy Shield",
+            crate::properties::ES_INCR,
+        ),
+    ] {
+        let (Some([lo, hi]), Some(total)) = (bounds, total) else {
+            continue;
+        };
+        let Some(low) = crate::properties::from_ocr_base(&item, name, lo) else {
+            continue;
+        };
+        let Some(high) = crate::properties::from_ocr_base(&item, name, hi) else {
+            continue;
+        };
+        if total < low || total > high {
+            fields.push(name);
+            refs.push(flat);
+            refs.extend_from_slice(incr);
+        }
+    }
+    if fields.is_empty() {
+        return text.into();
+    }
+    let warning = format!(
+        "Uncertain defence values: {} disagree with the base range and local mods.",
+        fields.join(", ")
+    );
+    unknown.push(warning.clone());
+    let mut result = String::new();
+    let mut kind = "explicit";
+    for line in text.lines() {
+        if line.starts_with('{') {
+            kind = if line.contains("Implicit") {
+                "implicit"
+            } else if line.contains("Fractured") {
+                "fractured"
+            } else if line.contains("Crafted") {
+                "crafted"
+            } else {
+                "explicit"
+            };
+        }
+        let bad_field = fields.iter().any(|p| line.starts_with(&format!("{p}: ")));
+        let bad_mod = crate::modifiers::translation::translate(
+            line.trim_end_matches(" — Unscalable Value"),
+            kind,
+            item.category.as_deref(),
+            false,
+        )
+        .is_some_and(|m| refs.contains(&m.reference.as_str()));
+        if bad_field || bad_mod {
+            let raw = format!("Uncertain: {line}");
+            unknown.push(raw.clone());
+            // Restore the source header after this review-only line so later
+            // valid modifiers retain their kind.
+            result.push_str(&format!(
+                "{{ Unrecognized OCR }}\n{raw}\n{{ {} Modifier }}\n",
+                match kind {
+                    "implicit" => "Implicit",
+                    "fractured" => "Fractured",
+                    "crafted" => "Crafted",
+                    _ => "Explicit",
+                }
+            ));
+        } else {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    result.push_str(&format!("{{ Unrecognized OCR }}\n{warning}\n"));
+    result
+}
+
+fn reminder(text: &str) -> bool {
+    let k = key(text);
+    text.trim().starts_with('(')
+        || k.contains("ailmentsareignited")
+        || k.contains("abyssjewelscanbesocketed")
+}
+
+fn base_roll(text: &str) -> Option<[f64; 3]> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let c = RE
+        .get_or_init(|| Regex::new(r"^(\d+)\s*\(\s*(\d+)\s*[-–]\s*(\d+)\s*\)$").unwrap())
+        .captures(text.trim())?;
+    let roll = [c[1].parse().ok()?, c[2].parse().ok()?, c[3].parse().ok()?];
+    (roll[1] <= roll[0] && roll[0] <= roll[2]).then_some(roll)
+}
+
+/// Alt displays an unmodified base roll. Only rebuild the displayed defence
+/// when all physical modifiers are recognized and the catalogue verifies it.
+fn restore_defences(text: &str) -> String {
+    let names = ["Armour", "Evasion Rating", "Energy Shield", "Ward"];
+    if !text
         .lines()
-        .map(|line| stat(line).unwrap_or_else(|| line.to_string()))
+        .any(|l| names.iter().any(|n| l.starts_with(&format!("Base {n}: "))))
+    {
+        return text.into();
+    }
+    let clean = text
+        .lines()
+        .filter(|l| {
+            !(l.ends_with(" (calculated)")
+                && names.iter().any(|n| l.starts_with(&format!("{n}: "))))
+        })
         .collect::<Vec<_>>()
-        .join("\n"))
+        .join("\n");
+    let text = clean.as_str();
+    let Some(item) = crate::item::Item::parse(text).ok() else {
+        return text.into();
+    };
+    if item
+        .unknown_modifiers
+        .iter()
+        .any(|m| !["itemlevel", "level", "maptier", "stacksize"].contains(&key(&m.text).as_str()))
+    {
+        return text.into();
+    }
+    let mut result = text.to_string();
+    for (name, bounds) in [
+        ("Armour", item.armour_base.ar),
+        ("Evasion Rating", item.armour_base.ev),
+        ("Energy Shield", item.armour_base.es),
+        ("Ward", item.armour_base.ward),
+    ] {
+        let Some(value) = text
+            .lines()
+            .find_map(|l| l.strip_prefix(&format!("Base {name}: ")))
+        else {
+            continue;
+        };
+        let Some([base, lo, hi]) = base_roll(value) else {
+            continue;
+        };
+        if bounds != Some([lo, hi]) {
+            continue;
+        }
+        if let Some(total) = crate::properties::from_ocr_base(&item, name, base) {
+            let replacement = format!("Base {name}: {value}\n{name}: {total} (calculated)");
+            result = result.replace(&format!("Base {name}: {value}"), &replacement);
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -564,6 +745,7 @@ mod tests {
             height: 20.,
             rarity,
             source: None,
+            readings: Vec::new(),
         }
     }
     #[test]
@@ -808,6 +990,7 @@ mod tests {
                 line("+318(301-375) to Evasion Rating", 30., None),
                 line("+87% to Cold Resistance", 60., None),
             ],
+            1,
         );
         let d = draft(lines, "test".into()).unwrap();
         let i = crate::item::Item::parse(&d.text).unwrap();
@@ -823,5 +1006,248 @@ mod tests {
         assert_eq!(kind, "implicit");
         assert!(header.starts_with("Searing Exarch "));
         assert!(!header.contains("Eater"));
+    }
+    #[test]
+    fn detached_ilvl_is_joined_only_to_an_explicit_label_on_its_baseline() {
+        let mut label = line("ITEM LEVEL:", 40., None);
+        label.x = 900.;
+        label.width = 90.;
+        let mut value = line("84", 40., None);
+        value.x = 1020.;
+        value.width = 18.;
+        let d = draft(
+            vec![
+                line("Warlock Boots", 0., Some(Rarity::Rare)),
+                label.clone(),
+                value.clone(),
+            ],
+            "test".into(),
+        )
+        .unwrap();
+        assert_eq!(
+            crate::item::Item::parse(&d.text).unwrap().item_level,
+            Some(84)
+        );
+        assert!(!d.text.contains("Modifier }\n84"));
+        assert!(stat("84").is_none());
+        label.text = "Requires Level:".into();
+        let d = draft(
+            vec![line("Warlock Boots", 0., None), label, value],
+            "test".into(),
+        )
+        .unwrap();
+        assert_eq!(crate::item::Item::parse(&d.text).unwrap().item_level, None);
+    }
+    #[test]
+    fn a_missing_roll_range_is_not_a_value_conflict() {
+        let mut l = vec![
+            line("Warlock Boots", 0., None),
+            line("+41 to maximum Energy Shield", 30., None),
+        ];
+        merge_stats(
+            &mut l,
+            vec![line("41(39-49) to maximum Energy Shield", 30., None)],
+            1,
+        );
+        let d = draft(l, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        assert!(d.text.contains("41(39-49) to maximum Energy Shield"));
+    }
+    #[test]
+    fn distinct_passes_resolve_the_screenshots_49_versus_41_conflict() {
+        let mut l = vec![
+            line("Warlock Boots", 0., None),
+            line("+49 to maximum Energy Shield", 30., None),
+        ];
+        merge_stats(
+            &mut l,
+            vec![line("41(39-49) to maximum Energy Shield", 30., None)],
+            1,
+        );
+        assert!(needs_retry(&l));
+        // Repeating one reading must not manufacture a second vote.
+        merge_stats(
+            &mut l,
+            vec![line("41(39-49) to maximum Energy Shield", 30., None)],
+            1,
+        );
+        assert!(needs_retry(&l));
+        merge_stats(
+            &mut l,
+            vec![line("41(39-49) to maximum Energy Shield", 30., None)],
+            2,
+        );
+        let d = draft(l, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.modifiers[0].value, Some(41.));
+        assert_eq!(i.modifiers[0].max, Some(49.));
+        assert!(stat("491(39-49) to maximum Energy Shield").is_none());
+    }
+    #[test]
+    fn alt_base_defences_are_reconstructed_after_review_and_never_used_as_totals() {
+        let lines = [
+            "HAVOC PACE",
+            "Warlock Boots",
+            "Quality: +26%",
+            "Energy Shield: 80 (72-83)",
+            "Item Level: 84",
+            "Eater of Worlds Implicit Modifier (Lesser)",
+            "4% increased Action Speed",
+            "Searing Exarch Implicit Modifier (Lesser)",
+            "15(15-17)% chance to Avoid Elemental Ailments",
+            "Prefix Modifier Hollow",
+            "Has 1 Abyssal Socket — Unscalable Value",
+            "Prefix Modifier (Tier: 2)",
+            "41(39-49) to maximum Energy Shield",
+            "Prefix Modifier (Tier: 2)",
+            "38(33-38)% increased Energy Shield",
+            "14(14-15)% increased Stun and Block Recovery",
+            "Prefix Modifier (Tier: 4)",
+            "64(56-67)% increased Energy Shield",
+            "Suffix Modifier (Tier: 1)",
+            "48(46-48)% to Fire Resistance",
+            "Master Crafted Suffix Modifier (Rank: 3)",
+            "18(17-20)% to Fire and Cold Resistances",
+            "!EMENTAL AILMENTS ARE IGNITED, SCORCHED, CHILLED, FROZEN, BRITTLE, SHOCKED, AND pp",
+            "(ON2Y ABYSS/ EWE2S CAN BE SOCKETED IN AN ABYSSAL",
+        ];
+        let l: Vec<_> = lines
+            .iter()
+            .enumerate()
+            .map(|(i, s)| line(s, i as f64 * 22., (i < 2).then_some(Rarity::Rare)))
+            .collect();
+        let d = draft(l, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        assert!(d.text.contains("Base Energy Shield: 80 (72-83)"));
+        assert!(
+            d.text.contains("Energy Shield: 308 (calculated)"),
+            "{}",
+            d.text
+        );
+        let i = crate::item::Item::parse(&normalize_review(&d.text).unwrap()).unwrap();
+        assert_eq!(i.properties.energy_shield, Some(308.));
+        let filters = crate::properties::equipment(&i, 10.);
+        let es = filters
+            .filters
+            .iter()
+            .find(|f| f.modifier.reference == "Energy Shield: #")
+            .unwrap();
+        assert_eq!(es.display_value, Some(308.));
+        assert!(i
+            .modifiers
+            .iter()
+            .any(|m| m.reference == "#% increased Energy Shield" && m.value == Some(102.)));
+        assert!(i
+            .modifiers
+            .iter()
+            .any(|m| m.reference == "Has # Abyssal Sockets" && m.value == Some(1.)));
+        let edited = d.text.replace(
+            "41(39-49) to maximum Energy Shield",
+            "Uncertain Energy Shield roll",
+        );
+        let revised = normalize_review(&edited).unwrap();
+        assert!(!revised.contains("Energy Shield: 308 (calculated)"));
+        assert_eq!(
+            crate::item::Item::parse(&revised)
+                .unwrap()
+                .properties
+                .energy_shield,
+            None
+        );
+    }
+    #[test]
+    fn split_requirement_84_cannot_fill_an_empty_item_level_above_it() {
+        let mut label = line("Item Level:", 30., None);
+        label.x = 900.;
+        label.width = 90.;
+        let mut req = line("Requires Level", 60., None);
+        req.x = 850.;
+        req.width = 100.;
+        let mut number = line("84", 60., None);
+        number.x = 980.;
+        number.width = 18.;
+        let d = draft(
+            vec![line("Warlock Boots", 0., None), label, req, number],
+            "test".into(),
+        )
+        .unwrap();
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.item_level, None);
+        assert!(i.modifiers.is_empty());
+        assert_eq!(d.unknown, vec!["Item Level:"]);
+    }
+    #[test]
+    fn compressed_impossible_defence_readings_never_become_trade_filters() {
+        let l = [
+            "Warlock Boots",
+            "Quality: +26%",
+            "Energy Shield: 308",
+            "+4 to maximum Energy Shield",
+            "102% increased Energy Shield",
+            "48% to Fire Resistance",
+        ];
+        let d = draft(
+            l.iter()
+                .enumerate()
+                .map(|(i, s)| line(s, i as f64 * 22., None))
+                .collect(),
+            "test".into(),
+        )
+        .unwrap();
+        assert!(d
+            .unknown
+            .iter()
+            .any(|s| s.starts_with("Uncertain defence values:")));
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.properties.energy_shield, None);
+        assert!(!i
+            .modifiers
+            .iter()
+            .any(|m| m.reference == "+# to maximum Energy Shield"));
+        assert!(i.modifiers.iter().any(|m| m.value == Some(48.)));
+    }
+    #[test]
+    fn contradictory_ranges_remain_uncertain_even_with_an_unbounded_reading() {
+        let mut l = vec![
+            line("Warlock Boots", 0., None),
+            line("+41(39-49) to maximum Energy Shield", 30., None),
+        ];
+        merge_stats(
+            &mut l,
+            vec![line("+41(20-60) to maximum Energy Shield", 30., None)],
+            1,
+        );
+        merge_stats(
+            &mut l,
+            vec![line("+41 to maximum Energy Shield", 30., None)],
+            2,
+        );
+        assert!(needs_retry(&l));
+        let d = draft(l, "test".into()).unwrap();
+        assert!(crate::item::Item::parse(&d.text)
+            .unwrap()
+            .modifiers
+            .is_empty());
+    }
+    #[test]
+    fn a_placeholder_source_header_can_be_enriched_by_a_readable_header() {
+        let mut l = vec![
+            line("Warlock Boots", 0., None),
+            line("Modifier", 30., None),
+            line("4% increased Action Speed", 55., None),
+        ];
+        merge_stats(
+            &mut l,
+            vec![line(
+                "Eater of Worlds Implicit Modifier (Lesser)",
+                30.,
+                None,
+            )],
+            2,
+        );
+        let d = draft(l, "test".into()).unwrap();
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.modifiers[0].kind, "implicit");
     }
 }

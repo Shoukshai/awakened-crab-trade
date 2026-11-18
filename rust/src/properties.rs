@@ -143,6 +143,20 @@ pub(crate) fn quality(item: &Item) -> (f64, f64) {
 fn inc(base: f64, incr: f64, quality: f64) -> f64 {
     base * (1. + incr / 100.) * (1. + quality / 100.)
 }
+#[cfg(any(test, feature = "cloud-ocr"))]
+pub(crate) fn from_ocr_base(item: &Item, name: &str, base: f64) -> Option<f64> {
+    let (flat, incr) = match name {
+        "Armour" => totals(item, &["+# to Armour"], ARMOUR_INCR),
+        "Evasion Rating" => totals(item, &["+# to Evasion Rating"], EVASION_INCR),
+        "Energy Shield" => totals(item, &["+# to maximum Energy Shield"], ES_INCR),
+        "Ward" => totals(item, &["+# to Ward"], &["#% increased Ward"]),
+        _ => return None,
+    };
+    // Item defences are displayed rounded to the nearest integer (e.g.
+    // Warlock Boots: (80 + 41) * 2.02 * 1.26 = 307.9692 -> 308).
+    let total = inc(base + flat.value, incr.value, quality(item).0).round();
+    (total.is_finite() && total >= 0.).then_some(total)
+}
 fn base(total: f64, incr: f64, quality: f64) -> f64 {
     total / (1. + quality / 100.) / (1. + incr / 100.)
 }

@@ -1,4 +1,4 @@
-# Windows price checker 0.35.2
+# Windows price checker 0.35.3
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -39,9 +39,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.35.2-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.35.3-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.35.3-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -92,6 +92,21 @@ Advanced tooltips keep observed roll ranges and modifier groups. A separate
 color reading removes neutral map labels behind translucent tooltips and recovers
 obscured stats. Fractured and crafted text colors supplement faded source labels.
 Conflicting stat readings stay in review instead of becoming search filters.
+
+Windows OCR can split property labels from their values. A value is reattached
+only to its explicit label on the same baseline; a detached requirement level
+cannot fill the item-level field or become a modifier. An enlarged grayscale
+retry supplements uncertain captures. Conflicting stat values need two distinct
+passes to agree, while adding a roll range to the same value is not a conflict.
+
+Alt shows unmodified base defences. These remain labelled `Base Energy Shield`,
+`Base Armour`, etc. A final defence marked `(calculated)` is added only when
+the catalogue verifies the base roll and local modifiers are recognized. It is
+recomputed after review edits; uncertain modifiers prevent that property filter.
+Contradictions between displayed defences, the base range and local modifiers
+also stay in review, preventing compressed digits from becoming trusted filters.
+The calculation includes local flat/increased defences, quality and integer
+rounding, following [Path of Building's item calculations](https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/dev/src/Classes/Item.lua).
 
 The private Wine suite checks real pixel recognition with the bundled fallback,
 Alt-only metadata, responsive GTK, cancellation, process scope and a topmost fake

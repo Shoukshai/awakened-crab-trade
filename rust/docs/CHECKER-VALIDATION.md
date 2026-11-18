@@ -61,8 +61,8 @@ other compositors and monitor arrangements need separate validation.
 With the guarded Windows sandbox running and the portable EXE built:
 
 ```sh
-python3 rust/scripts/test-windows-ocr.py rust/dist/awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe rust/dist/awakened-crab-trade-0.35.2-windows-x64-portable.exe
-python3 rust/scripts/test-ocr-screenshots.py rust/dist/awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe
+python3 rust/scripts/test-windows-ocr.py rust/dist/awakened-crab-trade-ocr-0.35.3-windows-x64-portable.exe rust/dist/awakened-crab-trade-0.35.3-windows-x64-portable.exe
+python3 rust/scripts/test-ocr-screenshots.py rust/dist/awakened-crab-trade-ocr-0.35.3-windows-x64-portable.exe
 ```
 
 The first runner draws different basic/Alt tooltips in a topmost fake cloud
@@ -75,10 +75,17 @@ It also injects successful black GPU captures to verify GDI fallback, and checks
 that exhausting four blank backends gives a bounded, explicit error with the
 review action disabled. Unsupported WGC/DXGI under Wine use the real fallback;
 Wine cannot validate successful compositor capture on Windows hardware.
-The second relocates three supplied PoE tooltips within full-size frames. It
+The second relocates four supplied PoE tooltips within full-size frames. It
 verifies missing item levels are not replaced by requirements, and checks the
 advanced Necrotic Armour tooltip: ilvl 86, all nine stat lines, observed roll
 bounds, implicit/fractured/crafted sources and explicit modifier values.
+The fourth is only the game tooltip cropped from a compressed Discord screen;
+no Discord account names or avatars are included. It has no visible item level.
+Separate positioned/text regressions reproduce the visible OCR-panel problems:
+split property labels, standalone requirement numbers, 49/41 conflicts, Abyssal
+Socket unscalable markers and converting a verified base ES roll to a final
+defence. These constructed cases do not replace the missing original Alt frame
+or native Windows OCR coordinates, which were unavailable from that screen.
 Source hashes and crop coordinates live beside the fixtures. Unknown lines remain
 editable in review and never become guessed stat filters.
 

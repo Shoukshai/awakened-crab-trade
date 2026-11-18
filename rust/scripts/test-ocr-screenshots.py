@@ -30,7 +30,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  elif case['file']=='body-armour.png':
   assert 'Varnished Coat' in text and 'Corrupted' in text and '32% to Chaos Resistance' in text
   assert len(item['modifiers'])>=5,text
- else:
+ elif case['file']=='advanced-armour.png':
   assert item['base']=='Necrotic Armour' and item['rarity']=='Rare',text
   mods=item['modifiers'];assert len(mods)==9,text
   assert any(m['kind']=='implicit' and m['value']==10 for m in mods),text
@@ -38,6 +38,15 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   assert any(m['kind']=='crafted' and m['value']==33 for m in mods),text
   assert any(m['value']==318 and m['min']==301 and m['max']==375 for m in mods),text
   for value in [38,14,74,46,37]:assert any(m['kind']=='explicit' and m['value']==value for m in mods),(value,text)
+ else:
+  assert item['base']=='Warlock Boots',text
+  flat=[m for m in item['modifiers'] if m['reference']=='+# to maximum Energy Shield']
+  # Discord compression may erase the final digit of +41. Accept a correct
+  # reading or explicit uncertainty; never accept the physically impossible +4.
+  assert not flat or all(m['value']==41 for m in flat),text
+  if flat:assert item['properties']['energy_shield']==308,text
+  else:assert 'Uncertain defence values:' in text and item['properties']['energy_shield'] is None,text
+  assert any(m['reference']=='Has # Abyssal Sockets' and m['value']==1 for m in item['modifiers']),text
  report['cases'].append({'file':case['file'],'full_frame':True,'elapsed_ms':round((time.monotonic()-start)*1000),'engine':data['engine'],'text':text,'unknown':data['unknown'],'ilvl':item['item_level'],'modifiers':item['modifiers']})
 (r/'dist/ocr-screenshot-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report,indent=2))
