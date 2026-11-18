@@ -12,6 +12,9 @@ pub struct Line {
     pub width: f64,
     pub height: f64,
     pub rarity: Option<Rarity>,
+    /// Color evidence for special modifier sources, independent of faint labels.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 #[derive(Debug)]
 pub struct Draft {
@@ -46,12 +49,22 @@ fn stat(s: &str) -> Option<String> {
             .chain(include_str!("data/current-stats.ndjson").lines())
         {
             let v: serde_json::Value = serde_json::from_str(line).unwrap();
+            // Trade pseudo filters include the eldritch source headers. They
+            // are metadata, not additional physical lines on the item.
+            if v["trade"]["ids"]
+                .as_object()
+                .is_some_and(|ids| !ids.is_empty() && ids.keys().all(|kind| kind == "pseudo"))
+            {
+                continue;
+            }
             if let Some(a) = v["matchers"].as_array() {
                 for m in a {
-                    if let Some(s) = m["string"].as_str().filter(|s| !s.contains('\n')) {
-                        let list = out.entry(stat_key(s)).or_default();
-                        if !list.iter().any(|v| v == s) {
-                            list.push(s.into());
+                    if let Some(s) = m["string"].as_str() {
+                        for s in s.lines() {
+                            let list = out.entry(stat_key(s)).or_default();
+                            if !list.iter().any(|v| v == s) {
+                                list.push(s.into());
+                            }
                         }
                     }
                 }
@@ -59,12 +72,18 @@ fn stat(s: &str) -> Option<String> {
         }
         out
     });
-    let text = s.replace('−', "-").replace('’', "'");
+    let original = s.replace('−', "-").replace('’', "'");
     static RANGE: OnceLock<Regex> = OnceLock::new();
     let range = RANGE
         .get_or_init(|| Regex::new(r"\([+-]?\d+(?:\.\d+)?\s*[-–]\s*[+-]?\d+(?:\.\d+)?\)").unwrap());
-    let text = range.replace_all(&text, "");
-    let values: Vec<_> = numbers().find_iter(&text).map(|m| m.as_str()).collect();
+    let text = range.replace_all(&original, "");
+    // Keep the observed roll bounds for the native parser and review screen.
+    static ROLLS: OnceLock<Regex> = OnceLock::new();
+    let rolls = ROLLS.get_or_init(|| {
+        Regex::new(r"(-?\d+(?:\.\d+)?)(\([+-]?\d+(?:\.\d+)?\s*[-–]\s*[+-]?\d+(?:\.\d+)?\))?")
+            .unwrap()
+    });
+    let values: Vec<_> = rolls.captures_iter(&original).collect();
     let mut results = Vec::new();
     static TOKENS: OnceLock<Regex> = OnceLock::new();
     let tokens = TOKENS.get_or_init(|| Regex::new(r"#|-?\d+(?:\.\d+)?").unwrap());
@@ -76,7 +95,7 @@ fn stat(s: &str) -> Option<String> {
         if parts
             .iter()
             .zip(&values)
-            .any(|(p, v)| p.as_str() != "#" && p.as_str() != *v)
+            .any(|(p, v)| p.as_str() != "#" && p.as_str() != &v[1])
         {
             continue;
         }
@@ -84,7 +103,10 @@ fn stat(s: &str) -> Option<String> {
         let mut offset = 0;
         for (part, value) in parts.iter().zip(&values) {
             result.push_str(&template[offset..part.start()]);
-            result.push_str(value);
+            result.push_str(&value[1]);
+            if let Some(bounds) = value.get(2) {
+                result.push_str(&bounds.as_str().replace('–', "-").replace(' ', ""));
+            }
             offset = part.end();
         }
         result.push_str(&template[offset..]);
@@ -94,6 +116,83 @@ fn stat(s: &str) -> Option<String> {
         }
     }
     (results.len() == 1).then(|| results.remove(0))
+}
+
+/// An independent color reading can recover a line obscured by map labels.
+/// Conflicting recognized values are left for review, never chosen silently.
+pub fn merge_stats(lines: &mut Vec<Line>, extra: Vec<Line>) {
+    for line in extra {
+        let Some(value) = stat(&line.text) else {
+            continue;
+        };
+        let nearby = lines.iter().position(|l| {
+            (l.y + l.height / 2. - line.y - line.height / 2.).abs()
+                < l.height.min(line.height).max(8.) * 0.6
+                && (l.x + l.width / 2. - line.x - line.width / 2.).abs() < 90.
+        });
+        if let Some(i) = nearby {
+            match stat(&lines[i].text) {
+                Some(old) if old != value => {
+                    lines[i].text = format!("Conflicting OCR readings: {old} / {value}");
+                    lines[i].source = None;
+                }
+                Some(_) => {}
+                None => lines[i] = line,
+            }
+        } else {
+            lines.push(line);
+        }
+    }
+}
+
+fn modifier_header(text: &str) -> Option<(String, String)> {
+    let k = key(text);
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|w| !w.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect();
+    let eater = words.iter().any(|w| w == "eater") || k.contains("ofworlds");
+    let exarch = words.iter().any(|w| w == "searing" || w == "exarch");
+    static TIER: OnceLock<Regex> = OnceLock::new();
+    let tier = TIER
+        .get_or_init(|| Regex::new(r"(?i)\b(tier|rank)\s*[:;]\s*(\d{1,2})\b").unwrap())
+        .captures(text);
+    if (!k.contains("modifier") && !k.contains("implicit") && !eater && !exarch && tier.is_none())
+        || stat(text).is_some()
+    {
+        return None;
+    }
+    let kind = if k.contains("implicit") || eater || exarch {
+        "Implicit"
+    } else if k.contains("crafted") {
+        "Crafted"
+    } else if k.contains("fractured") {
+        "Fractured"
+    } else {
+        "Explicit"
+    };
+    let mut header = kind.to_string();
+    if eater {
+        header.insert_str(0, "Eater of Worlds ");
+    } else if exarch {
+        header.insert_str(0, "Searing Exarch ");
+    }
+    if k.contains("prefix") {
+        header.push_str(" Prefix");
+    } else if k.contains("suffix") {
+        header.push_str(" Suffix");
+    }
+    header.push_str(" Modifier");
+    if let Some(c) = tier {
+        let label = if c[1].eq_ignore_ascii_case("tier") {
+            "Tier"
+        } else {
+            "Rank"
+        };
+        header.push_str(&format!(" ({label}: {})", &c[2]));
+    }
+    Some((kind.to_ascii_lowercase(), header))
 }
 #[derive(serde::Deserialize)]
 struct Identity {
@@ -197,6 +296,26 @@ fn select_item(lines: &[Line]) -> Result<(usize, &'static Identity), String> {
         }
     }
     Err("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).".into())
+}
+/// Preserve the scout's catalogue anchor if a detailed reading loses a header
+/// to influence ornaments. Coordinates remain relative to the source image.
+pub fn anchors(lines: &[Line]) -> Vec<Line> {
+    let mut sorted = lines.to_vec();
+    sorted.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
+    let Ok((i, _)) = select_item(&sorted) else {
+        return Vec::new();
+    };
+    let base = &sorted[i];
+    let mut out = Vec::new();
+    if let Some(name) = sorted[..i].iter().rev().find(|l| {
+        base.y - l.y < 70.
+            && key(&l.text) != key(&base.text)
+            && (l.x + l.width / 2. - base.x - base.width / 2.).abs() < 42.
+    }) {
+        out.push(name.clone());
+    }
+    out.push(base.clone());
+    out
 }
 /// The scout pass finds catalogue text; all later OCR is restricted to that
 /// tooltip's centered text column. No coordinates or manual region are needed.
@@ -348,30 +467,20 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         "Attacks per Second",
         "Stack Size",
     ];
-    let mut kind = "explicit";
+    let mut kind = "explicit".to_string();
+    let mut modifier = "Explicit Modifier".to_string();
+    let mut written = false;
     for line in lines.iter().skip(index + 1).filter(|l| in_column(l)) {
         if line.y - last_y > 95. {
             break;
         }
         last_y = line.y + line.height;
         let k = key(&line.text);
-        if k.contains("modifier") {
-            if k.contains("implicit") {
-                kind = "implicit";
-                continue;
-            }
-            if k.contains("crafted") {
-                kind = "crafted";
-                continue;
-            }
-            if k.contains("fractured") {
-                kind = "fractured";
-                continue;
-            }
-            if k.starts_with("prefix") || k.starts_with("suffix") || k.starts_with("explicit") {
-                kind = "explicit";
-                continue;
-            }
+        if let Some((source, header)) = modifier_header(&line.text) {
+            kind = source;
+            modifier = header;
+            written = false;
+            continue;
         }
         if k.starts_with("requires") || k.starts_with("tier") {
             continue;
@@ -398,15 +507,25 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
             continue;
         }
         if let Some(s) = stat(&line.text) {
-            text.push_str(&format!(
-                "{{ {} Modifier }}\n{s}\n",
-                match kind {
-                    "implicit" => "Implicit",
-                    "crafted" => "Crafted",
-                    "fractured" => "Fractured",
-                    _ => "Explicit",
-                }
-            ));
+            if let Some(source) = line.source.as_deref().filter(|s| *s != kind) {
+                let title = match source {
+                    "fractured" => "Fractured Modifier",
+                    "crafted" => "Crafted Modifier",
+                    _ => "Explicit Modifier",
+                };
+                modifier = if !written && kind == "explicit" {
+                    modifier.replacen("Explicit", title.trim_end_matches(" Modifier"), 1)
+                } else {
+                    title.into()
+                };
+                kind = source.into();
+                written = false;
+            }
+            if !written {
+                text.push_str(&format!("{{ {modifier} }}\n"));
+                written = true;
+            }
+            text.push_str(&format!("{s}\n"));
         } else {
             unknown.push(line.text.clone());
         }
@@ -444,6 +563,7 @@ mod tests {
             width: 300.,
             height: 20.,
             rarity,
+            source: None,
         }
     }
     #[test]
@@ -612,5 +732,96 @@ mod tests {
         let i = crate::item::Item::parse(&d.text).unwrap();
         assert_eq!(i.base, "Driftwood Wand");
         assert_eq!(i.rarity, Rarity::Magic);
+    }
+    #[test]
+    fn advanced_armour_keeps_rolls_sources_and_hybrid_groups() {
+        let text = [
+            "Blight Skin",
+            "Necrotic Armour",
+            "Quality: +20%",
+            "Evasion Rating: 821 (723-831)",
+            "Energy Shield: 165 (145-167)",
+            "Item Level: 86",
+            "Requires Level 84, 99 Str (gem), 173 Dex, 173 Int",
+            "EATER OF Wortps IMPLIGIT MODIFIER (LESSER) — Physical, Elemental, Lightning",
+            "10% of Physical Damage from Hits taken as Lightning Damage",
+            "Fractured Prefix Modifier Incorporeal (Tier; 1) — Defences",
+            "108(101-110)% increased Evasion and Energy Shield",
+            "Prefix Modifier Dragonfly's (Tier: 2) — Defences",
+            "38(33-38)% increased Evasion and Energy Shield",
+            "14(14-15)% increased Stun and Block Recovery",
+            "Prefix Modifier Phantasm's (Tier: 1) — Defences",
+            "+318(301-375) to Evasion Rating",
+            "+74(73-80) to maximum Energy Shield",
+            "SuFAX MapirieR OF EPHIJ (TIER; 1) — Elemental",
+            "+46(46-48)% to Lightning Resistance",
+            "SuFAX ModifieR OF THE POLAR BEAR (Tier; 3) — Elemental",
+            "+37(36-41)% to Cold Resistance",
+            "MASTER CRARTED SUFFIX MODIFIER OF CRART (RANK; 3) — Elemental",
+            "+33(29-35)% to Fire Resistance",
+        ];
+        let mut lines: Vec<_> = text
+            .iter()
+            .enumerate()
+            .map(|(i, s)| line(s, i as f64 * 22., (i < 2).then_some(Rarity::Rare)))
+            .collect();
+        lines.last_mut().unwrap().source = Some("crafted".into());
+        let anchor = anchors(&lines);
+        assert_eq!(anchor.len(), 2);
+        assert_eq!(anchor[1].text, "Necrotic Armour");
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{:?}", d.unknown);
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.item_level, Some(86));
+        assert_eq!(i.base, "Necrotic Armour");
+        let fractured = i.modifiers.iter().find(|m| m.kind == "fractured").unwrap();
+        assert_eq!(fractured.value, Some(108.));
+        assert_eq!(fractured.min, Some(101.));
+        assert_eq!(fractured.max, Some(110.));
+        assert_eq!(fractured.tier, Some(1));
+        assert!(fractured.fractured_t1);
+        let implicit = i.modifiers.iter().find(|m| m.kind == "implicit").unwrap();
+        assert_eq!(implicit.value, Some(10.));
+        assert_eq!(
+            implicit.sources[0].influence.as_deref(),
+            Some("eldritch-eater")
+        );
+        assert!(i
+            .modifiers
+            .iter()
+            .any(|m| m.kind == "crafted" && m.value == Some(33.)));
+        assert!(i.modifiers.iter().any(|m| m.value == Some(318.)));
+        assert!(d
+            .text
+            .contains("38(33-38)% increased Evasion and Energy Shield\n14(14-15)%"));
+    }
+    #[test]
+    fn independent_readings_recover_obscured_stats_but_reject_conflicting_values() {
+        let mut lines = vec![
+            line("Driftwood Wand", 0., None),
+            line("NPC +318(301-375) TO EVASION RATING", 30., None),
+            line("+37% to Cold Resistance", 60., None),
+        ];
+        merge_stats(
+            &mut lines,
+            vec![
+                line("+318(301-375) to Evasion Rating", 30., None),
+                line("+87% to Cold Resistance", 60., None),
+            ],
+        );
+        let d = draft(lines, "test".into()).unwrap();
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert!(i.modifiers.iter().any(|m| m.value == Some(318.)));
+        assert_eq!(i.modifiers.len(), 1);
+        assert_eq!(d.unknown.len(), 1);
+        assert!(d.unknown[0].starts_with("Conflicting OCR readings:"));
+    }
+    #[test]
+    fn greater_eldritch_tier_does_not_match_the_eater_name() {
+        assert!(stat("Searing Exarch Implicit Modifier (Greater)").is_none());
+        let (kind, header) = modifier_header("Searing Exarch Implicit Modifier (Greater)").unwrap();
+        assert_eq!(kind, "implicit");
+        assert!(header.starts_with("Searing Exarch "));
+        assert!(!header.contains("Eater"));
     }
 }

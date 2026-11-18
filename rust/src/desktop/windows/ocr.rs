@@ -49,9 +49,9 @@ impl Image {
         }
     }
     /// Find the yellow two-line rare header before OCR. This keeps inventory
-    /// and sales-history text out of the expensive fallback pass. Other layouts
-    /// can use the explicit area from Settings; no guessed item is produced.
-    fn automatic_area(&self) -> Option<[f64; 4]> {
+    /// and sales-history text out of the expensive fallback pass. Leave enough
+    /// width for advanced modifier descriptions, which exceed the base name.
+    fn rare_hint(&self) -> Option<Self> {
         let mut bands: Vec<(usize, usize, usize, usize, usize)> = Vec::new();
         for y in 0..(self.height / 2).min(600) {
             let mut start = 0;
@@ -99,8 +99,8 @@ impl Image {
             .iter()
             .filter(|b| b.1 - b.0 >= 16)
             .max_by_key(|b| b.4)?;
-        let left = b.2.saturating_sub(150);
-        let right = (b.3 + 150).min(self.width);
+        let left = b.2.saturating_sub(300);
+        let right = (b.3 + 300).min(self.width);
         let top = b.0.saturating_sub(22);
         let mut bottom = (top + 1000).min(self.height);
         let mut streak = 0;
@@ -124,12 +124,22 @@ impl Image {
                 break;
             }
         }
-        Some([
+        let mut image = self.crop([
             left as f64 / self.width as f64 * 100.,
             top as f64 / self.height as f64 * 100.,
             (right - left) as f64 / self.width as f64 * 100.,
             (bottom - top) as f64 / self.height as f64 * 100.,
-        ])
+        ]);
+        // Influence ornaments and the header frame can make the OCR engine
+        // discard the base line. Keep the observed gold text, clear its sides.
+        let text_left = b.2.saturating_sub(left + 8);
+        let text_right = (b.3 + 9 - left).min(image.width);
+        for y in 0..(b.1 + 5 - top).min(image.height) {
+            for x in (0..text_left).chain(text_right..image.width) {
+                image.pixels[(y * image.width + x) * 4..][..3].fill(0);
+            }
+        }
+        Some(image)
     }
     fn rarity(&self, x: f64, y: f64, width: f64, height: f64) -> Option<crate::item::Rarity> {
         let mut votes = [0usize; 4];
@@ -169,11 +179,35 @@ impl Image {
             line.width = line.width.max(word.x + word.width - line.x);
             line.height = line.height.max(word.y + word.height - line.y);
             line.rarity = self.rarity(line.x, line.y, line.width, line.height);
+            line.source = self
+                .line(String::new(), line.x, line.y, line.width, line.height)
+                .source;
         } else {
             lines.push(word);
         }
     }
     fn line(&self, text: String, x: f64, y: f64, width: f64, height: f64) -> Line {
+        let mut sources = [0usize; 3];
+        for yy in y.max(0.) as usize..((y + height).max(0.) as usize).min(self.height) {
+            for xx in x.max(0.) as usize..((x + width).max(0.) as usize).min(self.width) {
+                let p = &self.pixels[(yy * self.width + xx) * 4..];
+                let (b, g, r) = (p[0] as i32, p[1] as i32, p[2] as i32);
+                if r > 110 && g > 100 && r >= g && g - b > 22 && r - g < 32 {
+                    sources[0] += 1;
+                } else if b > 140 && g > 130 && g - r > 12 && b - g > 5 && b - g < 30 {
+                    sources[1] += 1;
+                } else if b > 110 && b - r > 22 && b - g > 18 {
+                    sources[2] += 1;
+                }
+            }
+        }
+        let source = if sources[0] > 30 && sources[0] > (sources[1] + sources[2]) * 3 {
+            Some("fractured".into())
+        } else if sources[1] > 30 && sources[1] > (sources[0] + sources[2]) * 3 {
+            Some("crafted".into())
+        } else {
+            None
+        };
         Line {
             rarity: self.rarity(x, y, width, height),
             text,
@@ -181,6 +215,28 @@ impl Image {
             y,
             width,
             height,
+            source,
+        }
+    }
+
+    /// Remove neutral map/NPC labels while retaining colored modifier glyphs.
+    /// This reading supplements the original; it never replaces properties.
+    fn colored(&self) -> Self {
+        let mut pixels = self.pixels.clone();
+        for p in pixels.as_chunks_mut::<4>().0 {
+            let (b, g, r) = (p[0] as i32, p[1] as i32, p[2] as i32);
+            let blue = b > 105 && b - r > 22 && b - g > 18;
+            let crafted = b > 130 && g > 130 && r > 95 && b - r > 12;
+            // Gold map/UI labels can touch a blue stat's first digit. Gold
+            // fractured rolls are retained by the independent original pass.
+            if !blue && !crafted {
+                p[..3].fill(0);
+            }
+        }
+        Self {
+            width: self.width,
+            height: self.height,
+            pixels,
         }
     }
 }
@@ -553,7 +609,7 @@ fn fallback_pass(
 }
 pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Result<Draft, String> {
     check()?;
-    let rough = image.automatic_area().map(|r| image.crop(r));
+    let rough = image.rare_hint();
     let scout = rough.as_ref().unwrap_or(image);
     let mut passes = Vec::new();
     if let Ok(lines) = native_ocr(scout, check) {
@@ -564,19 +620,10 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         .first()
         .is_none_or(|(lines, _)| crate::ocr::tooltip_bounds(lines).is_err())
     {
-        passes.push((fallback_pass(scout, check, true)?, "Local OCR"));
-    }
-    // Small PoE capitals may need the detailed/upscaled pass even to locate
-    // the base. Retry automatically before widening to the whole client frame.
-    if !passes
-        .iter()
-        .any(|(lines, _)| crate::ocr::tooltip_bounds(lines).is_ok())
-        && rough.is_some()
-    {
-        check()?;
-        passes.push((fallback(scout, check)?, "Local OCR"));
+        passes.push((fallback_pass(scout, check, rough.is_none())?, "Local OCR"));
     }
     let mut source = scout;
+    let mut detailed_scout = rough.is_some();
     let mut located = passes.into_iter().find_map(|(lines, engine)| {
         crate::ocr::tooltip_bounds(&lines)
             .ok()
@@ -585,6 +632,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     if located.is_none() && rough.is_some() {
         check()?;
         source = image;
+        detailed_scout = false;
         let (lines, engine) = match native_ocr(image, check) {
             Ok(lines) if crate::ocr::tooltip_bounds(&lines).is_ok() => (lines, "Windows OCR"),
             _ => (fallback_pass(image, check, true)?, "Local OCR"),
@@ -603,15 +651,62 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     ];
     let focused = source.crop(region);
     eprintln!("ocr automatic tooltip={}x{}", focused.width, focused.height);
-    let refined = if engine == "Windows OCR" {
+    let translated = || {
+        lines
+            .iter()
+            .cloned()
+            .map(|mut l| {
+                l.x -= x;
+                l.y -= y;
+                l
+            })
+            .collect()
+    };
+    let refined = if engine == "Local OCR" && detailed_scout {
+        // The enlarged rare-header hint already contains a detailed reading.
+        Ok(translated())
+    } else if engine == "Windows OCR" {
         native_ocr(&focused, check)
     } else {
         fallback(&focused, check)
     };
     check()?;
-    refined
-        .and_then(|result| crate::ocr::draft(result, engine.into()))
-        .or_else(|_| crate::ocr::draft(lines, engine.into()))
+    let mut refined = refined.unwrap_or_else(|_| translated());
+    if crate::ocr::tooltip_bounds(&refined).is_err() {
+        let mut anchors = crate::ocr::anchors(&lines);
+        for anchor in &mut anchors {
+            anchor.x -= x;
+            anchor.y -= y;
+        }
+        if let Some(base) = anchors.last().cloned() {
+            let title = refined
+                .iter()
+                .find(|l| {
+                    l.y < base.y
+                        && base.y - l.y < 70.
+                        && l.rarity == Some(crate::item::Rarity::Rare)
+                        && l.width > 50.
+                        && (l.x + l.width / 2. - base.x - base.width / 2.).abs() < 42.
+                        && l.text
+                            .chars()
+                            .all(|c| c.is_alphabetic() || c.is_whitespace() || c == '\'')
+                })
+                .cloned();
+            refined.retain(|l| l.y > base.y + base.height);
+            if let Some(title) = title {
+                anchors = vec![title, base];
+            }
+        }
+        refined.extend(anchors);
+    }
+    // Independent colored glyphs recover stats obscured by translucent map
+    // labels. Only exact catalogue stat matches are merged into the reading.
+    match fallback(&focused.colored(), check) {
+        Ok(extra) => crate::ocr::merge_stats(&mut refined, extra),
+        Err(_) => check()?,
+    }
+    check()?;
+    crate::ocr::draft(refined, engine.into()).or_else(|_| crate::ocr::draft(lines, engine.into()))
 }
 pub fn capture(
     context: &Context<'_>,

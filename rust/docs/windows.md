@@ -1,4 +1,4 @@
-# Windows price checker 0.35.0
+# Windows price checker 0.35.1
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -39,9 +39,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.35.0-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.35.1-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.35.0-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.35.1-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -82,6 +82,11 @@ map names. There is no coordinate field or rectangle-selection step. If the fram
 is ambiguous, retry while hovering one item with its advanced tooltip visible.
 Spelling is not guessed, and OCR does not reconstruct unseen socket links,
 icon-only influence or hidden mods. Always review values before searching.
+
+Advanced tooltips keep observed roll ranges and modifier groups. A separate
+color reading removes neutral map labels behind translucent tooltips and recovers
+obscured stats. Fractured and crafted text colors supplement faded source labels.
+Conflicting stat readings stay in review instead of becoming search filters.
 
 The private Wine suite checks real pixel recognition with the bundled fallback,
 Alt-only metadata, responsive GTK, cancellation, process scope and a topmost fake

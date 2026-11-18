@@ -26,5 +26,19 @@
     "sha256": "60de8d6b3dbdc076666905c882d7a296a84271cc941c3a2e9d8ffac20ee738b0",
     "advanced_tooltip": false,
     "expected_ilvl": null
+  },
+  {
+    "file": "advanced-armour.png",
+    "source": "User-provided real cloud gaming screenshot, 2026-11-18",
+    "original_sha256": "0a4bf2d804c695ab86420d249571c20cd43b338e469d7a151998ca07b132e82b",
+    "crop_xyxy": [
+      967,
+      0,
+      1535,
+      574
+    ],
+    "sha256": "b57087fda32ed2e722f304573dda83b5535ba986c97d97a0d84eac040413a357",
+    "advanced_tooltip": true,
+    "expected_ilvl": 86
   }
 ]

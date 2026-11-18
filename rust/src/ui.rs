@@ -1660,7 +1660,7 @@ pub fn run() -> Result<(), String> {
         let d = crate::desktop::ocr::recognize(&image, &|| Ok(()))?;
         println!(
             "{}",
-            serde_json::json!({"text":d.text,"unknown":d.unknown,"engine":d.engine})
+            serde_json::json!({"item":Item::parse(&d.text).ok(),"text":d.text,"unknown":d.unknown,"engine":d.engine})
         );
         return Ok(());
     }
