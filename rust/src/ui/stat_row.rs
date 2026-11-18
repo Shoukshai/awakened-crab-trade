@@ -36,6 +36,20 @@ impl StatRow {
         label.set_max_width_chars(32);
         label.set_xalign(0.);
         let caption = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        let check = gtk::Label::new(if selected.is_active() {
+            Some("✓")
+        } else {
+            Some(" ")
+        });
+        check.set_width_chars(1);
+        check.style_context().add_class("mod-selection");
+        caption.pack_start(&check, false, false, 0);
+        let checked = check.downgrade();
+        selected.connect_toggled(move |s| {
+            if let Some(check) = checked.upgrade() {
+                check.set_text(if s.is_active() { "✓" } else { " " });
+            }
+        });
         let mut seen = std::collections::HashSet::new();
         let mut influence_icons = 0;
         for mechanic in modifier

@@ -245,5 +245,19 @@
   "Exclure les variantes Foulborn": "Exclude Foulborn variants",
   "Exclure les variantes Vestigial": "Exclude Vestigial variants",
   "Chaos ou Divine": "Chaos or Divine",
-  "Touche non prise en charge. Choisissez une autre combinaison.": "Unsupported key. Choose another combination."
+  "Touche non prise en charge. Choisissez une autre combinaison.": "Unsupported key. Choose another combination.",
+  "Style": "Style",
+  "Style inconnu.": "Unknown style.",
+  "Filtres": "Filters",
+  "Offres": "Offers",
+  "Marine et cyan, lignes sobres.": "Navy and cyan, simple rows.",
+  "Encre et cuivre, typographie PoE.": "Ink and copper, PoE typography.",
+  "Grille compacte et police monospace.": "Compact grid and monospace type.",
+  "Surface claire et contraste bleu.": "Light surface and blue contrast.",
+  "Filtres et offres côte à côte.": "Filters and offers side by side.",
+  "Onglets Filtres et Offres.": "Filters and Offers tabs.",
+  "Inspecteur carré, sections numérotées.": "Square inspector, numbered sections.",
+  "Titres serif, lignes ouvertes et aérées.": "Serif titles, open and spacious rows.",
+  "Panneau étroit, recherche fixée en bas.": "Narrow panel, fixed bottom search.",
+  "Papier chaud, prix en première colonne.": "Warm paper, price-first listings."
 }

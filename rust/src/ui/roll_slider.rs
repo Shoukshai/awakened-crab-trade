@@ -114,18 +114,18 @@ pub fn new(
                 })
                 .filter(|(l, r)| l <= r);
             if range.is_some() {
-                cr.set_source_rgb(90. / 255., 215. / 255., 232. / 255.);
+                super::cairo_color(cr, area, "act_accent");
             } else {
-                cr.set_source_rgb(0.15, 0.17, 0.20);
+                super::cairo_color(cr, area, "act_track");
             }
             cr.rectangle(6., 4., w, h - 8.);
             let _ = cr.fill();
             if let Some((l, r)) = range {
-                cr.set_source_rgb(0.15, 0.17, 0.20);
+                super::cairo_color(cr, area, "act_track");
                 cr.rectangle(6. + l * w, 4., ((r - l) * w).max(1.), h - 8.);
                 let _ = cr.fill();
             }
-            cr.set_source_rgb(0.9, 0.91, 0.93);
+            super::cairo_color(cr, area, "act_fg");
             cr.set_line_width(1.);
             let roll = 6. + bounds.fraction(bounds.roll) * w;
             cr.move_to(roll, 1.);
@@ -143,22 +143,22 @@ pub fn new(
             let accent_at =
                 |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);
             if accent_at(0.02) {
-                cr.set_source_rgb(0.09, 0.10, 0.12);
+                super::cairo_color(cr, area, "act_on_accent");
             }
             cr.move_to(10., h / 2. + 4.);
             let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
             let text = super::economy_panel::format_amount(bounds.max);
             if let Ok(size) = cr.text_extents(&text) {
                 if accent_at(0.98) {
-                    cr.set_source_rgb(0.09, 0.10, 0.12);
+                    super::cairo_color(cr, area, "act_on_accent");
                 } else {
-                    cr.set_source_rgb(0.9, 0.91, 0.93);
+                    super::cairo_color(cr, area, "act_fg");
                 }
                 cr.move_to(2. + w - size.x_advance(), h / 2. + 4.);
                 let _ = cr.show_text(&text);
             }
             if area.has_focus() {
-                cr.set_source_rgb(90. / 255., 215. / 255., 232. / 255.);
+                super::cairo_color(cr, area, "act_accent");
                 cr.rectangle(3., 1., w + 6., h - 2.);
                 let _ = cr.stroke();
             }

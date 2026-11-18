@@ -35,19 +35,19 @@ impl EconomyPanel {
             let span = if max - min < 0.001 { 1. } else { max - min };
             let width = (widget.allocated_width() as f64 - 70.).max(1.);
             let height = (widget.allocated_height() as f64 - 25.).max(1.);
-            cr.set_source_rgba(0.75, 0.8, 0.85, 0.35);
+            super::cairo_color(cr, widget, "act_line");
             cr.set_line_width(1.);
             let zero = 8. + height * (max / span);
             cr.move_to(55., zero);
             cr.line_to(width + 55., zero);
             let _ = cr.stroke();
-            cr.set_source_rgb(0.8, 0.84, 0.9);
+            super::cairo_color(cr, widget, "act_muted");
             cr.set_font_size(10.);
             cr.move_to(1., 12.);
             let _ = cr.show_text(&format!("{max:.1}%"));
             cr.move_to(1., height + 8.);
             let _ = cr.show_text(&format!("{min:.1}%"));
-            cr.set_source_rgb(0.79, 0.43, 0.24);
+            super::cairo_color(cr, widget, "act_accent");
             cr.set_line_width(2.);
             let mut started = false;
             for (index, value) in points.iter().enumerate() {

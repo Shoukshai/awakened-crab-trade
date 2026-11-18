@@ -1,0 +1,99 @@
+{
+  "version": "0.33.0",
+  "language": "en",
+  "platform": "Linux, native GTK",
+  "scope": "Actual native theme-cycle captures on a private desktop. Synthetic items and offers. No live market prices or real game input.",
+  "binary_sha256": "875a2ee5e7a11a7228a24cbe231f969ef0e9c43a719161ad24e802573f33de77",
+  "images": [
+    {
+      "theme": "tide",
+      "file": "tide.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "4f3ffa7cf2879f701e97accad430e3e072763c723e8912772b66035e9f15e6ff"
+    },
+    {
+      "theme": "relic",
+      "file": "relic.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "3bc9b11c0622fb56cf86179ec21632a125bdc4e3c7227aaefdd68d2b2dee9779"
+    },
+    {
+      "theme": "terminal",
+      "file": "terminal.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "d59434d72b320f8635529d8197848e54746edd8a0dd76dee3c57c64c53ce88c1"
+    },
+    {
+      "theme": "frost",
+      "file": "frost.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "0af3810fd7469ffe4a7c1f41752b706488bca1439f2842f5347c4d9133130902"
+    },
+    {
+      "theme": "split",
+      "file": "split.png",
+      "size": [
+        640,
+        1600
+      ],
+      "sha256": "8dd3ff2f46370856c38f1c57f8f98d853cbe827afc4dfaa44f95b01a94642eb2"
+    },
+    {
+      "theme": "focus",
+      "file": "focus.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "2d71ee94bd2c097f57cb9522473620fb44fa295e2f87b62508d6c2b8dfb8383c"
+    },
+    {
+      "theme": "blueprint",
+      "file": "blueprint.png",
+      "size": [
+        480,
+        1600
+      ],
+      "sha256": "57851c57edf6bb6aee1b60efc463c396e3a328f620d120a7cccd5ff254a1cfe8"
+    },
+    {
+      "theme": "editorial",
+      "file": "editorial.png",
+      "size": [
+        540,
+        1600
+      ],
+      "sha256": "7c7f86f0f5202065ddb762370f7652d71502a94bce019d08d4e115d6aa809dc7"
+    },
+    {
+      "theme": "compact",
+      "file": "compact.png",
+      "size": [
+        400,
+        1600
+      ],
+      "sha256": "0a6bddd81af7233f7247f72e8892080154d01e92000cd019516e755f9a396463"
+    },
+    {
+      "theme": "merchant",
+      "file": "merchant.png",
+      "size": [
+        540,
+        1600
+      ],
+      "sha256": "d2fb7bf02a56546c509d9476edc7afd6d966f9ed57dc64ca79136a037eb116f3"
+    }
+  ]
+}

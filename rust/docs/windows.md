@@ -1,4 +1,4 @@
-# Windows price checker 0.32.0
+# Windows price checker 0.33.0
 
 Native x64 build targeting Windows 11, for PoE 1 via Steam or standalone.
 The [single portable EXE](windows-portable.md) prepares its runtime automatically.
@@ -7,7 +7,9 @@ and subfolders beside it.
 
 Settings open on first launch. The notification icon opens Settings or quits.
 Launching the EXE again opens Settings in the existing instance. Select English
-or French and Save to change the language without restarting. Existing profiles
+or French and Save to change the language without restarting. The Style selector
+previews ten native themes; Save keeps the style and Cancel restores it.
+Style changes preserve the current filters and displayed offers. Existing profiles
 are imported automatically; game item and mod names remain in English.
 
 While hovering over an item in PoE:
@@ -30,6 +32,8 @@ validation.
 
 Preferences: `%APPDATA%\awakened-crab-trade\config.json`.
 Cache and `checker.log`: `%LOCALAPPDATA%\awakened-crab-trade`.
+
+Quit the running checker from its notification icon before launching an updated EXE.
 
 ## Build from Linux
 

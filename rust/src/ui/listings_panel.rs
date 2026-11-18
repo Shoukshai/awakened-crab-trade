@@ -9,6 +9,9 @@ use std::{
 };
 struct OfferRow {
     widget: gtk::EventBox,
+    body: gtk::Box,
+    identity: gtk::Box,
+    price: gtk::Label,
     tooltip: Option<String>,
     popover: Option<gtk::Popover>,
 }
@@ -158,6 +161,9 @@ impl Panel {
                 gtk::gdk::EventMask::ENTER_NOTIFY_MASK | gtk::gdk::EventMask::LEAVE_NOTIFY_MASK,
             );
             widget.style_context().add_class("trade-row");
+            if index % 2 == 0 {
+                widget.style_context().add_class("even");
+            }
             let body = gtk::Box::new(gtk::Orientation::Horizontal, 12);
             body.set_border_width(8);
             let identity = gtk::Box::new(gtk::Orientation::Vertical, 4);
@@ -327,6 +333,9 @@ impl Panel {
             self.container.attach(&widget, 0, index as i32, 1, 1);
             self.rows.borrow_mut().push(OfferRow {
                 widget,
+                body,
+                identity,
+                price: value,
                 tooltip: text,
                 popover,
             });
@@ -335,6 +344,49 @@ impl Panel {
             child.show_all();
         }
         self.container.show();
+    }
+    pub fn set_theme(&self, theme: crate::appearance::Theme) {
+        use crate::appearance::Theme;
+        for row in self.rows.borrow().iter() {
+            if let Some(p) = &row.popover {
+                p.hide();
+            }
+            let vertical = theme == Theme::Split;
+            row.body.set_orientation(if vertical {
+                gtk::Orientation::Vertical
+            } else {
+                gtk::Orientation::Horizontal
+            });
+            row.body.set_spacing(if vertical { 4 } else { 12 });
+            row.body
+                .set_border_width(if matches!(theme, Theme::Compact | Theme::Terminal) {
+                    4
+                } else {
+                    8
+                });
+            row.body.reorder_child(
+                &row.price,
+                if matches!(theme, Theme::Merchant | Theme::Split) {
+                    0
+                } else {
+                    1
+                },
+            );
+            row.price
+                .set_xalign(if matches!(theme, Theme::Merchant | Theme::Split) {
+                    0.
+                } else {
+                    1.
+                });
+            row.price.set_width_chars(if vertical {
+                1
+            } else if theme == Theme::Merchant {
+                8
+            } else {
+                10
+            });
+            row.identity.set_hexpand(true);
+        }
     }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rows = self.rows.borrow();

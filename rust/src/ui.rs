@@ -18,6 +18,7 @@ mod item_filters_panel;
 mod listings_panel;
 mod localization;
 mod mercenary_panel;
+mod price_workspace;
 mod roll_slider;
 mod settings_panel;
 mod stat_row;
@@ -52,6 +53,7 @@ enum View {
 }
 enum Event {
     Control(crate::ipc::Request),
+    ThemePreview(crate::appearance::Theme),
     Icon(u64, Result<std::path::PathBuf, String>),
     OutsideClick,
     Leagues(Result<crate::leagues::Selection, String>),
@@ -133,11 +135,17 @@ struct Ui {
     preferences: settings_panel::Panel,
     preferences_worker: SyncSender<crate::desktop::preferences::Request>,
     preferences_pending: Cell<bool>,
+    preferences_return_price: Cell<bool>,
     preferences_epoch: Cell<u64>,
     backend_connection: Cell<u64>,
     backend_status: RefCell<Result<(), String>>,
     updating_settings: Cell<bool>,
     css: gtk::CssProvider,
+    appearance: Cell<crate::appearance::Theme>,
+    content: gtk::Box,
+    header: gtk::Box,
+    header_widgets: Vec<gtk::Widget>,
+    workspace: price_workspace::Workspace,
     item: RefCell<Option<Item>>,
     current: Arc<AtomicU64>,
     game_active: Arc<AtomicBool>,
@@ -149,21 +157,37 @@ struct Ui {
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
     request: RefCell<Option<(u64, serde_json::Value)>>,
 }
-fn set_style(window: &gtk::Window, css: &gtk::CssProvider, scale: f64) -> Result<(), String> {
-    window.set_size_request((480. * scale) as i32, 0);
-    #[cfg(target_os = "windows")]
-    let platform_style = "#apt-native, #apt-offer-details, tooltip { font-family: \"Segoe UI\", \"Liberation Sans\", sans-serif; }";
-    #[cfg(not(target_os = "windows"))]
-    let platform_style = "";
-    let sheet = format!(
-        "{}\n{}\n#apt-native {{ font-size: {}px; }}",
-        include_str!("ui/style.css"),
-        platform_style,
-        (14. * scale).round() as u32
-    );
+fn set_style(
+    window: &gtk::Window,
+    css: &gtk::CssProvider,
+    scale: f64,
+    theme: crate::appearance::Theme,
+) -> Result<(), String> {
+    let width = (f64::from(theme.width()) * scale).round() as i32;
+    let available = gdk::Display::default()
+        .and_then(|d| d.primary_monitor().or_else(|| d.monitor(0)))
+        .map(|m| m.geometry().width())
+        .unwrap_or(width);
+    window.set_size_request(width.min(available.max(1)), 0);
+    let family = if theme == crate::appearance::Theme::Terminal {
+        "Monospace"
+    } else if cfg!(target_os = "windows") {
+        "\"Segoe UI\", \"Liberation Sans\", sans-serif"
+    } else {
+        "Sans"
+    };
+    let font = (f64::from(theme.font_size()) * scale).round() as u32;
+    let sheet=format!("{}\n{}\n{}\n#apt-native {{font-family: {}; font-size: {}px;}} #apt-offer-details label, tooltip label {{font-family: {}; font-size: {}px;}}",theme.definitions(),include_str!("ui/style.css"),include_str!("ui/themes.css"),family,font,family,font);
     css.load_from_data(sheet.as_bytes())
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+fn cairo_color(cr: &gtk::cairo::Context, widget: &impl IsA<gtk::Widget>, name: &str) {
+    let color = widget
+        .style_context()
+        .lookup_color(name)
+        .unwrap_or_else(|| gdk::RGBA::new(0., 0., 0., 1.));
+    cr.set_source_rgba(color.red(), color.green(), color.blue(), color.alpha());
 }
 fn apply_input(window: &gtk::Window, interactive: bool) {
     window.set_keyboard_mode(if interactive {
@@ -314,7 +338,9 @@ impl Ui {
                 height: b.height / factor,
             })
             .unwrap_or(output);
-        let width = actual_width.unwrap_or((480. * self.settings.borrow().scale) as i32);
+        let width = actual_width.unwrap_or(
+            (f64::from(self.appearance.get().width()) * self.settings.borrow().scale) as i32,
+        );
         let p = crate::price_layout::beside_inventory(output, game, width);
         if self.panel_bounds.get() == Some(p) {
             return;
@@ -390,6 +416,7 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
+        value["appearance"] = serde_json::json!({"active":self.appearance.get().id(),"saved":self.settings.borrow().theme.id(),"workspace":self.workspace.diagnostics(&self.window)});
         value["language"] = serde_json::json!(crate::i18n::language().id());
         value["search_label"] = serde_json::json!(self
             .search_button
@@ -449,6 +476,12 @@ impl Ui {
         dismiss_owned_popup(&self.window);
         self.backdrop.hide();
         self.window.hide();
+        if self.view.get() == View::Settings
+            && self.appearance.get() != self.settings.borrow().theme
+        {
+            let theme = self.settings.borrow().theme;
+            let _ = self.apply_appearance(theme);
+        }
         eprintln!(
             "overlay state=Hidden reason={reason:?} generation={} input=empty keyboard=None",
             self.state.borrow().generation
@@ -506,8 +539,9 @@ impl Ui {
         {
             return;
         }
+        self.preferences_return_price
+            .set(self.window.is_visible() && self.view.get() == View::Price);
         self.preferences_epoch.set(self.preferences_epoch.get() + 1);
-        self.invalidate_prices();
         self.preferences.show(&self.settings.borrow());
         self.view.set(View::Settings);
         self.title.set_text("Réglages du price checker");
@@ -522,11 +556,93 @@ impl Ui {
             self.command("interact");
         }
     }
+    fn apply_appearance(&self, theme: crate::appearance::Theme) -> Result<(), String> {
+        let scale = self.settings.borrow().scale;
+        set_style(&self.window, &self.css, scale, theme)?;
+        self.appearance.set(theme);
+        let context = self.window.style_context();
+        for choice in crate::appearance::Theme::ALL {
+            context.remove_class(&format!("theme-{}", choice.id()));
+        }
+        context.add_class(&format!("theme-{}", theme.id()));
+        self.content.set_border_width(theme.padding());
+        self.content.set_spacing(theme.spacing());
+        for widget in &self.header_widgets {
+            if let Some(parent) = widget
+                .parent()
+                .and_then(|p| p.downcast::<gtk::Container>().ok())
+            {
+                parent.remove(widget);
+            }
+        }
+        for child in self.header.children() {
+            self.header.remove(&child);
+        }
+        self.header
+            .set_orientation(if theme == crate::appearance::Theme::Compact {
+                gtk::Orientation::Vertical
+            } else {
+                gtk::Orientation::Horizontal
+            });
+        if theme == crate::appearance::Theme::Compact {
+            let top = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            let bottom = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            for index in [0, 1, 5] {
+                top.pack_start(&self.header_widgets[index], index == 1, index == 1, 0);
+            }
+            for index in [2, 3, 4] {
+                bottom.pack_start(&self.header_widgets[index], index == 2, index == 2, 0);
+            }
+            self.header.pack_start(&top, false, false, 0);
+            self.header.pack_start(&bottom, false, false, 0);
+        } else {
+            for (index, widget) in self.header_widgets.iter().enumerate() {
+                self.header.pack_start(widget, index == 1, index == 1, 0);
+            }
+        }
+        self.header.show_all();
+        self.workspace.apply(theme, scale);
+        self.listings.set_theme(theme);
+        for row in self.stat_rows.borrow().iter() {
+            row.container.queue_draw();
+        }
+        self.position_panel(None);
+        // GDK Win32 retains the old natural size after a minimum-width reduction.
+        // Wait for the reparented controls' requisitions, then request the new size.
+        #[cfg(target_os = "windows")]
+        {
+            let width = self.window.width_request();
+            let weak = self.window.downgrade();
+            glib::idle_add_local_once(move || {
+                if let Some(window) = weak.upgrade() {
+                    if window.width_request() == width && window.allocated_width() != width {
+                        window.resize(width, window.allocated_height().max(1));
+                    }
+                }
+            });
+        }
+        self.window.queue_draw();
+        localization::refresh(&self.window);
+        Ok(())
+    }
     fn cancel_settings(&self) {
         if self.preferences_pending.get() {
             return;
         }
+        let theme = self.settings.borrow().theme;
+        if let Err(error) = self.apply_appearance(theme) {
+            self.preferences.error(&error);
+        }
         self.view.set(View::Price);
+        if !self.preferences_return_price.get() || !self.window.is_visible() {
+            self.hide(HideReason::Button);
+            return;
+        }
+        #[cfg(target_os = "windows")]
+        if self.desktop.borrow().other_active() || !self.desktop.borrow().game_present() {
+            self.hide(HideReason::Button);
+            return;
+        }
         if let Some(item) = self.item.borrow().as_ref() {
             self.title.set_text(if item.name.is_empty() {
                 &item.base
@@ -539,7 +655,22 @@ impl Ui {
                 } else {
                     "price"
                 });
-            self.text.set_text("");
+            if let Some((generation, Ok(prices))) = self
+                .result
+                .borrow()
+                .as_ref()
+                .filter(|(generation, _)| *generation == self.state.borrow().generation)
+            {
+                let _ = generation;
+                self.text.set_text(&format!(
+                    "{} résultat{}",
+                    prices.total,
+                    if prices.total == 1 { "" } else { "s" }
+                ));
+                self.workspace.searched();
+            } else {
+                self.text.set_text("");
+            }
         } else {
             self.hide(HideReason::Button);
         }
@@ -604,11 +735,21 @@ impl Ui {
                 } else {
                     Err("Connexion aux raccourcis perdue".into())
                 });
+                let theme_only = {
+                    let old = self.settings.borrow();
+                    let mut before = serde_json::to_value(&*old).unwrap();
+                    let mut after = serde_json::to_value(&*settings).unwrap();
+                    before.as_object_mut().unwrap().remove("theme");
+                    after.as_object_mut().unwrap().remove("theme");
+                    old.theme != settings.theme && before == after
+                };
                 crate::i18n::set_language(settings.language);
                 localization::refresh(&self.window);
                 self.settings.replace(*settings.clone());
-                self.refresh_league();
-                self.invalidate_prices();
+                if !theme_only {
+                    self.refresh_league();
+                    self.invalidate_prices();
+                }
                 self.updating_settings.set(true);
                 self.league.set_text(&settings.league);
                 self.online.set_active(settings.filters.online);
@@ -616,12 +757,16 @@ impl Ui {
                 self.currency
                     .set_active_id(Some(&settings.filters.bulk_currency));
                 self.updating_settings.set(false);
-                if let Err(e) = set_style(&self.window, &self.css, settings.scale) {
+                if let Err(e) = self.apply_appearance(settings.theme) {
                     eprintln!("style: {e}");
                 }
                 eprintln!("settings committed epoch={epoch} automatic_http=false");
                 if self.view.get() == View::Settings && epoch == self.preferences_epoch.get() {
-                    self.hide(HideReason::Button);
+                    if theme_only {
+                        self.cancel_settings();
+                    } else {
+                        self.hide(HideReason::Button);
+                    }
                 }
             }
         }
@@ -779,6 +924,8 @@ impl Ui {
             let _ = self.icon_worker.send((self.identity_epoch.get(), url));
         }
         let currency_only = item.family() == crate::item::Family::Currency;
+        self.workspace.set_currency(currency_only);
+        self.workspace.copied();
         self.mod_scroll.set_no_show_all(currency_only);
         self.mod_scroll.set_visible(!currency_only);
         self.actions.set_no_show_all(currency_only);
@@ -1168,6 +1315,7 @@ impl Ui {
         self.economy_panel.container.hide();
         self.request_quote();
         self.text.set_text("Recherche…");
+        self.workspace.searched();
         match self.worker.try_send(Job {
             generation,
             league: settings.league.clone(),
@@ -1184,6 +1332,17 @@ impl Ui {
     }
     fn event(self: &Rc<Self>, event: Event) {
         match event {
+            Event::ThemePreview(theme) => {
+                if self.view.get() == View::Settings
+                    && self.window.is_visible()
+                    && !self.preferences_pending.get()
+                    && theme != self.appearance.get()
+                {
+                    if let Err(error) = self.apply_appearance(theme) {
+                        self.preferences.error(&error);
+                    }
+                }
+            }
             Event::Control(request) => {
                 if request.command == "status" {
                     if let Some(reply) = request.reply {
@@ -1339,6 +1498,8 @@ impl Ui {
                     Ok(p) => {
                         self.listings
                             .show(&p, self.item.borrow().as_ref().map(|i| i.family()));
+                        self.listings.set_theme(self.appearance.get());
+                        self.workspace.searched();
                         self.text.set_text(&format!(
                             "{} résultat{}",
                             p.total,
@@ -1573,7 +1734,7 @@ pub fn run() -> Result<(), String> {
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::None);
     let css = gtk::CssProvider::new();
-    set_style(&window, &css, settings.scale)?;
+    set_style(&window, &css, settings.scale, settings.theme)?;
     gtk::StyleContext::add_provider_for_screen(
         &GtkWindowExt::screen(&window).unwrap(),
         &css,
@@ -1706,9 +1867,9 @@ pub fn run() -> Result<(), String> {
     filter_content.pack_start(&item_filters.container, false, false, 0);
     filter_content.pack_start(&preset, false, false, 0);
     filter_content.pack_start(&mod_expander, false, false, 0);
-    price_content.pack_start(&mod_scroll, false, false, 0);
-    price_content.pack_start(&actions, false, false, 0);
-    price_content.pack_start(&scroll, true, true, 0);
+    let workspace = price_workspace::Workspace::new(&mod_scroll, &scroll, &actions);
+    workspace.apply(settings.theme, settings.scale);
+    price_content.pack_start(&workspace.container, true, true, 0);
     stack.add_named(&preferences.container, "settings");
     preferences.container.show_all();
     stack.add_named(&unidentified.container, "identify");
@@ -1862,6 +2023,8 @@ pub fn run() -> Result<(), String> {
             let _ = close_sender.send(Event::OutsideClick);
         }
     });
+    let initial_theme = settings.theme;
+    let header_widgets = header.children();
     let ui = Rc::new(Ui {
         backdrop,
         window: window.clone(),
@@ -1911,11 +2074,17 @@ pub fn run() -> Result<(), String> {
         preferences,
         preferences_worker,
         preferences_pending: Cell::new(false),
+        preferences_return_price: Cell::new(false),
         preferences_epoch: Cell::new(0),
         backend_connection: Cell::new(0),
         backend_status: RefCell::new(Err("Initialisation des raccourcis…".into())),
         updating_settings: Cell::new(false),
         css,
+        appearance: Cell::new(initial_theme),
+        content,
+        header,
+        header_widgets,
+        workspace,
         item: RefCell::new(None),
         current,
         game_active,
@@ -1935,6 +2104,13 @@ pub fn run() -> Result<(), String> {
             }) {
                 eprintln!("geometry observer stopped: {e}");
             }
+        });
+    }
+    ui.apply_appearance(initial_theme)?;
+    {
+        let events = sender.clone();
+        ui.preferences.connect_theme_preview(move |theme| {
+            let _ = events.send(Event::ThemePreview(theme));
         });
     }
     ui.refresh_league();

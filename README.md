@@ -11,9 +11,11 @@ Awakened PoE Trade.
 - Search Trade offers and hover over a result to see its full mods and price.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
 - Use a full-height overlay beside the inventory, with automatic league selection.
-- Dark navy and cyan styling inspired by the crab icon.
+- Ten live-switchable styles, including light themes, tabs and a split view.
 
 ## Screenshots
+
+[Preview all ten native styles (0.33.0)](docs/screenshots/styles/overview.webp).
 
 English demo views from version 0.32.0. Click for full panels. Offers and prices are test data.
 
@@ -34,6 +36,8 @@ Press `Esc` or click outside the panel to close it.
 
 Choose **English** or **Francais** in Settings, then Save. Game item and mod names
 remain in English. Existing preferences are imported automatically.
+Choose **Style** in Settings to preview a theme; Save keeps it and Cancel restores
+the previous style. Filters and displayed offers survive a style change.
 
 Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),

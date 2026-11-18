@@ -1,0 +1,54 @@
+#apt-native .section-marker { color: @act_accent; font-size: 11px; }
+#apt-native .mod-selection { color: @act_accent; }
+#apt-native .workspace-tabs > header { border-bottom: 1px solid @act_line; }
+#apt-native .workspace-tabs > header tab { background: transparent; border: none; border-bottom: 2px solid transparent; padding: 8px 12px; }
+#apt-native .workspace-tabs > header tab:checked { border-bottom-color: @act_accent; }
+#apt-native.theme-tide .mod-row { border: none; border-left: 2px solid transparent; border-bottom: 1px solid @act_line; border-radius: 0px; }
+#apt-native.theme-tide .mod-row.selected { border-left-color: @act_accent; background: @act_selected; }
+#apt-native.theme-relic { border-radius: 2px; }
+#apt-native.theme-relic .app-header { border-bottom-color: @act_accent; }
+#apt-native.theme-relic .header-title { font-family: Georgia, "Liberation Serif", serif; font-size: 20px; font-weight: normal; }
+#apt-native.theme-relic .price, #apt-native.theme-relic .summary-price { font-family: Georgia, "Liberation Serif", serif; }
+#apt-native.theme-relic .mod-row { border: none; border-bottom: 1px solid @act_line; border-radius: 0px; background: transparent; }
+#apt-native.theme-relic .mod-row.selected label { color: @act_accent; }
+#apt-native.theme-relic expander.filter-section > title { background: transparent; border-radius: 0px; }
+#apt-native.theme-terminal, #apt-native.theme-terminal label, #apt-native.theme-terminal entry { font-family: Monospace; }
+#apt-native.theme-terminal button, #apt-native.theme-terminal entry, #apt-native.theme-terminal spinbutton, #apt-native.theme-terminal .mod-row { border-radius: 0px; }
+#apt-native.theme-terminal .mod-row { border: none; border-left: 2px solid transparent; border-bottom: 1px solid @act_line; }
+#apt-native.theme-terminal .mod-row.selected { border-left-color: @act_accent; }
+#apt-native.theme-terminal .trade-row.even { background: @act_surface; }
+#apt-native.theme-terminal .price { font-size: 15px; }
+#apt-native.theme-frost .mod-row { background: @act_surface; border-color: transparent; }
+#apt-native.theme-frost .mod-row.selected { background: @act_selected; border-color: @act_accent; }
+#apt-native.theme-frost .price { font-weight: 500; }
+#apt-native.theme-split .price { font-size: 16px; }
+#apt-native.theme-split .trade-row { padding-top: 4px; padding-bottom: 4px; }
+#apt-native.theme-focus .mod-row { padding-top: 4px; padding-bottom: 4px; border-radius: 6px; }
+#apt-native.theme-focus button.primary { min-height: 28px; }
+#apt-native.theme-blueprint, #apt-native.theme-blueprint button, #apt-native.theme-blueprint entry, #apt-native.theme-blueprint .mod-row { border-radius: 0px; }
+#apt-native.theme-blueprint .mod-row { border: none; border-left: 3px solid @act_line; border-bottom: 1px solid @act_line; }
+#apt-native.theme-blueprint .mod-row.selected { border-left-color: @act_accent; }
+#apt-native.theme-blueprint .mod-bounds entry, #apt-native.theme-blueprint .price { font-family: Monospace; }
+#apt-native.theme-blueprint .trade-row { border-bottom-style: dashed; }
+#apt-native.theme-editorial .header-title { font-family: Georgia, "Liberation Serif", serif; font-size: 26px; font-weight: normal; }
+#apt-native.theme-editorial .price, #apt-native.theme-editorial .summary-price { font-family: Georgia, "Liberation Serif", serif; font-size: 24px; }
+#apt-native.theme-editorial .trade-row { padding-top: 4px; padding-bottom: 4px; }
+#apt-native.theme-editorial .mod-row { background: transparent; border: none; border-bottom: 1px solid @act_line; border-radius: 0px; padding-top: 4px; padding-bottom: 4px; }
+#apt-native.theme-editorial .mod-row.selected label { color: @act_accent; }
+#apt-native.theme-editorial expander.filter-section > title { background: transparent; border-radius: 0px; border: none; }
+#apt-native.theme-editorial button.chip { border: none; border-bottom: 1px solid @act_line; border-radius: 0px; }
+#apt-native.theme-compact .mod-row { border: none; border-left: 2px solid transparent; border-bottom: 1px solid @act_line; border-radius: 0px; }
+#apt-native.theme-compact .mod-row.selected { border-left-color: @act_accent; }
+#apt-native.theme-compact .price { font-size: 14px; }
+#apt-native.theme-compact .app-header { padding-bottom: 8px; }
+#apt-native.theme-compact .filter-section > title { padding: 4px 8px; }
+#apt-native.theme-merchant .app-header { border-bottom: 2px solid @act_fg; }
+#apt-native.theme-merchant .header-title { font-family: Georgia, "Liberation Serif", serif; font-size: 22px; font-weight: normal; }
+#apt-native.theme-merchant .price, #apt-native.theme-merchant .summary-price { font-family: Georgia, "Liberation Serif", serif; font-size: 23px; }
+#apt-native.theme-merchant .trade-row { background: @act_surface; }
+#apt-native.theme-merchant .mod-row { border: none; border-bottom: 1px solid @act_line; border-radius: 0px; background: transparent; }
+#apt-native.theme-merchant .mod-row.selected { background: @act_selected; }
+#apt-native.theme-merchant expander.filter-section > title { background: transparent; border-radius: 0px; }
+/* GTK's default tab shadow is blue; use the active theme's single accent. */
+#apt-native notebook > header tab { box-shadow: none; border: none; border-bottom: 2px solid transparent; background: transparent; }
+#apt-native notebook > header tab:checked { box-shadow: none; border-bottom-color: @act_accent; }

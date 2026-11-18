@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    pub theme: crate::appearance::Theme,
     #[serde(default = "crate::i18n::Language::legacy_default")]
     pub language: crate::i18n::Language,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -25,6 +26,7 @@ fn is_true(value: &bool) -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            theme: crate::appearance::Theme::default(),
             language: crate::i18n::Language::En,
             restore_clipboard: false,
             legacy: Default::default(),
@@ -206,6 +208,29 @@ mod tests {
         );
         assert_eq!(Settings::load_from_root(&root).unwrap().league, "Standard");
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn old_profiles_default_to_tide_and_all_theme_choices_persist_without_changing_filters() {
+        let old: Settings =
+            serde_json::from_value(serde_json::json!({"league":"Covens","custom":42})).unwrap();
+        assert_eq!(old.theme, crate::appearance::Theme::Tide);
+        let original_filters = serde_json::to_value(&old.filters).unwrap();
+        for theme in crate::appearance::Theme::ALL {
+            let mut settings = old.clone();
+            settings.theme = theme;
+            let encoded = serde_json::to_value(&settings).unwrap();
+            assert_eq!(encoded["theme"], theme.id());
+            let decoded: Settings = serde_json::from_value(encoded).unwrap();
+            assert_eq!(decoded.theme, theme);
+            assert_eq!(
+                serde_json::to_value(decoded.filters).unwrap(),
+                original_filters
+            );
+            assert_eq!(decoded.legacy["custom"], 42);
+        }
+        assert!(
+            serde_json::from_value::<Settings>(serde_json::json!({"theme":"unknown"})).is_err()
+        );
     }
     #[test]
     fn fresh_profiles_start_in_english() {

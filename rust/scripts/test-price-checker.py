@@ -90,7 +90,7 @@ try:
     assert select.select([fixture.stdout],[],[],5)[0];assert json.loads(fixture.stdout.readline())['ready']
     configdir=pathlib.Path(env['XDG_CONFIG_HOME'])/'awakened-crab-trade';configdir.mkdir(parents=True)
     configpath=configdir/'config.json'
-    original={'league':'Standard','automatic_league':False,'automatic_search':True,'language':language,'stopwatches':[{'legacy':'kept'}],'stash_scroll':True,'hotkeys':{'delve':'Ctrl + D'}}
+    original={'league':'Standard','automatic_league':False,'automatic_search':True,'language':language,'theme':os.environ.get('APT_FIXTURE_THEME','tide'),'stopwatches':[{'legacy':'kept'}],'stash_scroll':True,'hotkeys':{'delve':'Ctrl + D'}}
     configpath.write_text(json.dumps(original));original_bytes=configpath.read_bytes()
     httpd=http.server.ThreadingHTTPServer(('127.0.0.1',0),TradeFixture);threading.Thread(target=httpd.serve_forever,daemon=True).start()
     env['APT_RS_TEST_TRADE_BASE']=f'http://127.0.0.1:{httpd.server_address[1]}'
@@ -120,6 +120,60 @@ try:
             if v['y']+8<y<v['y']+v['height']-8:return r
             o=status()['origin'];subprocess.run([str(target/'debug/examples/pointer'),str(int(o['x']+v['x']+v['width']-10)),str(int(o['y']+v['y']+v['height']/2)),'2560','1600','--scroll','60' if y>v['y']+v['height']/2 else '-60'],env=env,check=True);time.sleep(.06)
         raise RuntimeError('stat row unreachable')
+    if os.environ.get('APT_THEME_CYCLE'):
+        copy('ctrl+alt+d',True)
+        click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'initial theme-cycle offers')
+        initial=status();request=initial['request'];generation=initial['generation'];posts_before=len(posts)
+        original_stats=[(r['id'],r['selected'],r['min_value'],r['max_value']) for r in initial['stat_controls']]
+        def open_preferences():
+            click(status()['settings_button']);wait_for(lambda:state(view='Settings') and status()['preferences']['theme']['rect']['mapped'],'appearance settings')
+            time.sleep(.12)
+        open_preferences();choose_combo(status()['preferences']['theme']['rect'],1)
+        wait_for(lambda:status()['appearance']['active']=='relic','live Relic preview')
+        assert status()['settings']['theme']=='tide' and status()['request']==request
+        click(status()['preferences']['cancel']);wait_for(lambda:state(view='Price') and status()['appearance']['active']=='tide','Cancel restores saved style')
+        assert status()['request']==request and status()['generation']==generation
+        themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant']
+        captures=pathlib.Path(os.environ.get('APT_THEME_SCREENSHOT_DIR',root/'dist/previews/themes'));captures.mkdir(parents=True,exist_ok=True)
+        checks=[]
+        for theme in themes[1:]+themes[:1]:
+            open_preferences();choose_combo(status()['preferences']['theme']['rect'],themes.index(theme))
+            wait_for(lambda:status()['appearance']['active']==theme,'preview '+theme)
+            assert status()['request']==request and len(posts)==posts_before
+            click(status()['preferences']['apply'])
+            wait_for(lambda:state(view='Price',state='Interactive') and not status()['preferences_pending'] and status()['appearance']['saved']==theme,'theme saved and checker restored: '+theme)
+            wait_for(lambda:status()['listings']['mapped_rows']==2,'offers still visible after '+theme)
+            st=status();assert st['request']==request and st['generation']==generation and len(posts)==posts_before,st
+            assert [(r['id'],r['selected'],r['min_value'],r['max_value']) for r in st['stat_controls']]==original_stats
+            assert json.loads(configpath.read_text())['theme']==theme
+            layout=st['appearance']['workspace'];f=layout['filters'];r=layout['offers'];a=layout['actions']
+            if theme=='split':assert f['x']+f['width']<=r['x'] and abs(f['y']-r['y'])<20,layout
+            if theme=='focus':
+                assert layout['page']==1 and len(layout['tabs'])==2,layout
+                click(layout['tabs'][0]);wait_for(lambda:status()['appearance']['workspace']['page']==0,'Focus filters tab')
+                assert [(r['id'],r['selected'],r['min_value'],r['max_value']) for r in status()['stat_controls']]==original_stats
+                click(status()['appearance']['workspace']['tabs'][1]);wait_for(lambda:status()['appearance']['workspace']['page']==1,'Focus offers tab')
+            if theme=='compact':assert a['y']>r['y']+r['height']-4,layout
+            pointer(st['origin']['x']+5,1200);wait_for(lambda:not status()['listings']['tooltip_visible'],'clear hover before '+theme)
+            capture_panel(str(captures/(theme+'.png')))
+            row=status()['listings']['offers'][0]['rect'];o=status()['origin'];pointer(o['x']+row['x']+row['width']-5,o['y']+row['y']+row['height']/2)
+            wait_for(lambda:status()['listings']['tooltip_visible'],'hover after '+theme)
+            d=status()['listings']['offers'][0]['detail_rect'];assert d and d['x']>=0 and d['y']>=0 and d['x']+d['width']<=status()['width']+1 and d['y']+d['height']<=status()['height']+1,(theme,d)
+            pointer(o['x']+5,1200);wait_for(lambda:not status()['listings']['tooltip_visible'],'immediate hover exit '+theme)
+            checks.append({'theme':theme,'width':status()['width'],'layout':layout,'preserved_query':True,'hover':True})
+        # Escape and outside-click closing also roll back an uncommitted preview.
+        open_preferences();choose_combo(status()['preferences']['theme']['rect'],3);wait_for(lambda:status()['appearance']['active']=='frost','Frost preview')
+        subprocess.run(['wtype','-k','Escape'],env=env,check=True)
+        wait_for(lambda:state(state='Hidden') and status()['appearance']['active']=='tide','Escape rolls back preview')
+        assert json.loads(configpath.read_text())['theme']=='tide'
+        copy('ctrl+alt+d',True);assert not status()['request'] and len(posts)==posts_before
+        open_preferences();choose_combo(status()['preferences']['theme']['rect'],9);wait_for(lambda:status()['appearance']['active']=='merchant','Merchant preview')
+        pointer(2300,1200,True);wait_for(lambda:state(state='Hidden') and status()['appearance']['active']=='tide','outside click rolls back preview')
+        assert len(posts)==posts_before and fixture_command('input')['submitted']==[]
+        assert '-CRITICAL' not in (runtime/'overlay.log').read_text()
+        report.update(themes=checks,preview_cancel_and_escape_and_outside_rollback=True,no_automatic_trade_queries=True,binary_version=subprocess.check_output([str(app),'--version'],text=True).strip(),scope='Private River/XWayland only, synthetic market fixtures, no real game input.')
+        if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report,indent=2));success=True;sys.exit(0)
     if os.environ.get('APT_FAMILY_CASE'):
         family=os.environ['APT_FAMILY_CASE']
         command('hide');focus_game();subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
@@ -168,7 +222,9 @@ try:
             picture=Image.open(runtime/'slider-colors.png').convert('RGB');y=o['y']+slider['y']+7
             gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
             cyan=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
-            assert max(gray)<80 and cyan[0]<150 and cyan[1]>180 and cyan[2]>180,(gray,cyan)
+            accent={'tide':(104,217,231),'relic':(226,161,122),'terminal':(122,200,227),'frost':(8,111,133),'split':(123,187,234),'focus':(147,175,255),'blueprint':(129,182,237),'editorial':(228,172,135),'compact':(100,214,225),'merchant':(157,79,43)}[os.environ.get('APT_FIXTURE_THEME','tide')]
+            track=(184,194,201) if os.environ.get('APT_FIXTURE_THEME') in ['frost','merchant'] else (38,43,51)
+            assert all(abs(a-b)<=2 for a,b in zip(cyan,accent)) and all(abs(a-b)<=2 for a,b in zip(gray,track)),(gray,cyan,accent,track)
             report['slider_integer_thresholds_and_cyan_gray_colors']={'gray':gray,'cyan':cyan}
             for field,text in [(row['min'],'9'),(row['max'],'40')]:
                 click(field);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--',text],env=env,check=True)

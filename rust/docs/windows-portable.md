@@ -1,6 +1,6 @@
 # Windows portable EXE
 
-Run `awakened-crab-trade-0.32.0-windows-x64-portable.exe` directly. No manual
+Run `awakened-crab-trade-0.33.0-windows-x64-portable.exe` directly. No manual
 extraction, installer or administrator privileges are needed.
 
 On first launch, GTK, the checker and their licenses are extracted to
@@ -9,7 +9,9 @@ nothing is written beside the portable EXE.
 
 Preferences live in `%APPDATA%\awakened-crab-trade\config.json`. Older profiles
 are imported automatically without changing the originals. Choose English or
-French in Settings, then Save. Item names and modifiers remain in English.
+French in Settings, then Save. Choose a Style for an immediate preview; Save
+keeps it and Cancel restores the previous style. Current filters and offers
+are preserved when saving a style change. Item names and modifiers remain in English.
 
 In PoE, hover over an item and press `Ctrl+Alt+D`. Select your filters, then
 click Search. Opening the panel never starts a Trade search; poe.ninja reference
@@ -22,6 +24,8 @@ shared libraries can be replaced. A conventional ZIP is available too.
 The launcher checks each file during extraction and publishes the complete
 folder atomically. Concurrent launches share preparation; an interrupted
 extraction is rebuilt on the next launch.
+
+Quit the running checker from its notification icon before launching an updated EXE.
 
 ## Build
 

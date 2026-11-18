@@ -15,6 +15,7 @@ pub struct Panel {
     general_scroll: gtk::ScrolledWindow,
     league: gtk::Entry,
     language: gtk::ComboBoxText,
+    theme: gtk::ComboBoxText,
     automatic_league: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
@@ -62,6 +63,30 @@ impl Panel {
         language_row.pack_start(&language, true, true, 0);
         language.set_tooltip_text(Some("La langue change après Enregistrer."));
         container.pack_start(&language_row, false, false, 0);
+        let theme = gtk::ComboBoxText::new();
+        for choice in crate::appearance::Theme::ALL {
+            theme.append(Some(choice.id()), choice.name());
+        }
+        super::wheel::protect_combo(&theme);
+        let theme_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        theme_row.pack_start(&gtk::Label::new(Some("Style")), false, false, 0);
+        theme_row.pack_start(&theme, true, true, 0);
+        let description = gtk::Label::new(None);
+        description.set_line_wrap(true);
+        description.set_xalign(0.);
+        description.style_context().add_class("muted");
+        let note = description.clone();
+        theme.connect_changed(move |combo| {
+            if let Some(theme) = combo
+                .active_id()
+                .as_deref()
+                .and_then(crate::appearance::Theme::from_id)
+            {
+                note.set_text(theme.description());
+            }
+        });
+        container.pack_start(&theme_row, false, false, 0);
+        container.pack_start(&description, false, false, 0);
         let general = gtk::Grid::new();
         general.set_row_spacing(10);
         general.set_column_spacing(12);
@@ -188,6 +213,7 @@ impl Panel {
             general_scroll: scroll,
             league,
             language,
+            theme,
             automatic_league,
             online,
             scale,
@@ -230,6 +256,7 @@ impl Panel {
     }
     fn fill(&self, s: &Settings) {
         self.language.set_active_id(Some(s.language.id()));
+        self.theme.set_active_id(Some(s.theme.id()));
         self.league.set_text(&s.league);
         self.automatic_league.set_active(s.automatic_league);
         self.league.set_sensitive(!s.automatic_league);
@@ -265,6 +292,12 @@ impl Panel {
         } else {
             crate::i18n::Language::En
         };
+        s.theme = self
+            .theme
+            .active_id()
+            .as_deref()
+            .and_then(crate::appearance::Theme::from_id)
+            .ok_or("Style inconnu.")?;
         s.league = self.league.text().trim().into();
         s.automatic_league = self.automatic_league.is_active();
         s.filters.online = self.online.is_active();
@@ -311,6 +344,8 @@ impl Panel {
     }
     pub fn busy(&self, busy: bool) {
         self.form.set_sensitive(!busy);
+        self.theme.set_sensitive(!busy);
+        self.language.set_sensitive(!busy);
         self.apply.set_sensitive(!busy);
         self.cancel.set_sensitive(!busy);
         self.reset.set_sensitive(!busy);
@@ -364,11 +399,22 @@ impl Panel {
     pub fn cancel_capture(&self) {
         self.capture.set(None);
     }
+    pub fn connect_theme_preview(&self, preview: impl Fn(crate::appearance::Theme) + 'static) {
+        self.theme.connect_changed(move |combo| {
+            if let Some(theme) = combo
+                .active_id()
+                .as_deref()
+                .and_then(crate::appearance::Theme::from_id)
+            {
+                preview(theme);
+            }
+        });
+    }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"theme":{"value":self.theme.active_id().as_deref(),"rect":rect(self.theme.upcast_ref())},"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

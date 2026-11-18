@@ -17,6 +17,7 @@ Build the release binary first, then run:
 python3 rust/scripts/test-price-checker.py
 APT_FAMILY_CASE=wand python3 rust/scripts/test-price-checker.py
 APT_FAMILY_CASE=viscera-siren python3 rust/scripts/test-price-checker.py
+APT_THEME_CYCLE=1 APT_FIXTURE_LANGUAGE=en python3 rust/scripts/test-price-checker.py
 ```
 
 Other family cases: gem, currency, unique, map, viscera and influence. The test
@@ -31,7 +32,10 @@ The full runner also checks live English/French switching and cancellation of
 a language draft. Set `APT_FIXTURE_LANGUAGE=en` for English captures; the
 default test language is French. All runners deliberately load a legacy
 `automatic_search=true` profile and verify that copying sends no Trade request
-until Search is clicked. Core tests cover profile import and language defaults.
+until Search is clicked. Core tests cover profile import, language defaults and all ten persisted theme IDs.
+Theme-cycle checks preserve a live query across all styles, validate Split/Focus/
+Compact geometry and whole-row hover, and exercise Cancel/Escape/outside rollback.
+Use `APT_FIXTURE_THEME=focus` (or another theme ID) for a family-specific layout check.
 
 ## Packaged Windows
 
@@ -40,7 +44,7 @@ Run `windows-sandbox.py` in a separate terminal. With that guarded desktop activ
 
 ```sh
 python3 rust/scripts/setup-windows-test-layout.py
-python3 rust/scripts/test-windows-portable.py
+APT_WINDOWS_THEME_CYCLE=1 python3 rust/scripts/test-windows-portable.py
 ```
 
 The runner builds its Win32 fixture and launcher unit tests from the current

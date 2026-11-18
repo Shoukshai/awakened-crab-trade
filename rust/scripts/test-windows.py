@@ -41,7 +41,7 @@ wp=lambda p:'Z:'+str(pathlib.Path(p).resolve()).replace('/','\\')
 env.update(APPDATA=wp(root/'config'),LOCALAPPDATA=wp(root/'cache'),APT_RS_WINDOWS_TEST_DIR=wp(root),APT_RS_WINDOWS_TEST_TOKEN=(root/'fixture.guard').read_text(),GDK_BACKEND='win32',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',NO_PROXY='127.0.0.1,localhost')
 for d in ['config/awakened-crab-trade','cache/awakened-crab-trade']:(root/d).mkdir(parents=True,exist_ok=True)
 config=root/'config/awakened-crab-trade/config.json'
-config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':True,'language':os.environ.get('APT_FIXTURE_LANGUAGE','fr'),'restore_clipboard':True})
+config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':True,'language':os.environ.get('APT_FIXTURE_LANGUAGE','fr'),'theme':os.environ.get('APT_FIXTURE_THEME','tide'),'restore_clipboard':True})
 config.write_text(config_data)
 # Wine initializes APPDATA from its private registry when starting explorer.
 for user in (root/'prefix/drive_c/users').iterdir():
@@ -97,6 +97,45 @@ try:
  subprocess.run(['grim',str(root/'before-veil.png')],env=env,check=True)
  baseline=Image.open(root/'before-veil.png').convert('RGB').getpixel((200,500));report['before_veil_pixel']=baseline
  print('fake game active',flush=True)
+ if os.environ.get('APT_WINDOWS_THEME_CYCLE'):
+  command('locked-copy');wait(lambda:status()['item'] and status()['state']=='Interactive' and status()['rendered'],'initial theme-cycle copy')
+  control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'initial theme-cycle offers')
+  initial=status();request=initial['request'];generation=initial['generation'];post_count=len(posts)
+  expected=[(r['id'],r['selected'],r['min_value'],r['max_value']) for r in initial['stat_controls']]
+  themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant']
+  def preview_theme(theme):
+   control(status()['settings_button']);wait(lambda:status()['view']=='Settings' and status()['preferences']['theme']['rect']['mapped'],'theme settings')
+   control(status()['preferences']['theme']['rect']);wait(lambda:status()['owned_popup'],'theme dropdown')
+   subprocess.run(['xdotool','key','--clearmodifiers','Home',*(['Down']*themes.index(theme)),'Return'],env=env,check=True)
+   wait(lambda:not status()['owned_popup'] and status()['appearance']['active']==theme,'live '+theme)
+   target={'split':640,'editorial':540,'merchant':540,'compact':400}.get(theme,480)
+   wait(lambda:status()['width']==target and status()['native_rect']==status()['panel_bounds'],'settled theme width '+theme)
+   time.sleep(.12)
+  preview_theme('frost');assert status()['appearance']['saved']=='tide'
+  control(status()['preferences']['cancel']);wait(lambda:status()['view']=='Price' and status()['appearance']['active']=='tide','Cancel restores theme')
+  checks=[]
+  for theme in themes[1:]+themes[:1]:
+   preview_theme(theme);assert status()['request']==request and len(posts)==post_count
+   control(status()['preferences']['apply'])
+   wait(lambda:status()['view']=='Price' and status()['state']=='Interactive' and not status()['preferences_pending'] and status()['appearance']['saved']==theme,'save '+theme)
+   wait(lambda:status()['listings']['mapped_rows']==2,'offers preserved after '+theme)
+   st=status();assert st['request']==request and st['generation']==generation
+   assert st['width']=={'split':640,'editorial':540,'merchant':540,'compact':400}.get(theme,480)
+   assert [(r['id'],r['selected'],r['min_value'],r['max_value']) for r in st['stat_controls']]==expected
+   layout=st['appearance']['workspace']
+   if theme=='split':assert layout['filters']['x']+layout['filters']['width']<=layout['offers']['x'],layout
+   if theme=='focus':assert layout['page']==1 and len(layout['tabs'])==2
+   if theme=='compact':assert layout['actions']['y']>=layout['offers']['y']+layout['offers']['height']-4,layout
+   assert st['native_rect']==st['panel_bounds'],(theme,st['native_rect'],st['panel_bounds'])
+   pointer(st['origin']['x']+4,800);time.sleep(.1);shot('theme-'+theme+'.png')
+   row=status()['listings']['offers'][0]['rect'];o=status()['origin'];pointer(o['x']+row['x']+row['width']-5,o['y']+row['y']+row['height']/2)
+   wait(lambda:status()['listings']['tooltip_visible'],'hover '+theme)
+   pointer(o['x']+4,800);wait(lambda:not status()['listings']['tooltip_visible'],'hover leaves '+theme)
+   assert len(posts)==post_count
+   checks.append({'theme':theme,'width':st['width'],'preserved_query':True,'hover':True})
+  preview_theme('merchant');subprocess.run(['xdotool','key','Escape'],env=env,check=True)
+  wait(lambda:status()['state']=='Hidden' and status()['appearance']['active']=='tide','Escape rolls back unsaved theme')
+  report['theme_cycle']=checks;report['theme_preview_cancel_and_escape']=True
  for family,fixture in [('wand','driftwood-wand.txt'),('gem','price-gem.txt'),('currency','price-currency.txt'),('unique','price-unique.txt'),('map','price-map.txt'),('viscera','price-viscera.txt'),('viscera-siren','price-viscera-siren.txt'),('influence','price-influence.txt')]:
   if os.environ.get('APT_WINDOWS_FAMILY_CASE') and family!=os.environ['APT_WINDOWS_FAMILY_CASE']:continue
   family_env['APT_FIXTURE_ITEM']=family;command('hide');(root/'fixture-item.txt').write_text((r/'src/fixtures'/fixture).read_text());click(200,700);wait(lambda:status()['game_active'],'game active before copy')
@@ -196,6 +235,8 @@ try:
  endpoint_before=endpoint();launch(app,[],'second-instance')
  wait(lambda:status()['view']=='Settings' and status()['state']=='Interactive','second launch opens settings')
  assert endpoint()['pid']==endpoint_before['pid'];report['single_instance']=True
+ control(status()['preferences']['cancel']);wait(lambda:status()['state']=='Hidden','detached settings Cancel does not open the checker over another app')
+ report['detached_settings_cancel_keeps_checker_hidden']=True
  report['binary_sha256']=hashlib.sha256(app.read_bytes()).hexdigest();report['settings_without_game']=True
  (r/'dist/windows-private-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
 finally:
