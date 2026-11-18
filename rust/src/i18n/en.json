@@ -280,5 +280,7 @@
   "Choisissez le nom du fichier .exe du client cloud ou son chemin complet.": "Choose the cloud client's .exe filename or full path.",
   "L’OCR nécessite un raccourci de prix contenant Alt, par exemple Ctrl + Alt + D.": "OCR capture needs a price shortcut containing Alt, for example Ctrl + Alt + D.",
   "La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais.": "The tooltip area is detected automatically. Hold Alt until advanced details appear, then press Ctrl+D. Review the text before searching. English game text is required.",
-  "Aucune infobulle reconnue sans ambiguïté. Survolez un objet, gardez Alt enfoncé jusqu’aux détails avancés, puis réessayez Ctrl+D (jeu en anglais).": "No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text)."
+  "Aucune infobulle reconnue sans ambiguïté. Survolez un objet, gardez Alt enfoncé jusqu’aux détails avancés, puis réessayez Ctrl+D (jeu en anglais).": "No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).",
+  "Diagnostic OCR": "OCR diagnostic",
+  "Copier le diagnostic": "Copy diagnostic"
 }

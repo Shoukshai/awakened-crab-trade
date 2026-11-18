@@ -147,6 +147,21 @@ try:
  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
  wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','OCR review',30)
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
+ if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')=='1':
+  assert review['status'].startswith('Fallback OCR'),review
+  assert review['diagnostic_visible'] and 'Version 0.36.3' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
+  assert review['copy_diagnostic']['width']>0,review
+  shot('ocr-fallback-diagnostic-en.png')
+  control(review['copy_diagnostic'])
+  click(200,700);wait(lambda:status()['state']=='Hidden' and status()['game_active'],'return to cloud after copying diagnostic')
+  subprocess.run(['xdotool','key','--clearmodifiers','F12'],env=env,check=True)
+  wait(lambda:(root/'clipboard-read.txt').exists(),'read copied diagnostic')
+  assert (root/'clipboard-read.txt').read_text()==review['diagnostic']
+  assert json.loads((root/'cloud.state.json').read_text())['copies']==0
+  report.update(neural_failure_visible=True,diagnostic_copied=True,diagnostic=review['diagnostic'],no_clipboard_injection=True)
+  (r/'dist/windows-ocr-fallback-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
+  raise SystemExit(0)
+ assert not review['diagnostic_visible'] and not review['diagnostic'],review
  assert 'Item Level: 71' in review['text'],review
  assert 'Regenerate 56.5 Life per second' in review['text'],review
  assert not posts and st['request'] is None

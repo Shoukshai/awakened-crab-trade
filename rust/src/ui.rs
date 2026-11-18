@@ -1643,10 +1643,21 @@ pub fn run() -> Result<(), String> {
             .map_err(|e| e.to_string())?
             .unwrap_or(1)
             .clamp(1, 20);
+        let hints: Vec<[usize; 4]> = args
+            .get(4)
+            .map(|path| {
+                let data = std::fs::read(path).map_err(|e| e.to_string())?;
+                if data.len() > 16384 {
+                    return Err("OCR hints file too large".to_string());
+                }
+                serde_json::from_slice(&data).map_err(|e| e.to_string())
+            })
+            .transpose()?
+            .unwrap_or_default();
         let mut runs = Vec::new();
         for _ in 0..repeats {
             let started = Instant::now();
-            let lines = crate::neural_ocr::recognize(
+            let lines = crate::neural_ocr::recognize_seeded(
                 &root,
                 crate::neural_ocr::Image {
                     width: p.width() as usize,
@@ -1654,11 +1665,12 @@ pub fn run() -> Result<(), String> {
                     bgra: &pixels,
                 },
                 false,
+                &hints,
                 &|| Ok(()),
             )?;
             let original_ms = started.elapsed().as_millis();
             let started = Instant::now();
-            let colored = crate::neural_ocr::recognize(
+            let colored = crate::neural_ocr::recognize_seeded(
                 &root,
                 crate::neural_ocr::Image {
                     width: p.width() as usize,
@@ -1666,6 +1678,7 @@ pub fn run() -> Result<(), String> {
                     bgra: &pixels,
                 },
                 true,
+                &hints,
                 &|| Ok(()),
             )?;
             runs.push(serde_json::json!({"original_ms":original_ms,"colored_ms":started.elapsed().as_millis(),"lines":lines,"colored":colored}));
@@ -1723,7 +1736,7 @@ pub fn run() -> Result<(), String> {
         let d = crate::desktop::ocr::recognize(&image, &|| Ok(()))?;
         println!(
             "{}",
-            serde_json::json!({"item":Item::parse(&d.text).ok(),"text":d.text,"unknown":d.unknown,"engine":d.engine})
+            serde_json::json!({"item":Item::parse(&d.text).ok(),"text":d.text,"unknown":d.unknown,"engine":d.engine,"diagnostic":d.diagnostic})
         );
         return Ok(());
     }

@@ -21,7 +21,7 @@ pub(super) const PROPERTIES: &[&str] = &[
 ];
 
 pub(super) fn property(text: &str) -> Option<(&'static str, String)> {
-    let (label, value) = text.split_once(':')?;
+    let (label, value) = text.split_once([':', ';'])?;
     let name = *PROPERTIES.iter().find(|p| key(p) == key(label))?;
     let value = value.trim();
     // Some OCR passes read the quality '+' as a hash/backslash. Remove only

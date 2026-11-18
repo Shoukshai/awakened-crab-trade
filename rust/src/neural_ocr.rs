@@ -1,6 +1,9 @@
 //! Local English PP-OCRv5 recognition. No Python, GPU, network or file captures.
 //! One persistent CPU session, two compute threads, bounded line tensors.
-use ort::{session::Session, value::Tensor};
+use ort::{
+    session::{builder::GraphOptimizationLevel, Session},
+    value::Tensor,
+};
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
@@ -86,7 +89,37 @@ impl Model {
             .with_telemetry(false)
             .commit()
             .map_err(|e| e.to_string())?;
+        let mut failures = Vec::new();
+        for (name, level) in [
+            ("optimized", GraphOptimizationLevel::Level3),
+            ("basic", GraphOptimizationLevel::Level1),
+        ] {
+            let mut model = Self::session(&data, level)?;
+            let probe = Image {
+                width: 240,
+                height: 32,
+                bgra: include_bytes!("../assets/fixtures/ocr/neural-probe.bgra"),
+            };
+            let (text, confidence) = model.read(&probe, [7, 5, 191, 23], false)?;
+            eprintln!("ocr neural self_test={name} text={text:?} confidence={confidence:.3}");
+            if text == "Energy Shield: 149" && confidence > 0.9 {
+                eprintln!(
+                    "ocr neural model=PP-OCRv5 runtime=ONNX threads=2 graph={name} load_ms={}",
+                    started.elapsed().as_millis()
+                );
+                return Ok(model);
+            }
+            failures.push(format!("{name}: {text:?}"));
+        }
+        Err(format!(
+            "Neural OCR self-test failed ({}).",
+            failures.join("; ")
+        ))
+    }
+    fn session(data: &[u8], level: GraphOptimizationLevel) -> Result<Self, String> {
         let session = Session::builder()
+            .map_err(|e| e.to_string())?
+            .with_optimization_level(level)
             .map_err(|e| e.to_string())?
             .with_intra_threads(2)
             .map_err(|e| e.to_string())?
@@ -100,7 +133,7 @@ impl Model {
             .map_err(|e| e.to_string())?
             .with_memory_pattern(false)
             .map_err(|e| e.to_string())?
-            .commit_from_memory(&data)
+            .commit_from_memory(data)
             .map_err(|e| e.to_string())?;
         let chars = session
             .metadata()
@@ -111,10 +144,6 @@ impl Model {
         let mut dictionary = vec![String::new()]; // CTC blank
         dictionary.extend(chars.lines().map(str::to_owned));
         dictionary.push(" ".into()); // Paddle's use_space_char
-        eprintln!(
-            "ocr neural model=PP-OCRv5 runtime=ONNX threads=2 load_ms={}",
-            started.elapsed().as_millis()
-        );
         Ok(Self {
             session,
             dictionary,
@@ -268,15 +297,6 @@ fn ctc(scores: &[f32], classes: usize, dictionary: &[String]) -> Result<(String,
     ))
 }
 
-pub fn recognize(
-    root: &Path,
-    image: Image<'_>,
-    colored: bool,
-    check: &impl Fn() -> Result<(), String>,
-) -> Result<Vec<Reading>, String> {
-    recognize_seeded(root, image, colored, &[], check)
-}
-
 /// Positioned scout lines supplement projection when translucent backgrounds
 /// join adjacent baselines. Coordinates always come from automatic OCR.
 pub fn recognize_seeded(
@@ -314,6 +334,10 @@ pub fn recognize_seeded(
     } else {
         hinted_regions(&image, hints, colored)?
     };
+    if boxes.is_empty() && !hints.is_empty() {
+        eprintln!("ocr neural retry=projection reason=empty_scout_regions");
+        boxes = regions(&image, colored)?;
+    }
     boxes.sort_by_key(|r| r[1]);
     if boxes.is_empty() {
         return Err("No text lines found by neural segmentation.".into());
@@ -338,12 +362,36 @@ pub fn recognize_seeded(
             });
         }
     }
+    if out.is_empty() && !hints.is_empty() {
+        let projection = regions(&image, colored)?;
+        eprintln!("ocr neural retry=projection regions={}", projection.len());
+        for r in projection {
+            check()?;
+            if started.elapsed() > Duration::from_secs(15) {
+                return Err("Neural OCR timed out.".into());
+            }
+            let (text, confidence) = model.read(&image, r, colored)?;
+            if !text.is_empty() {
+                out.push(Reading {
+                    text,
+                    confidence,
+                    x: r[0],
+                    y: r[1],
+                    width: r[2],
+                    height: r[3],
+                });
+            }
+        }
+    }
     eprintln!(
         "ocr neural colored={colored} hints={} regions={region_count} lines={} elapsed_ms={}",
         hints.len(),
         out.len(),
         started.elapsed().as_millis()
     );
+    if out.is_empty() {
+        return Err(format!("Neural OCR returned no text from {region_count} scout regions or projection; model self-test passed."));
+    }
     Ok(out)
 }
 
@@ -480,7 +528,7 @@ mod tests {
     #[test]
     fn cancellation_precedes_model_loading() {
         assert_eq!(
-            recognize(
+            recognize_seeded(
                 Path::new("missing"),
                 Image {
                     width: 0,
@@ -488,6 +536,7 @@ mod tests {
                     bgra: &[]
                 },
                 false,
+                &[],
                 &|| Err("cancelled".into())
             )
             .unwrap_err(),

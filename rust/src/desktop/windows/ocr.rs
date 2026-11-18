@@ -91,6 +91,43 @@ impl Image {
             pixels,
         }
     }
+    /// A continuous gold header rule bounds the tooltip more reliably than
+    /// a fixed margin around its title. Never use surrounding inventory text
+    /// as neural input when the visible frame supplies its actual edges.
+    fn header_edges(&self, band: &(usize, usize, usize, usize, usize)) -> Option<(usize, usize)> {
+        let center = (band.2 + band.3) / 2;
+        let mut best = None;
+        for y in band.0.saturating_sub(22)..(band.1 + 14).min(self.height) {
+            let (mut start, mut last, mut count) = (None, 0, 0);
+            for x in center.saturating_sub(1000)..(center + 1006).min(self.width + 5) {
+                let gold = if x < self.width {
+                    let p = &self.pixels[(y * self.width + x) * 4..];
+                    let (b, g, r) = (p[0] as u32, p[1] as u32, p[2] as u32);
+                    r > 70 && g > 45 && r >= g && g * 100 > b * 115 && r > b + 35
+                } else {
+                    false
+                };
+                if gold {
+                    start.get_or_insert(x);
+                    last = x;
+                    count += 1;
+                } else if let Some(left) = start.filter(|_| x - last > 4) {
+                    let width = last - left + 1;
+                    if left < center
+                        && center < last
+                        && width >= 220
+                        && count * 100 >= width * 85
+                        && best.is_none_or(|(a, b)| width > b - a)
+                    {
+                        best = Some((left.saturating_sub(4), (last + 5).min(self.width)));
+                    }
+                    start = None;
+                    count = 0;
+                }
+            }
+        }
+        best
+    }
     /// Find the yellow two-line rare header before OCR. This keeps inventory
     /// and sales-history text out of the expensive fallback pass. Leave enough
     /// width for advanced modifier descriptions, which exceed the base name.
@@ -142,8 +179,9 @@ impl Image {
             .iter()
             .filter(|b| b.1 - b.0 >= 16)
             .max_by_key(|b| b.4)?;
-        let left = b.2.saturating_sub(300);
-        let right = (b.3 + 300).min(self.width);
+        let (left, right) = self
+            .header_edges(b)
+            .unwrap_or((b.2.saturating_sub(300), (b.3 + 300).min(self.width)));
         let top = b.0.saturating_sub(22);
         let mut bottom = (top + 1000).min(self.height);
         let mut streak = 0;
@@ -546,7 +584,7 @@ fn neural_pass(
             let y = l.y.max(0.).floor() as usize;
             let right = (l.x + l.width).ceil().max(0.) as usize;
             let bottom = (l.y + l.height).ceil().max(0.) as usize;
-            (right > x && bottom > y).then_some([
+            (right > x && bottom > y && x < image.width && y < image.height).then_some([
                 x,
                 y,
                 right.saturating_sub(x),
@@ -807,6 +845,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     let gem = crate::ocr::is_gem_tooltip(&refined);
     // The small model reads the isolated tooltip, not the whole desktop.
     // Scout text remains independent evidence for obscured glyphs/properties.
+    let mut neural_failure = None;
     let neural = match neural_pass(&focused, false, &seed, gem, check) {
         Ok(mut neural) if !neural.is_empty() => {
             crate::ocr::merge_stats(&mut neural, refined.clone(), 3);
@@ -825,11 +864,13 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         }
         Ok(_) => {
             eprintln!("ocr neural fallback: no readable output lines");
+            neural_failure = Some("Neural OCR returned no readable text.".to_owned());
             false
         }
         Err(error) => {
             check()?;
             eprintln!("ocr neural fallback: {error}");
+            neural_failure = Some(error);
             false
         }
     };
@@ -894,7 +935,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         let rules = focused.body_rules(center, after, before);
         crate::ocr::apply_implicit_section(&mut refined, &rules, center);
     }
-    let result = crate::ocr::draft(
+    let mut result = crate::ocr::draft(
         refined,
         if neural {
             engine.into()
@@ -902,7 +943,15 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
             "Fallback OCR".into()
         },
     )
-    .or_else(|_| crate::ocr::draft(lines, "Fallback OCR".into()));
+    .or_else(|error| {
+        eprintln!("ocr neural item fallback: {error}");
+        neural_failure = Some(format!("Item reconstruction failed: {error}"));
+        crate::ocr::draft(lines, "Fallback OCR".into())
+    });
+    if let Ok(draft) = &mut result {
+        draft.diagnostic =
+            neural_failure.map(|reason| format!("Version {}\n{reason}", env!("CARGO_PKG_VERSION")));
+    }
     eprintln!(
         "ocr recognition engine={} gem={gem} total_ms={}",
         result

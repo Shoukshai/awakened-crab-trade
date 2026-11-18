@@ -91,5 +91,19 @@
     "sha256": "c4fbd7c80bc93c882660895935bbcbf455a4f22d02156b7851900f6274c38a64",
     "advanced_tooltip": false,
     "expected_ilvl": null
+  },
+  {
+    "file": "belt-inventory-local.png",
+    "source": "Game area only from user local Windows OCR report, 2026-11-18; overlay excluded",
+    "original_sha256": "88fad50f6510c9e6d71c93c3412128225b1615d5ee610d5368e9667dbeb18e49",
+    "crop_xyxy": [
+      477,
+      0,
+      1143,
+      1080
+    ],
+    "sha256": "433011fedafa256a98594127f0a9d1010595bfe4abd1933d1321e8942ed34c0d",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
   }
 ]

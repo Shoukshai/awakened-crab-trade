@@ -18,11 +18,12 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  tip=Image.open(image).convert('RGB');canvas=Image.new('RGB',(1920,1080),(24,28,34));draw=ImageDraw.Draw(canvas)
  font_path=subprocess.check_output(['fc-match','-f','%{file}','sans-serif'],text=True).strip();font=ImageFont.truetype(font_path,18)
  for i in range(12):draw.text((720,60+i*36),'Sold: Brimstone Nail Topaz Ring - For: 200 x Chaos Orb',fill=(185,170,130),font=font)
- origin=(50,650) if case['file']=='gloves.png' else (1300,30)
+ origin=(50,650) if case['file']=='gloves.png' else ((900,0) if case['file']=='belt-inventory-local.png' else (1300,30))
  canvas.paste(tip,origin);image=root/('full-frame-'+case['file']);canvas.save(image)
  start=time.monotonic();result=subprocess.run([s['wine'],wp(app),'ocr-image',wp(image)],env=env,capture_output=True,timeout=90)
  assert result.returncode==0,(case['file'],result.stderr.decode(errors='replace'))
  data=json.loads(result.stdout);(root/('ocr-result-'+case['file']+'.json')).write_text(json.dumps(data,indent=2)+'\n')
+ assert 'text="Energy Shield: 149"' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
  assert data['engine']=='PP-OCRv5 English (CPU)','Packaged neural runtime/model was not used'
  text=data['text'];item=data['item'];assert item['item_level']==case['expected_ilvl'],'Wrong or invented item level'
  if case['file']=='gloves.png':
@@ -48,7 +49,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   if flat:assert item['properties']['energy_shield']==308,text
   else:assert 'Uncertain defence values:' in text and item['properties']['energy_shield'] is None,text
   assert any(m['reference']=='Has # Abyssal Sockets' and m['value']==1 for m in item['modifiers']),text
- elif case['file']=='leather-belt-local.png':
+ elif case['file'] in ['leather-belt-local.png','belt-inventory-local.png']:
   assert item['base']=='Leather Belt' and item['rarity']=='Rare',text
   assert not data['unknown'],text
   mods=item['modifiers'];assert len(mods)==7,text
@@ -76,5 +77,15 @@ assert neural['threads']==2 and 0<neural['peak_process_mib']<1024,neural
 import re
 assert any(re.search(r'\+41\b.*maximum.*energy shield',line['text'],re.I) for line in neural['runs'][0]['lines']),neural
 report['neural_diagnostic']=neural
+# Wrong scout coordinates must not silently disable neural recognition.
+hints=root/'blank-neural-hints.json';hints.write_text('[[0,100,1,1]]')
+recovery_frame=root/'blank-scout-recovery.png'
+recovery_image=Image.new('RGB',(1920,1080),(24,28,34));recovery_image.paste(Image.open(r/'assets/fixtures/ocr/gloves.png').convert('RGB'),(50,650));recovery_image.save(recovery_frame)
+recovery=subprocess.run([s['wine'],wp(app),'ocr-neural',wp(recovery_frame),wp(app.parent),'1',wp(hints)],env=env,capture_output=True,timeout=90)
+assert recovery.returncode==0,recovery.stderr.decode(errors='replace')
+assert 'ocr neural retry=projection' in recovery.stderr.decode(errors='replace'),recovery.stderr.decode(errors='replace')
+recovered=json.loads(recovery.stdout)
+assert any(re.search(r'regenerate\s+56\.5',line['text'],re.I) for line in recovered['runs'][0]['lines']),recovered
+report['blank_scout_regions_recovered_by_projection']=True
 (r/'dist/ocr-screenshot-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report,indent=2))

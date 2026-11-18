@@ -28,6 +28,7 @@ pub struct Draft {
     pub text: String,
     pub unknown: Vec<String>,
     pub engine: String,
+    pub diagnostic: Option<String>,
 }
 pub fn key(s: &str) -> String {
     s.chars()
@@ -676,6 +677,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         text,
         unknown,
         engine,
+        diagnostic: None,
     })
 }
 
@@ -797,12 +799,19 @@ fn check_defences(text: &str, unknown: &mut Vec<String>) -> String {
 }
 
 fn reminder(text: &str) -> bool {
+    // Short, isolated glyph fragments are not item mods. Strip only the
+    // uncertainty marker for noise classification, never for stat matching.
+    let text = text
+        .trim()
+        .strip_prefix("Uncertain OCR: ")
+        .unwrap_or(text)
+        .trim();
     let k = key(text);
-    text.trim().starts_with('(')
+    text.starts_with('(')
         || k.contains("ailmentsareignited")
         || k.contains("abyssjewelscanbesocketed")
         || k.contains("coldexposuresubtractsfromcoldresistance")
-        || (k.len() < 3 && k.chars().all(|c| c.is_ascii_alphabetic()))
+        || k.len() < 3
 }
 
 fn base_roll(text: &str) -> Option<[f64; 3]> {
@@ -942,6 +951,10 @@ mod tests {
     }
     #[test]
     fn reported_quality_punctuation_and_exposure_reminder_do_not_hide_mods() {
+        assert_eq!(
+            readings::property("ArmouR; 451"),
+            Some(("Armour", "451".into()))
+        );
         let rows = [
             "Paladin Boots",
             r"QUALITY:\#20%",
@@ -971,6 +984,19 @@ mod tests {
             .modifiers
             .iter()
             .any(|m| m.value == Some(9.) && m.reference.contains("maximum Energy Shield")));
+    }
+    #[test]
+    fn uncertain_fragments_are_noise_but_damaged_modifier_text_stays_in_review() {
+        let lines = vec![
+            line("Leather Belt", 0., Some(Rarity::Rare)),
+            line("25 to maximum Life", 22., None),
+            line("Uncertain OCR: 0", 44., None),
+            line("Uncertain OCR: 9O", 66., None),
+            line("Uncertain OCR: 14% to Fire Resistanc", 88., None),
+        ];
+        let d = draft(lines, "test".into()).unwrap();
+        assert_eq!(d.unknown, ["Uncertain OCR: 14% to Fire Resistanc"]);
+        assert!(d.text.contains("25 to maximum Life"));
     }
     #[test]
     fn visible_dividers_classify_implicits_without_overriding_source_headers() {
@@ -1027,6 +1053,7 @@ mod tests {
         ];
         let d = draft(lines, "test".into()).unwrap();
         assert_eq!(d.engine, "test");
+        assert!(d.diagnostic.is_none());
         let item = crate::item::Item::parse(&d.text).unwrap();
         assert_eq!(item.base, "Assassin's Mitts");
         assert_eq!(item.rarity, Rarity::Rare);

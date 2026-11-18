@@ -76,6 +76,25 @@ the partially covered advanced screenshots are not complete pixel fixtures.
 These changes do not train or replace the model. User timing on native Windows
 is still required; there is no claimed speedup for every item.
 
+## 0.36.3 native Windows investigation
+
+A supplied 0.36.2 native Windows log confirmed successful model loading (96 ms)
+but zero decoded lines from 29 scout regions (576 ms). Capture took 143 ms;
+recognition with fallback took 7.03 s. These are one reported item's timings,
+not a hardware benchmark or evidence of a missing runtime.
+
+The update tests the recognizer on an embedded synthetic line and retries basic
+graph optimizations if that known input fails. Empty scout output also tries
+independent projection; rare-tooltip frame edges restrict neighboring UI text.
+Fallback reasons are visible and copiable in review. These checks distinguish
+runtime execution from bad capture/segmentation; the native failure's cause still
+requires the new self-test result rather than a claim based only on Wine tests.
+
+The synthetic probe is a rendered "Energy Shield: 149" line in DejaVu Sans,
+240x32 BGRA pixels; it contains no user capture. Recognition still runs locally
+in Rust with the bundled native runtime. A deliberately wrong scout region is
+included in the packaged executable's regression tests to verify projection retry.
+
 ## Reproduce
 
 For a Windows ZIP, run the extracted checker from its directory:
