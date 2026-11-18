@@ -1,12 +1,14 @@
 {
-  "app_version": "0.31.1",
+  "app_version": "0.32.0",
+  "language": "en",
   "scope": "Actual app captures on isolated test desktops using demo clipboard items and synthetic market responses. No real game input or live market prices.",
   "previews": "Cropped panels with no content changes. Full panel captures are linked from README.",
-  "linux_binary_sha256": "1bafd3a57136c0857c1be8e386f462b1883927f716f3d2c31203456225be72ef",
+  "linux_binary_sha256": "a7ae7d95f9175df24a0198b603a53815bfeb925f3c684255103761102df779dc",
   "images": [
     {
       "name": "gem",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/gem.png",
       "preview": "gem.png",
       "full_size": [
@@ -17,12 +19,13 @@
         480,
         600
       ],
-      "full_sha256": "77634ec7e854a6bb97959080b1fe5d0a7844ac3797f294e2d97860895257a206",
-      "preview_sha256": "655d1d8792bf76c9334766ae600909466ef57cd1a9350c75f36349c8d26295e7"
+      "full_sha256": "20a017c03134cac098792c255e4aec9d31889b62a966eb6c2f0ec4c9099cdf6a",
+      "preview_sha256": "0f6dd1776ac7303e5f3e126a502a687bc48025501e3b34dd35e66b6a0b308bef"
     },
     {
       "name": "rare",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/rare.png",
       "preview": "rare.png",
       "full_size": [
@@ -33,12 +36,13 @@
         480,
         984
       ],
-      "full_sha256": "a6ad242169574330f2788bfbcc752876e2063f4b3124fee877274bb865fafa26",
-      "preview_sha256": "2805e92dc1aaaa349bd674c7b1606462e141628feaa52ef6583e268db073357c"
+      "full_sha256": "0d67dbc22789aae3901a0c872aa5cf3511d50e1f08003f8f698cd6f56cf04b56",
+      "preview_sha256": "34c043a03047c2d0d2d5392d7064e0e7771d8c261a0899adaa446a5b251b4907"
     },
     {
       "name": "unique",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/unique.png",
       "preview": "unique.png",
       "full_size": [
@@ -49,12 +53,13 @@
         480,
         864
       ],
-      "full_sha256": "53c74c030c9bc4029cac24232b918d7e536c3b73892cceb1309d244fe33f0a0e",
-      "preview_sha256": "08516c6f9e87417f2330c6a932aec1f3ddf277954821552cb689060ef63735af"
+      "full_sha256": "a17ab64a5f408383b917ddea0210a9f547f80e6da375b61184a095f1c9afdb5e",
+      "preview_sha256": "7e71a1e5e38b9e3b681a9c257aa080c4b27bc794cf101b17a1f5ca553a373933"
     },
     {
       "name": "currency",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/currency.png",
       "preview": "currency.png",
       "full_size": [
@@ -65,12 +70,13 @@
         480,
         224
       ],
-      "full_sha256": "5354e77e1a93c58d4b5c47c21d3ae5756e8027d220b4e14238f406c15a289af1",
-      "preview_sha256": "d28c3833176b89f6428a9ede3f7ddc19cf43482a552fec188ab9766312814166"
+      "full_sha256": "353f973a544f4a059d831058b330cddd3e57d66f60eedc51ad7241acdfc08fe4",
+      "preview_sha256": "7c447817286032460b321f3aa9759e66a0ae4ea19af726acf4d70bab079c6276"
     },
     {
       "name": "map",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/map.png",
       "preview": "map.png",
       "full_size": [
@@ -81,12 +87,13 @@
         480,
         680
       ],
-      "full_sha256": "55d22e2a65cefac19245f553c8a82d53eafbebfff4d5737af46ec411bac205d4",
-      "preview_sha256": "9ee1c4347bdf538501b7145250deaf2e8179b0c32488d4213dc6460c86dae879"
+      "full_sha256": "18b6b675f18d754610aad43f89dc0ce1998c23c02ac5238fac92325fb489d5e5",
+      "preview_sha256": "426789f6e75f1ca00e521e29d8216c14b08bd1db15b3ba36ace6bd41a47836cb"
     },
     {
       "name": "viscera",
       "platform": "Linux",
+      "language": "en",
       "full_panel": "full/viscera.png",
       "preview": "viscera.png",
       "full_size": [
@@ -97,24 +104,25 @@
         480,
         648
       ],
-      "full_sha256": "e524e42b3eaf07288a4b9c0b790b90d7022aed17b7aaba176547d4cbc9514216",
-      "preview_sha256": "e146dbae0335a58fe0785aa02269ff3bdb9b901a568f26f089daa4ed9ff6a820"
+      "full_sha256": "ece7d96f86d8d69091188917756c3d628a4f573aacaaabdf6d6e4bc53fb1d902",
+      "preview_sha256": "2a3df60e37334410eae34162848f5727ad945dfa9552fbcf4d4778b8d0038e01"
     },
     {
       "name": "offer-hover",
-      "platform": "Windows binary under Wine",
+      "platform": "Linux",
+      "language": "en",
       "full_panel": "full/offer-hover.png",
       "preview": "offer-hover.png",
       "full_size": [
         480,
-        1000
+        1600
       ],
       "preview_size": [
         480,
-        728
+        776
       ],
-      "full_sha256": "92bd0a4334370077f5f82abfea554dfb13c7e4428ac82bd3e610d0927eb3d9a8",
-      "preview_sha256": "cd206e34e765f76e2ec9782f6b69f619bf9d078834c09b41b377aaf1224ca97c"
+      "full_sha256": "f35967b09201aeb1203660e49082906d8df2dc36da1a33811a9e8fd53f4378ad",
+      "preview_sha256": "f9005614ab5338ef599f2679439413cfcf394c27a1edce863c61250628116eb0"
     }
   ]
 }

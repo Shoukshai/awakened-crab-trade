@@ -1,10 +1,7 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-crab-trade
-pkgver=0.31.2
+pkgver=0.32.0
 pkgrel=1
-provides=("awakened-poe-trade-rs=$pkgver")
-conflicts=('awakened-poe-trade-rs')
-replaces=('awakened-poe-trade-rs')
 pkgdesc='Native Rust PoE price checker for River and XWayland'
 arch=('x86_64')
 url='https://github.com/Shoukshai/awakened-crab-trade'
@@ -26,20 +23,20 @@ build() {
 check() {
     cd "$srcdir/rust"
     export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}"
-    cargo test --locked --offline --bin awakened-poe-trade-rs -j 3
+    cargo test --locked --offline --bin awakened-crab-trade -j 3
 }
 
 package() {
     cd "$srcdir"
     local target_dir="${CARGO_TARGET_DIR:-$srcdir/target}"
-    install -Dm755 "$target_dir/release/awakened-poe-trade-rs" "$pkgdir/usr/bin/awakened-poe-trade-rs"
-    install -Dm755 rust/packaging/awakened-poe-trade-rs-launch "$pkgdir/usr/bin/awakened-poe-trade-rs-launch"
-    install -Dm644 rust/packaging/awakened-poe-trade-rs.desktop "$pkgdir/usr/share/applications/awakened-poe-trade-rs.desktop"
+    install -Dm755 "$target_dir/release/awakened-crab-trade" "$pkgdir/usr/bin/awakened-crab-trade"
+    install -Dm755 rust/packaging/awakened-crab-trade-launch "$pkgdir/usr/bin/awakened-crab-trade-launch"
+    install -Dm644 rust/packaging/awakened-crab-trade.desktop "$pkgdir/usr/share/applications/awakened-crab-trade.desktop"
     install -Dm644 rust/assets/branding/icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/awakened-crab-trade.png"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     cp -a license-bundle "$pkgdir/usr/share/licenses/$pkgname/dependencies"
     install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
     for doc in CHECKER-VALIDATION.md GAME-ART.md windows.md windows-portable.md current-data.json; do
-        install -Dm644 "rust/docs/$doc" "$pkgdir/usr/share/doc/$pkgname/$doc"
+        install -Dm644 "rust/docs/$doc" "$pkgdir/usr/share/doc/$pkgname/docs/$doc"
     done
 }

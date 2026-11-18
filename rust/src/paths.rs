@@ -6,7 +6,7 @@ pub fn config_root() -> PathBuf {
         std::env::var_os("APPDATA")
             .or_else(|| std::env::var_os("LOCALAPPDATA"))
             .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::temp_dir().join("AwakenedPoETradeRust"))
+            .unwrap_or_else(|| std::env::temp_dir().join("AwakenedCrabTrade"))
     }
     #[cfg(not(target_os = "windows"))]
     {

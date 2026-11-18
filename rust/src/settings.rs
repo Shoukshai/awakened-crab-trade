@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(default = "crate::i18n::Language::legacy_default")]
+    pub language: crate::i18n::Language,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub restore_clipboard: bool,
     #[serde(flatten)]
@@ -13,8 +15,6 @@ pub struct Settings {
     pub filters: Filters,
     pub scale: f64,
     pub search_range: f64,
-    #[serde(skip_serializing_if = "is_true")]
-    pub automatic_search: bool,
     pub map_check: crate::inspection::MapConfig,
     #[serde(skip_serializing_if = "crate::hotkeys::Hotkeys::is_default")]
     pub hotkeys: crate::hotkeys::Hotkeys,
@@ -25,6 +25,7 @@ fn is_true(value: &bool) -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            language: crate::i18n::Language::En,
             restore_clipboard: false,
             legacy: Default::default(),
             automatic_league: true,
@@ -32,24 +33,39 @@ impl Default for Settings {
             filters: Filters::default(),
             scale: 1.0,
             search_range: 10.,
-            automatic_search: true,
             map_check: crate::inspection::MapConfig::default(),
             hotkeys: crate::hotkeys::Hotkeys::default(),
         }
     }
 }
 pub fn path() -> std::path::PathBuf {
-    crate::paths::config_root().join("awakened-poe-trade-rs/config.json")
+    crate::paths::config_root().join("awakened-crab-trade/config.json")
 }
 impl Settings {
     pub fn load() -> Result<Self, String> {
-        let path = path();
+        Self::load_from_root(&crate::paths::config_root())
+    }
+    fn load_from_root(root: &std::path::Path) -> Result<Self, String> {
+        let path = root.join("awakened-crab-trade/config.json");
         if !path.exists() {
-            return Ok(Self::default());
+            let legacy = crate::compat::legacy_settings(root);
+            if !legacy.exists() {
+                return Ok(Self::default());
+            }
+            let mut imported: Self =
+                serde_json::from_slice(&std::fs::read(legacy).map_err(|e| e.to_string())?)
+                    .map_err(|e| format!("Invalid settings: {e}"))?;
+            imported.legacy.remove("automatic_search");
+            imported.validate()?;
+            crate::compat::publish_import(
+                &path,
+                &serde_json::to_vec_pretty(&imported).map_err(|e| e.to_string())?,
+            )?;
         }
-        let settings: Self =
+        let mut settings: Self =
             serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| format!("Invalid settings: {e}"))?;
+        settings.legacy.remove("automatic_search");
         settings.validate()?;
         Ok(settings)
     }
@@ -89,12 +105,14 @@ impl Settings {
     }
     pub fn save(&self) -> Result<(), String> {
         self.validate()?;
+        let mut current = self.clone();
+        current.legacy.remove("automatic_search");
         let path = path();
         std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
         let tmp = path.with_extension("tmp");
         std::fs::write(
             &tmp,
-            serde_json::to_vec_pretty(self).map_err(|e| e.to_string())?,
+            serde_json::to_vec_pretty(&current).map_err(|e| e.to_string())?,
         )
         .map_err(|e| e.to_string())?;
         std::fs::rename(tmp, path).map_err(|e| e.to_string())
@@ -145,7 +163,6 @@ mod tests {
         assert!(settings.filters.item.is_none());
         assert_eq!(settings.map_check, crate::inspection::MapConfig::default());
         assert!(settings.hotkeys.is_default());
-        assert!(settings.automatic_search);
         assert!(serde_json::to_value(&settings)
             .unwrap()
             .get("automatic_search")
@@ -154,6 +171,45 @@ mod tests {
             .unwrap()
             .get("hotkeys")
             .is_none());
+    }
+    #[test]
+    fn legacy_profiles_are_imported_once_and_automatic_search_is_discarded() {
+        let root = std::env::temp_dir().join(format!(
+            "act-profile-import-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let old = crate::compat::legacy_settings(&root);
+        std::fs::create_dir_all(old.parent().unwrap()).unwrap();
+        let bytes=br#"{"league":"Covens","automatic_search":true,"restore_clipboard":true,"custom_ui":{"kept":42}}"#;
+        std::fs::write(&old, bytes).unwrap();
+        let imported = Settings::load_from_root(&root).unwrap();
+        assert_eq!(imported.language, crate::i18n::Language::Fr);
+        assert_eq!(imported.league, "Covens");
+        assert!(imported.restore_clipboard);
+        assert_eq!(imported.legacy["custom_ui"]["kept"], 42);
+        let new = root.join("awakened-crab-trade/config.json");
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&new).unwrap()).unwrap();
+        assert!(saved.get("automatic_search").is_none());
+        assert_eq!(std::fs::read(&old).unwrap(), bytes);
+        let mut changed = saved;
+        changed["league"] = serde_json::json!("Standard");
+        changed["language"] = serde_json::json!("en");
+        std::fs::write(&new, serde_json::to_vec(&changed).unwrap()).unwrap();
+        assert_eq!(
+            Settings::load_from_root(&root).unwrap().language,
+            crate::i18n::Language::En
+        );
+        assert_eq!(Settings::load_from_root(&root).unwrap().league, "Standard");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn fresh_profiles_start_in_english() {
+        assert_eq!(Settings::default().language, crate::i18n::Language::En);
     }
     #[test]
     fn invalid_settings_are_rejected_before_the_ui_can_silently_clamp_them() {

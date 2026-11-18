@@ -11,7 +11,7 @@ output = root / f'dist/awakened-crab-trade-{version}-windows-x64'
 if output.exists():
     shutil.rmtree(output)
 output.mkdir()
-exe = root / 'target/x86_64-pc-windows-gnullvm/release/awakened-poe-trade-rs.exe'
+exe = root / 'target/x86_64-pc-windows-gnullvm/release/awakened-crab-trade.exe'
 shutil.copy2(exe, output / exe.name)
 for name in ['gdk-pixbuf-query-loaders.exe']:
     shutil.copy2(sysroot / 'bin' / name, output / name)
@@ -55,7 +55,7 @@ shutil.copytree(sysroot / 'share/licenses', licenses / 'runtime')
 shutil.copy2(llvm / 'LICENSE.TXT', licenses / 'LLVM-MinGW-LICENSE.TXT')
 shutil.copy2(root.parent / 'LICENSE', output / 'LICENSE')
 shutil.copy2(root / 'packaging/windows/runtime-lock.json', licenses / 'runtime-lock.json')
-shutil.copy2(root / 'docs/windows.md', output / 'LIRE-MOI.md')
+shutil.copy2(root / 'docs/windows.md', output / 'README.md')
 (licenses / 'runtime-sources.txt').write_text('Unmodified MSYS2 UCRT64 runtime DLLs, dynamically linked.\n'
     'Exact package versions and SHA256: runtime-lock.json.\n'
     'Package build recipes and upstream source locations: https://github.com/msys2/MINGW-packages\n'

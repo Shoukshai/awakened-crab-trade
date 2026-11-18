@@ -1,36 +1,36 @@
-# Windows : un seul EXE
+# Windows portable EXE
 
-Lancer `awakened-crab-trade-0.31.2-windows-x64-portable.exe` directement.
-Aucune extraction manuelle, installation ni élévation administrateur.
+Run `awakened-crab-trade-0.32.0-windows-x64-portable.exe` directly. No manual
+extraction, installer or administrator privileges are needed.
 
-Au premier lancement, les bibliothèques GTK, le programme et leurs licences sont
-décompressés automatiquement dans
-`%LOCALAPPDATA%\awakened-poe-trade-rs\portable`. Les lancements suivants
-réutilisent ce cache. Aucun dossier n’est créé à côté de l’EXE portable.
+On first launch, GTK, the checker and their licenses are extracted to
+`%LOCALAPPDATA%\awakened-crab-trade\portable`. Later launches reuse that cache;
+nothing is written beside the portable EXE.
 
-Les préférences restent dans `%APPDATA%\awakened-poe-trade-rs\config.json`.
-L’EXE contient le même price checker que le ZIP 0.31.2. Dans PoE, survoler
-un objet puis faire `Ctrl+Alt+D`.
+Preferences live in `%APPDATA%\awakened-crab-trade\config.json`. Older profiles
+are imported automatically without changing the originals. Choose English or
+French in Settings, then Save. Item names and modifiers remain in English.
 
-Pour retrouver les fichiers et les licences sans ouvrir le panneau, lancer
-l’EXE avec `--extract-only` depuis un terminal et rediriger sa sortie vers un
-fichier. Le dossier extrait permet aussi de lancer directement le checker et
-de remplacer ses bibliothèques partagées. Le ZIP classique reste disponible.
+In PoE, hover over an item and press `Ctrl+Alt+D`. Select your filters, then
+click Search. Opening the panel never starts a Trade search; poe.ninja reference
+quotes still load automatically. Escape or a click outside closes the panel.
 
-Le lanceur vérifie chaque fichier lors de l’extraction et publie le dossier
-complet une fois la préparation terminée. Deux lancements simultanés partagent
-la même préparation. Une extraction interrompue est reprise au prochain
-lancement.
+Run with `--extract-only` from a terminal to print the extracted folder without
+opening the checker. The extracted checker can also run directly, and its
+shared libraries can be replaced. A conventional ZIP is available too.
 
-## Reconstruction
+The launcher checks each file during extraction and publishes the complete
+folder atomically. Concurrent launches share preparation; an interrupted
+extraction is rebuilt on the next launch.
 
-Après la construction du ZIP Windows décrit dans [windows.md](windows.md) :
+## Build
+
+After building the [Windows ZIP](windows.md):
 
 ```sh
 python3 rust/scripts/package-windows-portable.py
 ```
 
-Le lanceur est un petit programme Rust indépendant de GTK, avec compression et
-vérification SHA256. Ses dépendances et celles du checker sont incluses dans
-les licences extraites. Ses seuls imports DLL sont des composants du système
-Windows. Les tests Wine restent distincts du test réel dans PoE sous Windows.
+The launcher uses compression and SHA256 verification and imports only Windows
+system DLLs. Its dependencies and licenses are included in the extracted files.
+Wine checks use a private desktop and do not replace testing PoE on Windows.

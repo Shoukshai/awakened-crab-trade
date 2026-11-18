@@ -1,6 +1,6 @@
 [package]
-name = "awakened-poe-trade-rs"
-version = "0.31.2"
+name = "awakened-crab-trade"
+version = "0.32.0"
 edition = "2021"
 license = "MIT"
 description = "Native Path of Exile price checker for Linux and Windows"

@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 mod calculated;
+mod compat;
 #[cfg(target_os = "linux")]
 mod desktop;
 #[cfg(target_os = "windows")]
@@ -11,6 +12,7 @@ mod desktop;
 mod economy;
 mod filters;
 mod hotkeys;
+mod i18n;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ipc;
 mod paths;

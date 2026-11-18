@@ -1,6 +1,6 @@
 [package]
-name = "awakened-poe-trade-portable"
-version = "0.31.2"
+name = "awakened-crab-trade-portable"
+version = "0.32.0"
 edition = "2021"
 license = "MIT"
 

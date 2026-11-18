@@ -3,7 +3,7 @@
 Run from the repository root:
 
 ```sh
-cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
+cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-crab-trade -j 3
 cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 cargo test --locked --manifest-path rust/portable/Cargo.toml
 ```
@@ -27,6 +27,11 @@ failure logs stay in the private test directory or the explicitly selected path.
 Coverage includes scoped copying, modifiers and Min/Max queries, integer slider
 values and rendered cyan/grey colours, full-row hover, inside/outside clicks,
 owned menus, Escape, focus changes, settings and clipboard restoration.
+The full runner also checks live English/French switching and cancellation of
+a language draft. Set `APT_FIXTURE_LANGUAGE=en` for English captures; the
+default test language is French. All runners deliberately load a legacy
+`automatic_search=true` profile and verify that copying sends no Trade request
+until Search is clicked. Core tests cover profile import and language defaults.
 
 ## Packaged Windows
 

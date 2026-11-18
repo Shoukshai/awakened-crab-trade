@@ -31,6 +31,7 @@ pub fn new(sender: glib::Sender<super::Event>) -> Result<glib::Object, String> {
         });
         menu.append(&item);
     }
+    super::localization::refresh(&menu);
     menu.show_all();
     object.connect_local("popup-menu", false, move |args| {
         let button = args.get(1).and_then(|v| v.get::<u32>().ok()).unwrap_or(3);

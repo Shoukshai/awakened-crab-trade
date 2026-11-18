@@ -34,32 +34,32 @@ for i,block in enumerate(blocks):
 if not found:blocks.append(section+'\n"Managed"="N"')
 user.write_text('\n\n'.join(blocks)+'\n')
 for p in root.rglob('control.json'):p.unlink()
-for parent in [root/'cache/awakened-poe-trade-rs',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-poe-trade-rs'))]:
+for parent in [root/'cache/awakened-crab-trade',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade'))]:
  for name in ['economy','icons']:shutil.rmtree(parent/name,ignore_errors=True)
 for name in ['fixture.state.json','foreign.state.json','clipboard-read.txt']:(root/name).unlink(missing_ok=True)
 wp=lambda p:'Z:'+str(pathlib.Path(p).resolve()).replace('/','\\')
 env.update(APPDATA=wp(root/'config'),LOCALAPPDATA=wp(root/'cache'),APT_RS_WINDOWS_TEST_DIR=wp(root),APT_RS_WINDOWS_TEST_TOKEN=(root/'fixture.guard').read_text(),GDK_BACKEND='win32',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',NO_PROXY='127.0.0.1,localhost')
-for d in ['config/awakened-poe-trade-rs','cache/awakened-poe-trade-rs']:(root/d).mkdir(parents=True,exist_ok=True)
-config=root/'config/awakened-poe-trade-rs/config.json'
-config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':False,'restore_clipboard':True})
+for d in ['config/awakened-crab-trade','cache/awakened-crab-trade']:(root/d).mkdir(parents=True,exist_ok=True)
+config=root/'config/awakened-crab-trade/config.json'
+config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':True,'language':os.environ.get('APT_FIXTURE_LANGUAGE','fr'),'restore_clipboard':True})
 config.write_text(config_data)
 # Wine initializes APPDATA from its private registry when starting explorer.
 for user in (root/'prefix/drive_c/users').iterdir():
  if (user/'AppData').is_dir():
-  path=user/'AppData/Roaming/awakened-poe-trade-rs/config.json';path.parent.mkdir(parents=True,exist_ok=True);path.write_text(config_data)
+  path=user/'AppData/Roaming/awakened-crab-trade/config.json';path.parent.mkdir(parents=True,exist_ok=True);path.write_text(config_data)
 posts=[];ninja=[];family_env={'APT_FIXTURE_ITEM':'wand'}
 server=http.server.ThreadingHTTPServer(('127.0.0.1',0),make_handler(r,family_env,posts,ninja));threading.Thread(target=server.serve_forever,daemon=True).start()
 env['APT_RS_TEST_TRADE_BASE']=env['APT_RS_TEST_ECONOMY_BASE']=f'http://127.0.0.1:{server.server_address[1]}'
 processes=[];logs=[];report={'windowing':'Independent Win32 windows with Wine managing placement on private XWayland; windowed fake game','os_keyboard_layout':'Private Wine prefix with pinned ReactOS US layout DLL; absent from production ZIP','scope':'Windows binary on private Wine desktop, fake PoE process, synthetic offers and public-market fixtures. No real game input or real market prices.'};success=False
-app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else r/'dist/windows-dev/awakened-poe-trade-rs.exe').resolve()
+app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else r/'dist/windows-dev/awakened-crab-trade.exe').resolve()
 def launch(exe,args,name):
  log=(root/(name+'.log')).open('w');logs.append(log)
  command=[s['wine'],wp(exe),*args]
  p=subprocess.Popen(command,env=env,stdout=log,stderr=subprocess.STDOUT);processes.append(p);return p
 def endpoint():
- p=root/'cache/awakened-poe-trade-rs/control.json'
+ p=root/'cache/awakened-crab-trade/control.json'
  if not p.exists():
-  matches=list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-poe-trade-rs/control.json'));p=matches[0] if matches else p
+  matches=list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade/control.json'));p=matches[0] if matches else p
  return json.loads(p.read_text())
 def command(name):
  e=endpoint()
@@ -100,11 +100,13 @@ try:
  for family,fixture in [('wand','driftwood-wand.txt'),('gem','price-gem.txt'),('currency','price-currency.txt'),('unique','price-unique.txt'),('map','price-map.txt'),('viscera','price-viscera.txt'),('viscera-siren','price-viscera-siren.txt'),('influence','price-influence.txt')]:
   if os.environ.get('APT_WINDOWS_FAMILY_CASE') and family!=os.environ['APT_WINDOWS_FAMILY_CASE']:continue
   family_env['APT_FIXTURE_ITEM']=family;command('hide');(root/'fixture-item.txt').write_text((r/'src/fixtures'/fixture).read_text());click(200,700);wait(lambda:status()['game_active'],'game active before copy')
+  posts_before_copy=len(posts)
   before=json.loads((root/'fixture.state.json').read_text())['copies']
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
   wait(lambda:status()['item'] and status()['visible'] and status()['state']=='Interactive' and status()['rendered'],'scoped shortcut copies into checker')
   assert json.loads((root/'fixture.state.json').read_text())['copies']>before
   wait(lambda:status()['summary']['image_ready'],'Windows image loader')
+  time.sleep(.2);assert len(posts)==posts_before_copy and status()['request'] is None,'legacy automatic_search=true must not start Trade'
   st=status();assert st['native_rect']==st['panel_bounds'],(st['native_rect'],st['panel_bounds'])
   assert st['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},st['application']
   print(family,'captured',flush=True)

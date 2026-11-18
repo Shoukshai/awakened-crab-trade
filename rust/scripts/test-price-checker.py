@@ -7,7 +7,7 @@ os.chdir(root)
 for name in ['river','riverctl','wlr-randr','xdotool','wl-copy','wtype','grim']:
     assert shutil.which(name),name+' required'
 subprocess.run(['cargo','build','--locked','--example','pointer','--example','overlay-fixture','--example','stash-fixture','--example','native-key','-j','3'],check=True)
-app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else root/'target/release/awakened-poe-trade-rs').resolve()
+app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else root/'target/release/awakened-crab-trade').resolve()
 target=pathlib.Path(os.environ.get('CARGO_TARGET_DIR',root/'target')).resolve()
 runtime=pathlib.Path(tempfile.mkdtemp(prefix='apt-overlay-desktop-'));runtime.chmod(0o700)
 init=runtime/'init.sh'
@@ -22,6 +22,8 @@ touch "$XDG_RUNTIME_DIR/ready"
 ''');init.chmod(0o700)
 env=os.environ.copy();env.update(XDG_RUNTIME_DIR=str(runtime),XDG_CONFIG_HOME=str(runtime/'config'),XDG_CACHE_HOME=str(runtime/'cache'),XDG_STATE_HOME=str(runtime/'state'),APT_FIXTURE_ITEM=os.environ.get('APT_FAMILY_CASE','ring'),GSETTINGS_BACKEND='memory',WLR_BACKENDS='headless',WLR_HEADLESS_OUTPUTS='1',WLR_RENDERER='pixman',GDK_BACKEND='wayland',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',ALL_PROXY='http://127.0.0.1:9')
 logs=[];processes=[];success=False;report={};httpd=None;persistent=None
+language=os.environ.get('APT_FIXTURE_LANGUAGE','fr')
+def ui_text(fr,en):return en if language=='en' else fr
 posts=[]
 ninja_requests=[]
 from trade_fixture import make_handler
@@ -86,27 +88,28 @@ try:
     keyboard=start(['wtype','-s','60000','-k','Escape'],'keyboard')
     fixture=start([str(target/'debug/examples/stash-fixture')],'fixture',stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
     assert select.select([fixture.stdout],[],[],5)[0];assert json.loads(fixture.stdout.readline())['ready']
-    configdir=pathlib.Path(env['XDG_CONFIG_HOME'])/'awakened-poe-trade-rs';configdir.mkdir(parents=True)
+    configdir=pathlib.Path(env['XDG_CONFIG_HOME'])/'awakened-crab-trade';configdir.mkdir(parents=True)
     configpath=configdir/'config.json'
-    original={'league':'Standard','automatic_league':False,'automatic_search':False,'stopwatches':[{'legacy':'kept'}],'stash_scroll':True,'hotkeys':{'delve':'Ctrl + D'}}
+    original={'league':'Standard','automatic_league':False,'automatic_search':True,'language':language,'stopwatches':[{'legacy':'kept'}],'stash_scroll':True,'hotkeys':{'delve':'Ctrl + D'}}
     configpath.write_text(json.dumps(original));original_bytes=configpath.read_bytes()
     httpd=http.server.ThreadingHTTPServer(('127.0.0.1',0),TradeFixture);threading.Thread(target=httpd.serve_forever,daemon=True).start()
     env['APT_RS_TEST_TRADE_BASE']=f'http://127.0.0.1:{httpd.server_address[1]}'
     env['APT_RS_TEST_ECONOMY_BASE']=env['APT_RS_TEST_TRADE_BASE']
     env['NO_PROXY']='127.0.0.1,localhost'
-    daemon=start([str(app),'daemon'],'overlay');wait_for(lambda:(runtime/'awakened-poe-trade-rs.sock').exists(),'daemon socket')
+    daemon=start([str(app),'daemon'],'overlay');wait_for(lambda:(runtime/'awakened-crab-trade.sock').exists(),'daemon socket')
     if not os.environ.get('APT_TRANSIENT_POINTER'):
         persistent=start([str(target/'debug/examples/pointer'),'0','0','2560','1600','--persistent'],'persistent-pointer',stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
     wait_for(lambda:'Ok' in status()['shortcut_backend']['status'],'shortcuts');focus_game()
     def click(r):
         s=status();assert s['state']=='Interactive' and s['visible'] and s['rendered'];assert r and r.get('mapped',True) and r['width']>5 and r['height']>5,r
         o=s['origin'];pointer(o['x']+r['x']+r['width']/2,o['y']+r['y']+r['height']/2,True)
-    def choose_menu(name,index):
-        click(status()['item_filter_controls'][name]['rect'])
+    def choose_combo(rect,index):
+        click(rect)
         popup=wait_for(lambda:status()['popup_controls'] if status()['popup_controls'] and status()['popup_controls']['mapped'] else None,'menu mapped')
         item=popup['items'][index];o=status()['origin'];p=popup['origin']
         pointer(o['x']+p['x']+item['x']+item['width']/2,o['y']+p['y']+item['y']+item['height']/2,True)
         wait_for(lambda:not status()['owned_popup'] and state(state='Interactive'),'menu mouse choice keeps checker open')
+    def choose_menu(name,index):choose_combo(status()['item_filter_controls'][name]['rect'],index)
     def copy(key='ctrl+d',interactive=False):
         command('hide');focus_game();time.sleep(.31);subprocess.run(['xdotool','key','--clearmodifiers',key],env=env,check=True)
         return wait_for(lambda:state(state='Interactive' if interactive else 'Passive',rendered=True,visible=True) and status()['item'] and status()['item']['base']=='Gold Ring','ring captured')
@@ -128,7 +131,7 @@ try:
         s0=status()
         assert s0['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},s0['application']
         assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
-        assert not posts,'copy must not automatically query Trade with automatic_search=false'
+        assert not posts,'copy must not automatically query Trade with a legacy automatic_search=true profile'
         if family=='wand':
             row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
             assert row['bounds']=={'min':8.0,'max':12.0,'roll':8.0},row
@@ -149,11 +152,11 @@ try:
             click(row['max']);subprocess.run([str(target/'debug/examples/native-key'),'ctrl-a'],env=env,check=True);subprocess.run([str(target/'debug/examples/native-key'),'backspace'],env=env,check=True)
             wait_for(lambda:not next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')['max_enabled'],'empty Max removes bound')
             click(row['min']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','abc'],env=env,check=True)
-            click(status()['search_button']);wait_for(lambda:status()['status_text']=='Valeur Min/Max invalide.','invalid number refuses search')
+            click(status()['search_button']);wait_for(lambda:status()['status_text']==ui_text('Valeur Min/Max invalide.','Invalid Min/Max value.'),'invalid number refuses search')
             assert not posts and status()['request'] is None
             click(row['min']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','9'],env=env,check=True)
             click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','4'],env=env,check=True)
-            click(status()['search_button']);wait_for(lambda:status()['status_text']=='Min doit être inférieur ou égal à Max.','inverted bounds refuse search')
+            click(status()['search_button']);wait_for(lambda:status()['status_text']==ui_text('Min doit être inférieur ou égal à Max.','Min must be less than or equal to Max.'),'inverted bounds refuse search')
             assert not posts and status()['request'] is None
             click(row['max']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','40'],env=env,check=True)
             for fraction in [.12,.27,.53,.88]:
@@ -254,7 +257,7 @@ try:
         o=status()['origin'];pointer(o['x']+dx,y,True);time.sleep(.08)
         assert status()['state']=='Interactive','inside click closed checker'
     # Wheel over a closed dropdown scrolls the enclosing list without editing filters.
-    section=next(s for s in status()['stat_sections'] if s['label'].startswith('Autres stats'))
+    section=next(s for s in status()['stat_sections'] if s['label'].startswith(ui_text('Autres stats','Other stats')))
     click(section['header']);wait_for(lambda:status()['mod_scroll']['upper']>status()['mod_scroll']['page_size'],'expanded secondary stats overflow')
     before=status();combo=before['item_filter_controls']['corruption']['rect'];o=before['origin']
     pointer(o['x']+combo['x']+combo['width']/2,o['y']+combo['y']+combo['height']/2);time.sleep(.1);pointer_command('scroll 45')
@@ -264,7 +267,7 @@ try:
     pointer(o['x']+v['x']+v['width']-8,o['y']+v['y']+80);time.sleep(.1);pointer_command('scroll -1000')
     wait_for(lambda:status()['mod_scroll']['value']==0,'restore filter scroll')
     if os.environ.get('APT_SECTIONS_SCREENSHOT'):capture_panel(os.environ['APT_SECTIONS_SCREENSHOT'])
-    click(next(s for s in status()['stat_sections'] if s['label'].startswith('Autres stats'))['header'])
+    click(next(s for s in status()['stat_sections'] if s['label'].startswith(ui_text('Autres stats','Other stats')))['header'])
     report['closed_dropdown_wheel_keeps_filters_and_scrolls_parent']=True
     click(status()['item_filter_controls']['corruption']['rect']);wait_for(lambda:status()['owned_popup'],'corruption dropdown grabbed')
     pointer(2300,1200,True)
@@ -321,7 +324,7 @@ try:
     assert '+73 to maximum Life' in offers[0]['tooltip'] and '+110 to maximum Life' not in offers[0]['tooltip']
     assert all(t not in offers[0]['tooltip'] for t in ['Mods','Implicites','Craftés','Quality','Prérequis']),offers[0]['tooltip']
     assert '5 Chaos Orb' in offers[0]['tooltip']
-    assert status()['status_text']=='2 résultats'
+    assert status()['status_text']==ui_text('2 résultats','2 results')
     assert status()['header_text']=='Synthetic Fixture'
     pointer(status()['origin']['x']+8,1100)
     wait_for(lambda:not status()['listings']['tooltip_visible'],'clean panel capture')
@@ -354,6 +357,22 @@ try:
     p=status()['preferences'];assert len(p['tabs'])==2 and len(p['hotkeys'])==5
     click(p['cancel']);wait_for(lambda:state(view='Price'),'cancel returns checker');assert configpath.read_bytes()!=original_bytes # search persisted price defaults
     saved=json.loads(configpath.read_text());assert saved['stopwatches']==original['stopwatches'] and saved['stash_scroll']==original['stash_scroll'] and saved['hotkeys']['delve']=='Ctrl + D'
+    # Switch both ways without restarting. Cancelling a language draft must not apply it.
+    for target_language in ['en','fr',language]:
+        click(status()['settings_button']);wait_for(lambda:state(view='Settings') and status()['preferences']['language']['rect']['mapped'],'language settings')
+        time.sleep(.15);choose_combo(status()['preferences']['language']['rect'],0 if target_language=='en' else 1)
+        assert status()['language']!=target_language or status()['preferences']['language']['value']==target_language
+        click(status()['preferences']['apply']);wait_for(lambda:state(state='Hidden') and not status()['preferences_pending'] and status()['language']==target_language,'language saved')
+        assert json.loads(configpath.read_text())['language']==target_language
+        copy('ctrl+alt+d',True)
+        assert status()['search_label']==('Search' if target_language=='en' else 'Rechercher')
+        assert status()['settings_label']==('Settings' if target_language=='en' else 'Réglages')
+        assert status()['request'] is None
+    click(status()['settings_button']);wait_for(lambda:state(view='Settings'),'cancel language draft')
+    time.sleep(.15);choose_combo(status()['preferences']['language']['rect'],1 if language=='en' else 0)
+    click(status()['preferences']['cancel']);wait_for(lambda:state(view='Price'),'language draft cancelled')
+    assert status()['language']==language and json.loads(configpath.read_text())['language']==language
+    report['live_english_french_switch_and_cancelled_language_draft']=True
     click(status()['settings_button']);wait_for(lambda:state(view='Settings') and status()['preferences']['tabs'][1],'settings again');time.sleep(.15);click(status()['preferences']['tabs'][1]);wait_for(lambda:status()['preferences']['page']==1,'shortcut page');time.sleep(.15)
     click(status()['preferences']['record'][0]);wait_for(lambda:status()['preferences']['capture']==0,'key capture armed')
     subprocess.run(['wtype','-M','ctrl','-k','j','-m','ctrl'],env=env,check=True);wait_for(lambda:status()['preferences']['hotkeys'][0]['value']=='Ctrl + J','key captured')
@@ -393,17 +412,18 @@ try:
     command('hide');fixture.terminate();fixture.wait(timeout=3);wait_for(lambda:not status()['desktop']['windows'] or not status()['game_active'],'fake game gone')
     fixture=start([str(target/'debug/examples/stash-fixture')],'fixture-recreated',stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True);assert select.select([fixture.stdout],[],[],5)[0];json.loads(fixture.stdout.readline());focus_game();copy('ctrl+j');command('hide')
     report['fake_game_recreation_can_copy_again_without_restarting_service']=True
-    focus_game();command('settings');wait_for(lambda:state(view='Settings',rendered=True) and status()['preferences']['automatic']['rect'] and status()['preferences']['automatic']['rect']['mapped'],'automatic-search settings');command('interact');wait_for(lambda:state(state='Interactive'),'settings interaction');time.sleep(.15)
-    click(status()['preferences']['automatic']['rect']);wait_for(lambda:status()['preferences']['automatic']['value'],'automatic enabled')
-    cache=pathlib.Path(env['XDG_CACHE_HOME'])/'awakened-poe-trade-rs'/'leagues.json';cache.parent.mkdir(parents=True,exist_ok=True);cache.write_text(json.dumps({'fetched':int(time.time()),'leagues':[{'id':'Standard'},{'id':'Fixture Challenge','category':{'current':True}},{'id':'Hardcore Fixture','category':{'current':True},'rules':[{'id':'Hardcore'}]}]}))
+    focus_game();command('settings');wait_for(lambda:state(view='Settings',rendered=True) and status()['preferences']['automatic_league']['rect'] and status()['preferences']['automatic_league']['rect']['mapped'],'league settings');command('interact');wait_for(lambda:state(state='Interactive'),'settings interaction');time.sleep(.15)
+    cache=pathlib.Path(env['XDG_CACHE_HOME'])/'awakened-crab-trade'/'leagues.json';cache.parent.mkdir(parents=True,exist_ok=True);cache.write_text(json.dumps({'fetched':int(time.time()),'leagues':[{'id':'Standard'},{'id':'Fixture Challenge','category':{'current':True}},{'id':'Hardcore Fixture','category':{'current':True},'rules':[{'id':'Hardcore'}]}]}))
     click(status()['preferences']['automatic_league']['rect']);wait_for(lambda:status()['preferences']['automatic_league']['value'],'current league auto enabled')
     click(status()['preferences']['apply']);wait_for(lambda:state(state='Hidden') and not status()['preferences_pending'] and status()['league_selection']['ready'] and status()['league_selection']['label']=='Fixture Challenge','automatic current league selected without reopening')
     report['current_league_selected_automatically_from_private_cached_api_list_without_reopening']=True
     fixture.terminate();fixture.wait(timeout=3);wait_for(lambda:not status()['game_active'],'ring fixture gone')
     env['APT_FIXTURE_ITEM']='wand';fixture=start([str(target/'debug/examples/stash-fixture')],'fixture-wand',stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True);assert select.select([fixture.stdout],[],[],5)[0];json.loads(fixture.stdout.readline());focus_game()
+    posts_before_copy=len(posts)
     subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
-    wait_for(lambda:state(state='Interactive',rendered=True,visible=True) and status()['item'] and status()['item']['base']=='Driftwood Wand' and status()['request'] is not None,'locked price checker after automatic search advances generation')
-    report['locked_copy_interacts_after_first_paint_even_when_automatic_search_changes_generation']=True
+    wait_for(lambda:state(state='Interactive',rendered=True,visible=True) and status()['item'] and status()['item']['base']=='Driftwood Wand' and status()['request'] is None,'locked price checker waits for explicit Search')
+    time.sleep(.4);assert len(posts)==posts_before_copy,'new copy must not query Trade'
+    report['locked_copy_and_automatic_league_never_start_a_trade_search']=True
     command('hide')
     log=(runtime/'overlay.log').read_text();assert '-CRITICAL' not in log
     lines=log.splitlines();lock_lines=[i for i,l in enumerate(lines) if 'state=Passive first_frame=painted' in l];assert lock_lines

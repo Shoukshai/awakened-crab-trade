@@ -210,7 +210,7 @@ impl Economy {
                 .map_err(|e| e.to_string())?,
             base: crate::trade::fixture_endpoint("APT_RS_TEST_ECONOMY_BASE")?
                 .unwrap_or_else(|| "https://poe.ninja".into()),
-            cache_dir: cache.join("awakened-poe-trade-rs/economy"),
+            cache_dir: cache.join("awakened-crab-trade/economy"),
             memory: HashMap::new(),
             next: Instant::now(),
         })

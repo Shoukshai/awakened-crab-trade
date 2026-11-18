@@ -2,7 +2,7 @@
 Type=Application
 Name=Awakened Crab Trade
 Comment=Native price overlay for PoE on River/XWayland
-Exec=awakened-poe-trade-rs-launch
+Exec=awakened-crab-trade-launch
 Icon=awakened-crab-trade
 Categories=Game;
 Terminal=false

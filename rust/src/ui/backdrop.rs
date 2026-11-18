@@ -70,7 +70,7 @@ impl Backdrop {
                     window.set_visual(Some(&v));
                 }
                 window.init_layer_shell();
-                window.set_namespace("awakened-poe-trade-rs-backdrop");
+                window.set_namespace("awakened-crab-trade-backdrop");
                 window.set_layer(Layer::Overlay);
                 window.set_keyboard_mode(KeyboardMode::None);
                 window.set_exclusive_zone(-1);

@@ -16,7 +16,7 @@ fn main() {
         .expect("Windows resource compiler missing");
     assert!(status.success(), "Windows resources failed to compile");
     println!(
-        "cargo:rustc-link-arg-bin=awakened-poe-trade-rs={}",
+        "cargo:rustc-link-arg-bin=awakened-crab-trade={}",
         output.display()
     );
 }

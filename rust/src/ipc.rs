@@ -11,7 +11,7 @@ mod platform {
     pub fn path() -> Result<PathBuf, String> {
         std::env::var_os("XDG_RUNTIME_DIR")
             .map(PathBuf::from)
-            .map(|p| p.join("awakened-poe-trade-rs.sock"))
+            .map(|p| p.join("awakened-crab-trade.sock"))
             .ok_or("XDG_RUNTIME_DIR is required".into())
     }
     pub struct Server {
@@ -107,7 +107,7 @@ mod platform {
         command: String,
     }
     fn path() -> PathBuf {
-        crate::paths::cache_root().join("awakened-poe-trade-rs/control.json")
+        crate::paths::cache_root().join("awakened-crab-trade/control.json")
     }
     pub struct Server {
         socket: UdpSocket,
@@ -124,7 +124,7 @@ mod platform {
     impl Server {
         pub fn bind() -> Result<Self, String> {
             unsafe {
-                let name: Vec<u16> = "Local\\AwakenedPoETradeRust.Control"
+                let name: Vec<u16> = "Local\\AwakenedCrabTrade.Control"
                     .encode_utf16()
                     .chain(Some(0))
                     .collect();

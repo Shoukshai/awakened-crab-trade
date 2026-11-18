@@ -11,7 +11,7 @@ use std::{
 const PAYLOAD: &[u8] = include_bytes!(env!("APT_PORTABLE_PAYLOAD_PATH"));
 const ID: &str = env!("APT_PORTABLE_ID");
 const MAGIC: &[u8; 8] = b"APTSELF1";
-const APP: &str = "awakened-poe-trade-rs.exe";
+const APP: &str = "awakened-crab-trade.exe";
 
 fn main() -> ExitCode {
     match run() {
@@ -48,7 +48,7 @@ fn run() -> Result<u8, String> {
     let local = std::env::var_os("LOCALAPPDATA")
         .or_else(|| std::env::var_os("APPDATA"))
         .ok_or("Le dossier de données Windows est introuvable.")?;
-    let root = PathBuf::from(local).join("awakened-poe-trade-rs/portable");
+    let root = PathBuf::from(local).join("awakened-crab-trade/portable");
     let cache =
         prepare(&root, PAYLOAD, ID).map_err(|e| format!("Préparation du programme : {e}"))?;
     let args: Vec<_> = std::env::args_os().skip(1).collect();

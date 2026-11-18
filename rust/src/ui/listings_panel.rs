@@ -251,6 +251,7 @@ impl Panel {
                 scroll.set_max_content_width(390);
                 scroll.add(&content);
                 content.show_all();
+                super::localization::refresh(&content);
                 let popover = gtk::Popover::new(Some(&widget));
                 popover.set_modal(false);
                 popover.set_constrain_to(gtk::PopoverConstraint::Window);
@@ -340,7 +341,7 @@ impl Panel {
         let tooltip_visible = rows
             .iter()
             .any(|r| r.popover.as_ref().is_some_and(|p| p.is_mapped()));
-        serde_json::json!({"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":rect(&r.widget,window),"detail_rect":r.popover.as_ref().filter(|p|p.is_mapped()).and_then(|p|rect(p,window)),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref()}else{None}})).collect::<Vec<_>>()})
+        serde_json::json!({"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":rect(&r.widget,window),"detail_rect":r.popover.as_ref().filter(|p|p.is_mapped()).and_then(|p|rect(p,window)),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref().map(crate::i18n::tr)}else{None}})).collect::<Vec<_>>()})
     }
 }
 fn content_height(scroll: &gtk::ScrolledWindow) -> i32 {

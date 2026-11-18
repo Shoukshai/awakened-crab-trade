@@ -16,6 +16,7 @@ mod economy_panel;
 mod icons;
 mod item_filters_panel;
 mod listings_panel;
+mod localization;
 mod mercenary_panel;
 mod roll_slider;
 mod settings_panel;
@@ -389,6 +390,17 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
+        value["language"] = serde_json::json!(crate::i18n::language().id());
+        value["search_label"] = serde_json::json!(self
+            .search_button
+            .child()
+            .and_then(|w| w.downcast::<gtk::Label>().ok())
+            .map(|l| l.text().to_string()));
+        value["settings_label"] = serde_json::json!(self
+            .settings_button
+            .child()
+            .and_then(|w| w.downcast::<gtk::Label>().ok())
+            .map(|l| l.text().to_string()));
         value["application"] = serde_json::json!({
             "title":self.window.title().as_deref(),
             "icon":self.window.icon().map(|icon|serde_json::json!({"width":icon.width(),"height":icon.height()})),
@@ -592,6 +604,8 @@ impl Ui {
                 } else {
                     Err("Connexion aux raccourcis perdue".into())
                 });
+                crate::i18n::set_language(settings.language);
+                localization::refresh(&self.window);
                 self.settings.replace(*settings.clone());
                 self.refresh_league();
                 self.invalidate_prices();
@@ -638,22 +652,10 @@ impl Ui {
             self.text.set_text("");
             return;
         }
-        // Rare equipment needs explicit stat selection before a meaningful comparison.
-        let manual_rare = self.item.borrow().as_ref().is_some_and(|i| {
-            i.rarity == crate::item::Rarity::Rare
-                && !matches!(
-                    i.category.as_deref(),
-                    Some("Map" | "Heist Contract" | "Heist Blueprint")
-                )
-        });
-        if self.settings.borrow().automatic_search && !manual_rare {
-            self.search();
-        } else {
-            self.request_quote();
-            self.text.set_text("");
-            self.economy_panel.not_requested();
-            self.economy_panel.container.hide();
-        }
+        self.request_quote();
+        self.text.set_text("");
+        self.economy_panel.not_requested();
+        self.economy_panel.container.hide();
     }
     fn command(&self, command: &str) {
         if let Some(league) = command.strip_prefix("league ") {
@@ -1475,7 +1477,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-poe-trade-rs [daemon|check|copy|locked-check|locked-copy|settings|interact|hide|quit|status|league NAME|inspect FILE|lookup FILE [LEAGUE]]\nCtrl+D: price check. Ctrl+Alt+D: interactive price check after first paint.");
+        println!("awakened-crab-trade [daemon|check|copy|locked-check|locked-copy|settings|interact|hide|quit|status|league NAME|inspect FILE|lookup FILE [LEAGUE]]\nCtrl+D: price check. Ctrl+Alt+D: interactive price check after first paint.");
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1520,6 +1522,12 @@ pub fn run() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let first_launch = !crate::settings::path().exists();
     let settings = Settings::load()?;
+    crate::i18n::set_language(settings.language);
+    if crate::compat::active_legacy_instance() {
+        return Err(crate::i18n::tr(
+            "Fermez la version précédente avant de lancer Awakened Crab Trade.",
+        ));
+    }
     gtk::init().map_err(|e| e.to_string())?;
     let app_icon = branding::icon()?;
     gtk::Window::set_default_icon(&app_icon);
@@ -1555,7 +1563,7 @@ pub fn run() -> Result<(), String> {
         window.set_visual(Some(&visual));
     }
     window.init_layer_shell();
-    window.set_namespace("awakened-poe-trade-rs");
+    window.set_namespace("awakened-crab-trade");
     window.set_layer(Layer::Overlay);
     window.set_anchor(Edge::Top, true);
     window.set_anchor(Edge::Left, true);
@@ -1728,6 +1736,7 @@ pub fn run() -> Result<(), String> {
     content.pack_start(&header, false, false, 0);
     content.pack_start(&stack, true, true, 0);
     window.add(&content);
+    localization::refresh(&window);
     let game_active = Arc::new(AtomicBool::new(false));
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
     {
@@ -2130,7 +2139,15 @@ pub fn run() -> Result<(), String> {
     {
         let ui = ui.clone();
         receiver.attach(None, move |event| {
+            let content_changed = match &event {
+                Event::Windows(_) | Event::GameGeometry(..) => false,
+                Event::Control(request) if request.command == "status" => false,
+                _ => true,
+            };
             ui.event(event);
+            if content_changed {
+                localization::refresh(&ui.window);
+            }
             glib::ControlFlow::Continue
         });
     }

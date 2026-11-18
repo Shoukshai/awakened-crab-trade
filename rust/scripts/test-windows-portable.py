@@ -79,7 +79,7 @@ assert [p.name for p in folder.iterdir()] == [app.name]
 report['only_one_file_next_to_the_portable_exe'] = True
 
 # Native Windows unit tests cover file locking, cache reuse and archive rejection.
-unit = max((r / 'portable/target/x86_64-pc-windows-gnullvm/debug/deps').glob('awakened_poe_trade_portable-*.exe'), key=lambda p:p.stat().st_mtime_ns)
+unit = max((r / 'portable/target/x86_64-pc-windows-gnullvm/debug/deps').glob('awakened_crab_trade_portable-*.exe'), key=lambda p:p.stat().st_mtime_ns)
 shutil.copy2(unit, root / 'portable-unit-tests.exe')
 with (root / 'portable-unit.log').open('w') as out:
     result = subprocess.run([s['wine'], wp(root / 'portable-unit-tests.exe'), '--test-threads=2'], env=env, stdout=out, stderr=subprocess.STDOUT, timeout=30)

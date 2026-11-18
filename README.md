@@ -15,7 +15,7 @@ Awakened PoE Trade.
 
 ## Screenshots
 
-Cropped demo views from version 0.31.1. Click for full panels. Offers and prices are test data.
+English demo views from version 0.32.0. Click for full panels. Offers and prices are test data.
 
 | Gem | Rare | Unique | Currency |
 | --- | --- | --- | --- |
@@ -29,7 +29,11 @@ Cropped demo views from version 0.31.1. Click for full panels. Offers and prices
 
 On Windows, run the portable EXE. In PoE, hover over an item and press
 `Ctrl+Alt+D` to open the interactive checker. `Ctrl+D` opens a passive view.
+Select filters, then click **Search**. Opening the panel never starts a Trade search.
 Press `Esc` or click outside the panel to close it.
+
+Choose **English** or **Francais** in Settings, then Save. Game item and mod names
+remain in English. Existing preferences are imported automatically.
 
 Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),

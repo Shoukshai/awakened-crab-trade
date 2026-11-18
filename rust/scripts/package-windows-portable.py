@@ -16,7 +16,7 @@ shutil.copytree(source, destination)
 subprocess.run(['python3', str(root / 'scripts/collect-licenses.py'),
                 str(destination / 'licenses/launcher'), 'x86_64-pc-windows-gnullvm',
                 str(root / 'portable/Cargo.toml')], check=True)
-shutil.copy2(root / 'docs/windows-portable.md', destination / 'LIRE-MOI-PORTABLE.md')
+shutil.copy2(root / 'docs/windows-portable.md', destination / 'README-PORTABLE.md')
 files = sorted(p for p in destination.rglob('*') if p.is_file() and p.name != 'SHA256FILES.json')
 manifest = {p.relative_to(destination).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 (destination / 'SHA256FILES.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -45,7 +45,7 @@ env.update(APT_PORTABLE_PAYLOAD=str(payload), APT_PORTABLE_ID=identity,
 subprocess.run(['cargo', 'build', '--release', '--locked', '--manifest-path', str(root / 'portable/Cargo.toml'),
                 '--target', 'x86_64-pc-windows-gnullvm'], env=env, check=True)
 exe = root / f'dist/awakened-crab-trade-{version}-windows-x64-portable.exe'
-shutil.copy2(root / 'portable/target/x86_64-pc-windows-gnullvm/release/awakened-poe-trade-portable.exe', exe)
+shutil.copy2(root / 'portable/target/x86_64-pc-windows-gnullvm/release/awakened-crab-trade-portable.exe', exe)
 imports = subprocess.check_output([str(llvm / 'bin/llvm-readobj'), '--coff-imports', str(exe)], text=True)
 import re
 names = re.findall(r'^  Name: (.+)$', imports, re.M)
@@ -59,6 +59,6 @@ digest = hashlib.sha256(exe.read_bytes()).hexdigest()
 exe.with_suffix('.exe.sha256').write_text(f'{digest}  {exe.name}\n')
 report = {'exe': str(exe), 'sha256': digest, 'bytes': exe.stat().st_size,
           'payload_sha256': identity, 'embedded_files': len(files), 'imports': names,
-          'inner_binary_sha256': manifest['awakened-poe-trade-rs.exe']}
+          'inner_binary_sha256': manifest['awakened-crab-trade.exe']}
 (root / 'dist/windows-portable-build.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

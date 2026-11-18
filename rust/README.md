@@ -11,8 +11,8 @@ running through XWayland.
 From the repository root:
 
 ```sh
-cargo build --locked --release --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
-GDK_BACKEND=wayland rust/target/release/awakened-poe-trade-rs daemon
+cargo build --locked --release --manifest-path rust/Cargo.toml --bin awakened-crab-trade -j 3
+GDK_BACKEND=wayland rust/target/release/awakened-crab-trade daemon
 ```
 
 Windows build and usage: [Windows](docs/windows.md),
@@ -32,12 +32,16 @@ poe.ninja quotes; other supported families also offer Trade searches.
 
 The current league is selected automatically. Settings can override the league,
 shortcuts, scale and default filters. Unknown historical preferences are preserved.
-The existing `awakened-poe-trade-rs` config and IPC identifiers remain compatible.
+Choose English or French in Settings, then Save. New profiles start in English;
+existing French profiles retain their language. Older profiles are imported once
+without changing the originals. Current executable, config and IPC names use
+`awakened-crab-trade`. Opening the checker never sends a Trade search: select
+filters, then click Search. poe.ninja reference quotes still load on opening.
 
 ## Checks and packaging
 
 ```sh
-cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-poe-trade-rs -j 3
+cargo test --locked --manifest-path rust/Cargo.toml --bin awakened-crab-trade -j 3
 cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 python3 rust/scripts/test-price-checker.py
 sh rust/scripts/package.sh

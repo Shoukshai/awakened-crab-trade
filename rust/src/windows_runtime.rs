@@ -20,7 +20,7 @@ pub fn initialize() -> Result<(), String> {
             || std::env::args().nth(1).is_none_or(|a| a == "daemon")
         {
             use std::os::windows::io::IntoRawHandle;
-            let dir = crate::paths::cache_root().join("awakened-poe-trade-rs");
+            let dir = crate::paths::cache_root().join("awakened-crab-trade");
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             let file = std::fs::OpenOptions::new()
                 .append(true)
@@ -50,7 +50,7 @@ pub fn initialize() -> Result<(), String> {
         root.hash(&mut hash);
         env!("CARGO_PKG_VERSION").hash(&mut hash);
         let cache = crate::paths::cache_root()
-            .join("awakened-poe-trade-rs")
+            .join("awakened-crab-trade")
             .join(format!("loaders-{:016x}.cache", hash.finish()));
         if !cache.is_file() {
             use std::os::windows::process::CommandExt;

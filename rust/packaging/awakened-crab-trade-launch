@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
-app_bin="${APT_RS_BINARY:-awakened-poe-trade-rs}"
+app_bin="${APT_RS_BINARY:-awakened-crab-trade}"
 if "$app_bin" status >/dev/null 2>&1; then
     notify-send -i awakened-crab-trade 'Awakened Crab Trade' 'Déjà lancé. Ctrl+D sur un objet dans PoE.' || true
     exit 0
 fi
-app_state="${XDG_STATE_HOME:-$HOME/.local/state}/awakened-poe-trade-rs"
+app_state="${XDG_STATE_HOME:-$HOME/.local/state}/awakened-crab-trade"
 mkdir -p "$app_state"
 export GDK_BACKEND=wayland
 if ! "$app_bin" daemon >>"$app_state/overlay.log" 2>&1; then

@@ -14,11 +14,11 @@ pub struct Panel {
     form: gtk::Notebook,
     general_scroll: gtk::ScrolledWindow,
     league: gtk::Entry,
+    language: gtk::ComboBoxText,
     automatic_league: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
     range: gtk::SpinButton,
-    automatic: gtk::CheckButton,
     restore_clipboard: gtk::CheckButton,
     merchant: gtk::CheckButton,
     collapse: gtk::CheckButton,
@@ -53,6 +53,15 @@ impl Panel {
     pub fn new() -> Self {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 10);
         let form = gtk::Notebook::new();
+        let language = gtk::ComboBoxText::new();
+        language.append(Some("en"), "English");
+        language.append(Some("fr"), "Français");
+        super::wheel::protect_combo(&language);
+        let language_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        language_row.pack_start(&gtk::Label::new(Some("Langue")), false, false, 0);
+        language_row.pack_start(&language, true, true, 0);
+        language.set_tooltip_text(Some("La langue change après Enregistrer."));
+        container.pack_start(&language_row, false, false, 0);
         let general = gtk::Grid::new();
         general.set_row_spacing(10);
         general.set_column_spacing(12);
@@ -87,21 +96,13 @@ impl Panel {
         let restore_clipboard =
             gtk::CheckButton::with_label("Restaurer le texte du presse-papiers après une action");
         let online = gtk::CheckButton::with_label("Rechercher en ligne");
-        let automatic = gtk::CheckButton::with_label("Rechercher automatiquement après la copie");
         let merchant = gtk::CheckButton::with_label("Offres disponibles auprès des marchands");
         let collapse =
             gtk::CheckButton::with_label("Regrouper les offres par compte via le service Trade");
         let stock = gtk::CheckButton::with_label("Activer le filtre du stock de la pile copiée");
-        for (index, w) in [
-            &online,
-            &automatic,
-            &merchant,
-            &collapse,
-            &stock,
-            &restore_clipboard,
-        ]
-        .into_iter()
-        .enumerate()
+        for (index, w) in [&online, &merchant, &collapse, &stock, &restore_clipboard]
+            .into_iter()
+            .enumerate()
         {
             general.attach(w, 0, 6 + index as i32, 2, 1);
         }
@@ -186,11 +187,11 @@ impl Panel {
             form,
             general_scroll: scroll,
             league,
+            language,
             automatic_league,
             online,
             scale,
             range,
-            automatic,
             restore_clipboard,
             merchant,
             collapse,
@@ -228,6 +229,7 @@ impl Panel {
             .set_text("Valeurs par défaut dans ce brouillon. Les filtres avancés sont conservés.");
     }
     fn fill(&self, s: &Settings) {
+        self.language.set_active_id(Some(s.language.id()));
         self.league.set_text(&s.league);
         self.automatic_league.set_active(s.automatic_league);
         self.league.set_sensitive(!s.automatic_league);
@@ -236,7 +238,6 @@ impl Panel {
         self.scale.set_text(&s.scale.to_string());
         self.range.set_value(s.search_range);
         self.range.set_text(&s.search_range.to_string());
-        self.automatic.set_active(s.automatic_search);
         self.restore_clipboard.set_active(s.restore_clipboard);
         self.merchant.set_active(s.filters.merchant_only);
         self.collapse.set_active(s.filters.collapse_listings);
@@ -259,12 +260,16 @@ impl Panel {
         self.scale.update();
         self.range.update();
         let mut s = self.base.borrow().clone();
+        s.language = if self.language.active_id().as_deref() == Some("fr") {
+            crate::i18n::Language::Fr
+        } else {
+            crate::i18n::Language::En
+        };
         s.league = self.league.text().trim().into();
         s.automatic_league = self.automatic_league.is_active();
         s.filters.online = self.online.is_active();
         s.scale = self.scale.value();
         s.search_range = self.range.value();
-        s.automatic_search = self.automatic.is_active();
         s.restore_clipboard = self.restore_clipboard.is_active();
         s.filters.merchant_only = self.merchant.is_active();
         s.filters.collapse_listings = self.collapse.is_active();
@@ -363,7 +368,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"automatic":{"value":self.automatic.is_active(),"rect":rect(self.automatic.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 
