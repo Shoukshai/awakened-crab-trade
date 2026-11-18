@@ -33,6 +33,10 @@ try:
  while not(root/'prefix/system.reg').exists():
   if time.monotonic()>until:raise RuntimeError('Private Wine prefix did not initialize')
   time.sleep(.1)
+ # Proton keeps Desktop Duplication's Wine dependencies beside its loader.
+ # Only copy those unmodified libraries into this guarded test prefix.
+ for dll in (wine.parent.parent/'lib/vkd3d/x86_64-windows').glob('libvkd3d*.dll'):
+  shutil.copy2(dll,root/'prefix/drive_c/windows/system32'/dll.name)
  fonts=root/'prefix/drive_c/windows/Fonts';fonts.mkdir(exist_ok=True)
  for pattern in ['sans-serif','sans-serif:bold','sans-serif:italic']:
   font=pathlib.Path(subprocess.check_output(['fc-match','-f','%{file}',pattern],text=True).strip());assert font.is_file();shutil.copy2(font,fonts/font.name)

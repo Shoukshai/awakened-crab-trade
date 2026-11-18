@@ -23,6 +23,7 @@ mod test {
         System::{DataExchange::*, LibraryLoader::*, Memory::*},
         UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
     };
+    static CLOUD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     static COPIES: AtomicU32 = AtomicU32::new(0);
     static KEYS: AtomicU32 = AtomicU32::new(0);
     fn wide(s: &str) -> Vec<u16> {
@@ -32,7 +33,7 @@ mod test {
         PathBuf::from(std::env::var_os("APT_RS_WINDOWS_TEST_DIR").unwrap())
     }
     fn state(window: HWND) {
-        let data = serde_json::json!({"ready":true,"window":window as usize,"copies":COPIES.load(Ordering::Relaxed),"keys":KEYS.load(Ordering::Relaxed),"foreground":unsafe{GetForegroundWindow()}==window});
+        let data = serde_json::json!({"ready":true,"window":window as usize,"copies":COPIES.load(Ordering::Relaxed),"keys":KEYS.load(Ordering::Relaxed),"foreground":unsafe{GetForegroundWindow()}==window,"topmost":unsafe{GetWindowLongPtrW(window,GWL_EXSTYLE)} as u32 & WS_EX_TOPMOST!=0});
         let file = root().join(if std::env::args().any(|a| a == "--foreign") {
             "foreign.state.json"
         } else {
@@ -73,7 +74,56 @@ mod test {
     }
     unsafe extern "system" fn proc(window: HWND, message: u32, w: WPARAM, l: LPARAM) -> LRESULT {
         match message {
+            WM_PAINT => {
+                if !CLOUD.load(Ordering::Relaxed) {
+                    return DefWindowProcW(window, message, w, l);
+                }
+                let mut paint: PAINTSTRUCT = std::mem::zeroed();
+                let dc = BeginPaint(window, &mut paint);
+                let file = root().join(if GetAsyncKeyState(i32::from(VK_MENU)) < 0 {
+                    "fixture-ocr-advanced.bmp"
+                } else {
+                    "fixture-ocr.bmp"
+                });
+                if file.exists() {
+                    let bitmap = LoadImageW(
+                        std::ptr::null_mut(),
+                        wide(&file.to_string_lossy()).as_ptr(),
+                        IMAGE_BITMAP,
+                        0,
+                        0,
+                        LR_LOADFROMFILE,
+                    ) as HBITMAP;
+                    if !bitmap.is_null() {
+                        let mem = CreateCompatibleDC(dc);
+                        let old = SelectObject(mem, bitmap);
+                        let mut b: BITMAP = std::mem::zeroed();
+                        GetObjectW(
+                            bitmap,
+                            std::mem::size_of::<BITMAP>() as i32,
+                            (&mut b as *mut BITMAP).cast(),
+                        );
+                        BitBlt(dc, 0, 0, b.bmWidth, b.bmHeight, mem, 0, 0, SRCCOPY);
+                        SelectObject(mem, old);
+                        DeleteDC(mem);
+                        DeleteObject(bitmap);
+                    }
+                }
+                EndPaint(window, &paint);
+                0
+            }
+            WM_KEYUP | WM_SYSKEYUP => {
+                if CLOUD.load(Ordering::Relaxed) {
+                    InvalidateRect(window, std::ptr::null(), 1);
+                    UpdateWindow(window);
+                }
+                DefWindowProcW(window, message, w, l)
+            }
             WM_KEYDOWN | WM_SYSKEYDOWN => {
+                if CLOUD.load(Ordering::Relaxed) {
+                    InvalidateRect(window, std::ptr::null(), 1);
+                    UpdateWindow(window);
+                }
                 KEYS.fetch_add(1, Ordering::Relaxed);
                 if w == b'C' as usize
                     && GetKeyState(i32::from(VK_CONTROL)) < 0
@@ -134,9 +184,13 @@ mod test {
         }
         unsafe {
             let foreign = std::env::args().any(|a| a == "--foreign");
+            let cloud = std::env::args().any(|a| a == "--cloud");
+            CLOUD.store(cloud, Ordering::Relaxed);
             let windowed = std::env::args().any(|a| a == "--windowed");
             let class = wide(if foreign {
                 "APTForeignFixture"
+            } else if cloud {
+                "APTCloudFixture"
             } else {
                 "POEWindowClass"
             });
@@ -154,10 +208,12 @@ mod test {
                 return Err("RegisterClass failed".into());
             }
             let w = CreateWindowExW(
-                0,
+                if cloud { WS_EX_TOPMOST } else { 0 },
                 class.as_ptr(),
                 wide(if foreign {
                     "APT foreign fixture"
+                } else if cloud {
+                    "Boosteroid (private fixture)"
                 } else {
                     "Path of Exile"
                 })

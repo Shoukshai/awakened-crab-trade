@@ -130,7 +130,7 @@ unsafe extern "system" fn callback(code: i32, kind: WPARAM, data: LPARAM) -> LRE
         // With an owned menu focused, GTK handles Escape to close only that menu.
         if event.vkCode == u32::from(VK_ESCAPE)
             && native::panel_visible()
-            && native::focused_game().is_some()
+            && native::focused_target().is_some()
         {
             state.suppressed.insert(event.vkCode);
             (state.send)(Action::Command("hide"));
@@ -147,7 +147,7 @@ unsafe extern "system" fn callback(code: i32, kind: WPARAM, data: LPARAM) -> LRE
         let Some(binding) = binding else {
             return false;
         };
-        let game = native::focused_game().is_some();
+        let game = native::focused_target().is_some();
         let own = native::owned_active()
             && matches!(
                 binding.action,

@@ -13,16 +13,16 @@ if output.exists():
 output.mkdir()
 exe = root / 'target/x86_64-pc-windows-gnullvm/release/awakened-crab-trade.exe'
 shutil.copy2(exe, output / exe.name)
-for name in ['gdk-pixbuf-query-loaders.exe']:
+for name in ['gdk-pixbuf-query-loaders.exe', 'tesseract.exe']:
     shutil.copy2(sysroot / 'bin' / name, output / name)
 for name in ['lib/gdk-pixbuf-2.0/2.10.0/loaders', 'share/glib-2.0/schemas',
-             'share/icons', 'share/mime', 'etc/fonts']:
+             'share/icons', 'share/mime', 'etc/fonts', 'share/tessdata']:
     shutil.copytree(sysroot / name, output / name)
 subprocess.run(['glib-compile-schemas', str(output / 'share/glib-2.0/schemas')], check=True)
 # Cache files contain build-machine absolute paths. Generate loaders on first run.
 for cache in output.rglob('loaders.cache'):
     cache.unlink()
-system = set('advapi32 bcrypt bcryptprimitives cfgmgr32 comctl32 comdlg32 crypt32 d2d1 d3d11 dbghelp dcomp'
+system = set('xmllite wldap32 combase advapi32 bcrypt bcryptprimitives cfgmgr32 comctl32 comdlg32 crypt32 d2d1 d3d11 dbghelp dcomp'
              ' dnsapi dwmapi dwrite dxgi gdi32 gdiplus hid imm32 iphlpapi kernel32 mpr mscms'
              ' msimg32 msvcrt ncrypt netapi32 normaliz ntdll ole32 oleaut32 opengl32 powrprof'
              ' propsys psapi rpcrt4 secur32 setupapi shell32 shlwapi synchronization ucrtbase'
@@ -55,6 +55,7 @@ shutil.copytree(sysroot / 'share/licenses', licenses / 'runtime')
 shutil.copy2(llvm / 'LICENSE.TXT', licenses / 'LLVM-MinGW-LICENSE.TXT')
 shutil.copy2(root.parent / 'LICENSE', output / 'LICENSE')
 shutil.copy2(root / 'packaging/windows/runtime-lock.json', licenses / 'runtime-lock.json')
+shutil.copy2(root / 'packaging/windows/ocr-data.json', licenses / 'ocr-data.json')
 shutil.copy2(root / 'docs/windows.md', output / 'README.md')
 (licenses / 'runtime-sources.txt').write_text('Unmodified MSYS2 UCRT64 runtime DLLs, dynamically linked.\n'
     'Exact package versions and SHA256: runtime-lock.json.\n'

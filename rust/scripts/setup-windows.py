@@ -32,5 +32,12 @@ for package in lock['packages']:
     if any(pathlib.PurePosixPath(p).is_absolute() or '..' in pathlib.PurePosixPath(p).parts for p in entries):
         raise SystemExit(f'Unexpected archive paths: {path}')
     subprocess.run(['tar', '--zstd', '-xf', str(path), '-C', str(sysroot), '--exclude=.?*'], check=True)
-subprocess.run(['rustup', 'target', 'add', 'x86_64-pc-windows-gnullvm'], check=True)
+ocr = json.loads((root / 'packaging/windows/ocr-data.json').read_text())
+for url, sha, path in [
+    (ocr['url'], ocr['sha256'], sysroot / 'ucrt64/share/tessdata/eng.traineddata'),
+    (ocr['license_url'], ocr['license_sha256'], sysroot / 'ucrt64/share/licenses/tessdata-fast/LICENSE'),
+]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fetch(url, path, sha)
+subprocess.run(['rustup', 'target', 'add' , 'x86_64-pc-windows-gnullvm'], check=True)
 print('Pinned Windows build inputs ready.')

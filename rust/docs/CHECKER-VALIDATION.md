@@ -55,3 +55,26 @@ guarded directory recorded in `rust/dist/windows-sandbox.json`.
 Automated offers and prices are synthetic. Wine checks do not replace testing
 PoE under Windows hardware. The supported Linux setup is River with XWayland;
 other compositors and monitor arrangements need separate validation.
+
+## Windows cloud OCR
+
+With the guarded Windows sandbox running and the portable EXE built:
+
+```sh
+python3 rust/scripts/test-windows-ocr.py rust/dist/awakened-crab-trade-0.34.0-windows-x64-portable.exe
+python3 rust/scripts/test-ocr-screenshots.py rust/dist/awakened-crab-trade-0.34.0-windows-x64-portable.exe
+```
+
+The first runner draws different basic/Alt tooltips in a topmost fake cloud
+window. It checks the actual shortcut, capture of Alt-only item level, seven
+searchable mods, responsive GTK during recognition, manual review, no injected
+copy, no automatic Trade search, cancellation, foreign-process scope and capture
+settings saved through the UI. The second recognizes the user's two cropped PoE
+tooltips and verifies that missing item levels are not replaced by requirements.
+Source hashes and crop coordinates live beside the fixtures. Unknown lines remain
+editable in review and never become guessed stat filters.
+
+Reports and screenshots stay in `rust/dist`. Wine uses the bundled local OCR;
+it cannot validate Windows.Media.Ocr, DXGI hardware-video capture or Boosteroid's
+real fullscreen behavior. Real Windows 10/11 verification is required before
+calling this mode stable. OCR values can be misread and must be reviewed.

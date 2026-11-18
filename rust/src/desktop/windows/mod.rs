@@ -3,8 +3,10 @@ pub mod clipboard;
 pub mod game_geometry;
 pub mod game_input;
 pub mod native;
+pub mod ocr;
 #[path = "../preferences.rs"]
 pub mod preferences;
+mod screen_capture;
 pub mod shortcuts;
 pub mod tracker;
 

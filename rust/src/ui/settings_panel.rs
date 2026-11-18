@@ -16,6 +16,12 @@ pub struct Panel {
     league: gtk::Entry,
     language: gtk::ComboBoxText,
     theme: gtk::ComboBoxText,
+    #[cfg(target_os = "windows")]
+    source: gtk::ComboBoxText,
+    #[cfg(target_os = "windows")]
+    client: gtk::Entry,
+    #[cfg(target_os = "windows")]
+    ocr_region: gtk::Entry,
     automatic_league: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
@@ -190,6 +196,41 @@ impl Panel {
             &shortcuts_scroll,
             Some(&gtk::Label::new(Some("Raccourcis"))),
         );
+        #[cfg(target_os = "windows")]
+        let (source, client, ocr_region) = {
+            let grid = gtk::Grid::new();
+            grid.set_border_width(12);
+            grid.set_column_spacing(12);
+            grid.set_row_spacing(12);
+            let source = gtk::ComboBoxText::new();
+            source.append(Some("clipboard"), "Presse-papiers (PoE local)");
+            source.append(Some("ocr"), "OCR (cloud gaming)");
+            super::wheel::protect_combo(&source);
+            row(&grid, 0, "Source", &source);
+            let client = gtk::Entry::new();
+            client.set_placeholder_text(Some("Boosteroid.exe"));
+            row(&grid, 1, "Exécutable du client", &client);
+            let region = gtk::Entry::new();
+            region.set_placeholder_text(Some("Auto"));
+            row(&grid, 2, "Zone OCR (%)", &region);
+            let hint=gtk::Label::new(Some("Maintenez Alt, puis Ctrl+D. Relâchez Alt après la capture. Vérifiez le texte avant de rechercher. Le jeu doit être en anglais.\nZone optionnelle : x, y, largeur, hauteur en % de la fenêtre (ex. 58, 0, 38, 65). Laissez vide pour la détection automatique."));
+            hint.set_line_wrap(true);
+            hint.set_xalign(0.);
+            grid.attach(&hint, 0, 3, 2, 1);
+            let target = client.clone();
+            let area = region.clone();
+            source.connect_changed(move |s| {
+                let on = s.active_id().as_deref() == Some("ocr");
+                target.set_sensitive(on);
+                area.set_sensitive(on);
+            });
+            let scroll =
+                gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+            scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+            scroll.add(&grid);
+            form.append_page(&scroll, Some(&gtk::Label::new(Some("Capture"))));
+            (source, client, region)
+        };
         let capture = Rc::new(Cell::new(None));
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
@@ -214,6 +255,12 @@ impl Panel {
             league,
             language,
             theme,
+            #[cfg(target_os = "windows")]
+            source,
+            #[cfg(target_os = "windows")]
+            client,
+            #[cfg(target_os = "windows")]
+            ocr_region,
             automatic_league,
             online,
             scale,
@@ -255,6 +302,22 @@ impl Panel {
             .set_text("Valeurs par défaut dans ce brouillon. Les filtres avancés sont conservés.");
     }
     fn fill(&self, s: &Settings) {
+        #[cfg(target_os = "windows")]
+        {
+            self.source
+                .set_active_id(Some(if s.capture.mode == crate::capture::Mode::Ocr {
+                    "ocr"
+                } else {
+                    "clipboard"
+                }));
+            self.client.set_text(&s.capture.executable);
+            self.ocr_region.set_text(
+                &s.capture
+                    .region
+                    .map(|r| r.map(|v| v.to_string()).join(", "))
+                    .unwrap_or_default(),
+            );
+        }
         self.language.set_active_id(Some(s.language.id()));
         self.theme.set_active_id(Some(s.theme.id()));
         self.league.set_text(&s.league);
@@ -287,6 +350,31 @@ impl Panel {
         self.scale.update();
         self.range.update();
         let mut s = self.base.borrow().clone();
+        #[cfg(target_os = "windows")]
+        {
+            s.capture.mode = if self.source.active_id().as_deref() == Some("ocr") {
+                crate::capture::Mode::Ocr
+            } else {
+                crate::capture::Mode::Clipboard
+            };
+            s.capture.executable = self.client.text().trim().into();
+            s.capture.region = if self.ocr_region.text().trim().is_empty() {
+                None
+            } else {
+                let values: Vec<f64> = self
+                    .ocr_region
+                    .text()
+                    .split(',')
+                    .map(|v| v.trim().parse())
+                    .collect::<Result<_, _>>()
+                    .map_err(|_| "OCR area: enter x, y, width, height in percent.")?;
+                Some(
+                    values
+                        .try_into()
+                        .map_err(|_| "OCR area needs four values.")?,
+                )
+            };
+        }
         s.language = if self.language.active_id().as_deref() == Some("fr") {
             crate::i18n::Language::Fr
         } else {
@@ -410,11 +498,22 @@ impl Panel {
             }
         });
     }
+    #[cfg(target_os = "windows")]
+    fn capture_diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
+        let rect = |w: &gtk::Widget| {
+            w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
+        };
+        serde_json::json!({"source":{"value":self.source.active_id().as_deref(),"rect":rect(self.source.upcast_ref())},"client":{"value":self.client.text().as_str(),"rect":rect(self.client.upcast_ref())},"region":{"value":self.ocr_region.text().as_str(),"rect":rect(self.ocr_region.upcast_ref())}})
+    }
+    #[cfg(not(target_os = "windows"))]
+    fn capture_diagnostics(&self, _window: &gtk::Window) -> serde_json::Value {
+        serde_json::Value::Null
+    }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"theme":{"value":self.theme.active_id().as_deref(),"rect":rect(self.theme.upcast_ref())},"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..2).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        serde_json::json!({"capture_source":self.capture_diagnostics(window),"theme":{"value":self.theme.active_id().as_deref(),"rect":rect(self.theme.upcast_ref())},"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..self.form.n_pages()).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

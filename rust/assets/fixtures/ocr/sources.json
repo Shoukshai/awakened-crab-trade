@@ -1,0 +1,30 @@
+[
+  {
+    "file": "gloves.png",
+    "source": "User-provided PoE screenshot, 2026-11-18",
+    "original_sha256": "27be8e9fcb456cc721947f3c01a99e139ad683ac27e46bab1cc5bf2061a3c0fa",
+    "crop_xyxy": [
+      1204,
+      0,
+      1714,
+      350
+    ],
+    "sha256": "aa55348736767b888f8ab9e5c26e2bda60fa60797f89244bfe481422ec771994",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
+  },
+  {
+    "file": "body-armour.png",
+    "source": "User-provided PoE screenshot, 2026-11-18",
+    "original_sha256": "3fd6ec38d397e73b8b8750537a7e77abf0d2f3dd14780ea57d1014f46a1e75a9",
+    "crop_xyxy": [
+      1140,
+      0,
+      1539,
+      349
+    ],
+    "sha256": "60de8d6b3dbdc076666905c882d7a296a84271cc941c3a2e9d8ffac20ee738b0",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
+  }
+]

@@ -118,3 +118,37 @@ pub fn rect(window: HWND) -> Option<crate::price_layout::Rect> {
         })
     }
 }
+
+static CAPTURE: std::sync::OnceLock<std::sync::RwLock<crate::capture::Settings>> =
+    std::sync::OnceLock::new();
+pub fn set_capture(settings: &crate::capture::Settings) {
+    *CAPTURE.get_or_init(Default::default).write().unwrap() = settings.clone();
+    super::tracker::refresh();
+}
+pub fn is_target(window: HWND) -> bool {
+    let settings = CAPTURE.get_or_init(Default::default).read().unwrap();
+    if settings.mode == crate::capture::Mode::Clipboard {
+        return is_game(window);
+    }
+    let Some((pid, path)) = process(window) else {
+        return false;
+    };
+    if pid == unsafe { GetCurrentProcessId() } {
+        return false;
+    }
+    let desired = settings
+        .executable
+        .trim()
+        .replace('/', "\\")
+        .to_ascii_lowercase();
+    if desired.contains('\\') {
+        path.to_string_lossy().to_ascii_lowercase() == desired
+    } else {
+        path.file_name()
+            .is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(&desired))
+    }
+}
+pub fn focused_target() -> Option<HWND> {
+    let window = unsafe { GetForegroundWindow() };
+    is_target(window).then_some(window)
+}

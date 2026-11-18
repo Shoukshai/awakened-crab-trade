@@ -4,6 +4,7 @@
 )]
 mod appearance;
 mod calculated;
+mod capture;
 mod compat;
 #[cfg(target_os = "linux")]
 mod desktop;
@@ -16,6 +17,7 @@ mod hotkeys;
 mod i18n;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ipc;
+mod ocr;
 mod paths;
 #[cfg(target_os = "windows")]
 mod windows_runtime;

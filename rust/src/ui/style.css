@@ -87,3 +87,11 @@ menuitem label { color: inherit; }
 #apt-native .header-title { color: @act_fg; }
 #apt-native button:focus, #apt-native entry:focus, #apt-native combobox button:focus { border-color: @act_accent; }
 #apt-native entry selection { background: @act_selected; color: @act_fg; }
+
+#apt-native textview, #apt-native textview text {
+  color: @act_fg;
+  background-color: @act_surface;
+  caret-color: @act_accent;
+}
+#apt-native textview { border: 1px solid @act_line; border-radius: 4px; padding: 8px; }
+#apt-native textview text selection { color: @act_on_accent; background-color: @act_accent; }

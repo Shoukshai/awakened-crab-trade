@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    pub capture: crate::capture::Settings,
     pub theme: crate::appearance::Theme,
     #[serde(default = "crate::i18n::Language::legacy_default")]
     pub language: crate::i18n::Language,
@@ -26,6 +27,7 @@ fn is_true(value: &bool) -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            capture: crate::capture::Settings::default(),
             theme: crate::appearance::Theme::default(),
             language: crate::i18n::Language::En,
             restore_clipboard: false,
@@ -72,7 +74,18 @@ impl Settings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
-        self.checker_hotkeys().bindings()?;
+        self.capture.validate()?;
+        let bindings = self.checker_hotkeys().bindings()?;
+        if self.capture.mode == crate::capture::Mode::Ocr
+            && !bindings
+                .iter()
+                .any(|(key, action)| key.alt && action.is_copy())
+        {
+            return Err(
+                "OCR capture needs a price shortcut containing Alt, for example Ctrl + Alt + D."
+                    .into(),
+            );
+        }
         self.map_check.validate()?;
         if !self.search_range.is_finite() || !(0. ..=100.).contains(&self.search_range) {
             return Err("La plage de recherche doit être comprise entre 0 et 100 %.".into());

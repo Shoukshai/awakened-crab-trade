@@ -142,7 +142,7 @@ pub fn set_input_enabled(w: &gtk::Window, enabled: bool) {
 pub fn monitor_for_game(display: &gdk::Display, game: Option<u32>) -> Option<gdk::Monitor> {
     let window = game
         .map(crate::desktop::native::hwnd)
-        .or_else(crate::desktop::native::focused_game);
+        .or_else(crate::desktop::native::focused_target);
     if let Some(window) = window {
         let native = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST) };
         let mut info: MONITORINFO = unsafe { std::mem::zeroed() };
@@ -219,7 +219,7 @@ impl LayerShell for gtk::Window {
         if previous != mode
             && mode == KeyboardMode::OnDemand
             && self.is_visible()
-            && (crate::desktop::native::focused_game().is_some()
+            && (crate::desktop::native::focused_target().is_some()
                 || crate::desktop::native::owned_active())
         {
             if let Some(surface) = self.window() {
@@ -255,5 +255,28 @@ impl LayerShell for gtk::Window {
                 })
                 .unwrap_or(0)
         })
+    }
+}
+
+/// Reassert topmost once per explicit open, even if a cloud client is topmost.
+/// No polling or activation of an unrelated foreground application.
+pub fn raise(w: &gtk::Window) {
+    if !(crate::desktop::native::focused_target().is_some()
+        || crate::desktop::native::owned_active())
+    {
+        return;
+    }
+    if let Some(raw) = handle(w) {
+        unsafe {
+            SetWindowPos(
+                raw,
+                HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
     }
 }

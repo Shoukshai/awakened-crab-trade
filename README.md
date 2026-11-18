@@ -12,6 +12,7 @@ Awakened PoE Trade.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
 - Use a full-height overlay beside the inventory, with automatic league selection.
 - Ten live-switchable styles, including light themes, tabs and a split view.
+- Experimental Windows cloud OCR, with local recognition and editable review.
 
 ## Screenshots
 
@@ -39,6 +40,10 @@ remain in English. Existing preferences are imported automatically.
 Choose **Style** in Settings to preview a theme; Save keeps it and Cancel restores
 the previous style. Filters and displayed offers survive a style change.
 
+For cloud gaming, see the experimental [Windows OCR mode](rust/docs/windows.md#cloud-gaming-ocr-experimental).
+Hold Alt for advanced item details before capturing; review the recognized stats
+before searching.
+
 Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),
 [Windows portable](rust/docs/windows-portable.md).
@@ -54,5 +59,6 @@ poe.ninja; item references include PoEDB. Project icon supplied by Shoukshai.
 
 ## TODO
 
-- [ ] OCR support for cloud gaming.
+- [ ] Validate cloud OCR with Boosteroid on Windows 10/11.
+- [ ] Automatic updates once the repository is public.
 - [ ] Improve the UI to replace the "AI slop" look, based on feedback from friends.

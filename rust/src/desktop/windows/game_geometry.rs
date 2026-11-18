@@ -5,7 +5,7 @@ use windows_sys::Win32::{
     UI::{Accessibility::*, WindowsAndMessaging::*},
 };
 pub fn focused() -> Option<(u32, crate::price_layout::Rect)> {
-    let w = native::focused_game()?;
+    let w = native::focused_target()?;
     Some((native::id(w), native::rect(w)?))
 }
 type GeometryCallback = Box<dyn FnMut(u32, crate::price_layout::Rect)>;
@@ -19,7 +19,7 @@ unsafe extern "system" fn event(
     _: u32,
     _: u32,
 ) {
-    if object == OBJID_WINDOW && child == 0 && native::is_game(window) {
+    if object == OBJID_WINDOW && child == 0 && native::is_target(window) {
         if let Some(rect) = native::rect(window) {
             SEND.with(|s| {
                 if let Some(send) = s.borrow_mut().as_mut() {

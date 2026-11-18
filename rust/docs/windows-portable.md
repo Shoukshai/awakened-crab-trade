@@ -1,6 +1,6 @@
 # Windows portable EXE
 
-Run `awakened-crab-trade-0.33.0-windows-x64-portable.exe` directly. No manual
+Run `awakened-crab-trade-0.34.0-windows-x64-portable.exe` directly. No manual
 extraction, installer or administrator privileges are needed.
 
 On first launch, GTK, the checker and their licenses are extracted to

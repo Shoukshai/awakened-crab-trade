@@ -50,7 +50,7 @@ unsafe extern "system" fn enumerate(window: HWND, data: LPARAM) -> i32 {
     if pid == GetCurrentProcessId() {
         return 1;
     }
-    let game = native::is_game(window);
+    let game = native::is_target(window);
     let active = window == GetForegroundWindow();
     if !game && !active {
         return 1;
@@ -97,15 +97,30 @@ unsafe extern "system" fn event(
     if (event == EVENT_SYSTEM_FOREGROUND || object == OBJID_WINDOW)
         && (window.is_null()
             || event == EVENT_SYSTEM_FOREGROUND
-            || native::is_game(window)
+            || native::is_target(window)
             || PREVIOUS.with(|p| p.borrow().iter().any(|w| w.id == native::id(window))))
     {
         publish();
     }
 }
+static THREAD: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+pub fn refresh() {
+    let id = THREAD.load(std::sync::atomic::Ordering::Acquire);
+    if id != 0 {
+        unsafe {
+            PostThreadMessageW(id, WM_APP + 81, 0, 0);
+        }
+    }
+}
 pub fn track(send: impl Fn(Snapshot) + 'static) -> Result<(), String> {
     SEND.with(|s| s.replace(Some(Box::new(send))));
     unsafe {
+        let mut msg: MSG = std::mem::zeroed();
+        PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_NOREMOVE);
+        THREAD.store(
+            windows_sys::Win32::System::Threading::GetCurrentThreadId(),
+            std::sync::atomic::Ordering::Release,
+        );
         let mut hooks = HashMap::new();
         for (first, last) in [
             (EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND),
@@ -141,9 +156,14 @@ pub fn track(send: impl Fn(Snapshot) + 'static) -> Result<(), String> {
         });
         let mut msg: MSG = std::mem::zeroed();
         while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+            if msg.message == WM_APP + 81 {
+                publish();
+                continue;
+            }
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
+        THREAD.store(0, std::sync::atomic::Ordering::Release);
         for hook in hooks.values() {
             UnhookWinEvent(*hook);
         }
