@@ -1,4 +1,4 @@
-# Windows price checker 0.35.1
+# Windows price checker 0.35.2
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -39,9 +39,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.35.1-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.35.2-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.35.1-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -69,8 +69,13 @@ uploaded to a recognition service. The local fallback exchanges pixels and text 
 not written to disk during normal use. Its child process is bounded and stopped
 by Windows when the checker exits.
 
-Capture uses DXGI Desktop Duplication, with a client-window GDI fallback. An
-explicit open reasserts topmost placement without a recurring focus-stealing loop.
+Capture tries Windows Graphics Capture (Windows 10 1903+), Desktop Duplication,
+desktop GDI cropped to the client area, then client-window GDI. Each method's
+pixels are checked: a successful API call returning black no longer stops the
+fallback chain. WGC and DXGI wait for a readable frame with bounded,
+cancellable polling; mouse-only DXGI updates are skipped. Errors report each
+attempt in the panel and the OCR edition's checker.log. No PrintWindow is used.
+An explicit open reasserts topmost placement without a recurring focus-stealing loop.
 Use windowed or borderless cloud streaming; protected video and exclusive fullscreen
 can prevent capture or normal desktop overlays. Blank captures fail explicitly.
 
@@ -95,6 +100,7 @@ or Boosteroid's real fullscreen behavior; those need a Windows 10/11 test.
 
 API references: [windows-rs](https://github.com/microsoft/windows-rs),
 [Windows OCR requirements](https://learn.microsoft.com/en-us/uwp/api/windows.media.ocr),
+[HWND graphics capture](https://learn.microsoft.com/en-us/windows/win32/api/windows.graphics.capture.interop/nf-windows-graphics-capture-interop-igraphicscaptureiteminterop-createforwindow),
 [Desktop Duplication](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api).
 
 ## Build from Linux

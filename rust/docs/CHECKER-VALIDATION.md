@@ -61,8 +61,8 @@ other compositors and monitor arrangements need separate validation.
 With the guarded Windows sandbox running and the portable EXE built:
 
 ```sh
-python3 rust/scripts/test-windows-ocr.py rust/dist/awakened-crab-trade-ocr-0.35.1-windows-x64-portable.exe rust/dist/awakened-crab-trade-0.35.1-windows-x64-portable.exe
-python3 rust/scripts/test-ocr-screenshots.py rust/dist/awakened-crab-trade-ocr-0.35.1-windows-x64-portable.exe
+python3 rust/scripts/test-windows-ocr.py rust/dist/awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe rust/dist/awakened-crab-trade-0.35.2-windows-x64-portable.exe
+python3 rust/scripts/test-ocr-screenshots.py rust/dist/awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe
 ```
 
 The first runner draws different basic/Alt tooltips in a topmost fake cloud
@@ -71,6 +71,10 @@ searchable mods, responsive GTK during recognition, manual review, no injected
 copy, no automatic Trade search, cancellation, foreign-process scope and capture
 settings saved through the UI, automatic gem/currency/unique/map/magic tooltip
 localization, and both editions running with independent profiles and shortcuts.
+It also injects successful black GPU captures to verify GDI fallback, and checks
+that exhausting four blank backends gives a bounded, explicit error with the
+review action disabled. Unsupported WGC/DXGI under Wine use the real fallback;
+Wine cannot validate successful compositor capture on Windows hardware.
 The second relocates three supplied PoE tooltips within full-size frames. It
 verifies missing item levels are not replaced by requirements, and checks the
 advanced Necrotic Armour tooltip: ilvl 86, all nine stat lines, observed roll

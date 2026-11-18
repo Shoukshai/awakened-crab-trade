@@ -36,7 +36,8 @@ user.write_text('\n\n'.join(blocks)+'\n')
 for p in root.rglob('control.json'):p.unlink()
 for parent in [root/'cache/awakened-crab-trade-ocr',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade-ocr'))]:
  for name in ['economy','icons']:shutil.rmtree(parent/name,ignore_errors=True)
-for name in ['cloud.state.json','foreign.state.json','clipboard-read.txt']:(root/name).unlink(missing_ok=True)
+ (parent/'checker.log').unlink(missing_ok=True)
+for name in ['cloud.state.json','foreign.state.json','clipboard-read.txt','capture-black-accelerated','capture-all-blank']:(root/name).unlink(missing_ok=True)
 wp=lambda p:'Z:'+str(pathlib.Path(p).resolve()).replace('/','\\')
 env.update(APPDATA=wp(root/'config'),LOCALAPPDATA=wp(root/'cache'),APT_RS_WINDOWS_TEST_DIR=wp(root),APT_RS_WINDOWS_TEST_TOKEN=(root/'fixture.guard').read_text(),GDK_BACKEND='win32',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',NO_PROXY='127.0.0.1,localhost')
 for d in ['config/awakened-crab-trade-ocr','cache/awakened-crab-trade-ocr']:(root/d).mkdir(parents=True,exist_ok=True)
@@ -126,6 +127,7 @@ try:
  wait(lambda:(root/'cloud.state.json').exists(),'cloud fixture');assert json.loads((root/'cloud.state.json').read_text())['topmost'];click(200,700);wait(lambda:status()['game_active'],'cloud process selected')
  # Alt must already be held when the pixels are acquired. Keep it long enough
  # to test the gate, then release before review becomes interactive.
+ (root/'capture-black-accelerated').touch()
  (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.3)
  subprocess.run(['grim',str(root/'ocr-before.png')],env=env,check=True);subprocess.run(['xdotool','keydown','Control_L','key','d','keyup','Control_L'],env=env,check=True);wait(lambda:status()['capture_pending'] is not None,'OCR queued')
@@ -141,6 +143,13 @@ try:
  assert not posts and st['request'] is None
  assert json.loads((root/'cloud.state.json').read_text())['copies']==0,'OCR must never inject Ctrl+Alt+C'
  assert max(checks)<1,'GTK status stopped responding during OCR'
+ (root/'capture-black-accelerated').unlink()
+ for log in logs:log.flush()
+ capture_log='\n'.join(p.read_text() for p in [root/'cache/awakened-crab-trade-ocr/checker.log',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade-ocr/checker.log'))] if p.exists())
+ assert 'Windows Graphics Capture: blank frame (private fixture)' in capture_log,capture_log
+ assert 'Desktop Duplication: blank frame (private fixture)' in capture_log,capture_log
+ assert 'ocr capture backend=Client GDI' in capture_log or 'ocr capture backend=Desktop GDI' in capture_log,capture_log
+ report['blank_accelerated_frames_fall_back']=True
  if len(sys.argv)>2:
   assert normal_command('status')['state']=='Hidden' and normal_command('status')['generation']==normal_generation
   assert json.loads((root/'fixture.state.json').read_text())['copies']>=1
@@ -171,6 +180,17 @@ try:
   assert status()['family']==expected,(case,status()['item'],status()['family']);assert not posts
   print('automatic',case,'passed',flush=True)
  report['automatic_families']=[expected for _,expected,_,_,_ in auto_cases]
+ # Exhausting every method must be bounded and keep the review action disabled.
+ command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused for blank capture')
+ (root/'capture-all-blank').touch();(root/'ocr-snapshot.ppm').unlink(missing_ok=True)
+ subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');time.sleep(.2)
+ subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
+ wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','all blank diagnostic',10)
+ failed=status()['ocr_review'];assert not failed['apply']['enabled'],failed
+ assert 'No usable image from the cloud window' in failed['status'],failed
+ for name in ['Windows Graphics Capture','Desktop Duplication','Desktop GDI','Client GDI']:assert name+': blank frame' in failed['status'],failed
+ assert not (root/'ocr-snapshot.ppm').exists() and not posts
+ (root/'capture-all-blank').unlink();report['all_blank_reports_each_backend']=True
  # A second request is cancelled by Escape/hide before it may reopen the panel.
  command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused again')
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');time.sleep(.15);command('hide');subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
@@ -197,6 +217,6 @@ finally:
    try:process.wait(timeout=3)
    except subprocess.TimeoutExpired:process.kill();process.wait()
  for log in logs:log.close()
- for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp']:(root/name).unlink(missing_ok=True)
+ for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp','capture-black-accelerated','capture-all-blank']:(root/name).unlink(missing_ok=True)
  server.shutdown()
  if not success:print('Diagnostics:',root)

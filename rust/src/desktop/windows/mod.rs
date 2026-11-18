@@ -11,6 +11,8 @@ pub mod preferences;
 mod screen_capture;
 pub mod shortcuts;
 pub mod tracker;
+#[cfg(feature = "cloud-ocr")]
+mod window_capture;
 
 pub fn open_url(url: &str) -> Result<(), String> {
     let parsed = reqwest::Url::parse(url).map_err(|e| e.to_string())?;

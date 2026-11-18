@@ -1,7 +1,7 @@
 # Windows portable EXE
 
-Run `awakened-crab-trade-0.35.1-windows-x64-portable.exe` for local PoE, or
-`awakened-crab-trade-ocr-0.35.1-windows-x64-portable.exe` for cloud OCR. No manual
+Run `awakened-crab-trade-0.35.2-windows-x64-portable.exe` for local PoE, or
+`awakened-crab-trade-ocr-0.35.2-windows-x64-portable.exe` for cloud OCR. No manual
 extraction, installer or administrator privileges are needed.
 
 On first launch, GTK, the checker and their licenses are extracted to

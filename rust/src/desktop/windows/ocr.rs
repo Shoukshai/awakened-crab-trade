@@ -240,9 +240,9 @@ impl Image {
         }
     }
 }
-struct Apartment;
+pub(super) struct Apartment;
 impl Apartment {
-    fn new() -> Result<Self, String> {
+    pub(super) fn new() -> Result<Self, String> {
         unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.map_err(|e| e.to_string())?;
         Ok(Self)
     }
@@ -292,9 +292,14 @@ impl<'a> Target<'a> {
 }
 // Client DC fallback supports ordinary rendered windows; DXGI is preferred
 // for hardware-decoded streams. Never use PrintWindow on the cloud client.
-fn gdi(window: HWND, rect: crate::price_layout::Rect) -> Result<Image, String> {
+fn gdi(window: HWND, rect: crate::price_layout::Rect, desktop: bool) -> Result<Image, String> {
     unsafe {
-        let screen = GetDC(window);
+        let owner = if desktop {
+            std::ptr::null_mut()
+        } else {
+            window
+        };
+        let screen = GetDC(owner);
         if screen.is_null() {
             return Err(native::error("Screen capture"));
         }
@@ -307,7 +312,7 @@ fn gdi(window: HWND, rect: crate::price_layout::Rect) -> Result<Image, String> {
             if !bitmap.is_null() {
                 DeleteObject(bitmap);
             }
-            ReleaseDC(window, screen);
+            ReleaseDC(owner, screen);
             return Err(native::error("Capture buffer"));
         }
         let old = SelectObject(dc, bitmap);
@@ -318,8 +323,8 @@ fn gdi(window: HWND, rect: crate::price_layout::Rect) -> Result<Image, String> {
             rect.width,
             rect.height,
             screen,
-            0,
-            0,
+            if desktop { rect.x } else { 0 },
+            if desktop { rect.y } else { 0 },
             SRCCOPY | CAPTUREBLT,
         );
         SelectObject(dc, old);
@@ -346,7 +351,7 @@ fn gdi(window: HWND, rect: crate::price_layout::Rect) -> Result<Image, String> {
         };
         DeleteObject(bitmap);
         DeleteDC(dc);
-        ReleaseDC(window, screen);
+        ReleaseDC(owner, screen);
         if rows != rect.height {
             return Err(native::error("Read screen pixels"));
         }
@@ -726,21 +731,52 @@ pub fn capture(
     {
         return Err("Unsupported capture size.".into());
     }
-    let image = super::screen_capture::capture(rect).or_else(|error| {
-        eprintln!("DXGI capture unavailable: {error}");
+    let check = || {
         target.alt()?;
-        gdi(target.window, rect)
-    })?;
+        if native::rect(target.window) != Some(rect) {
+            return Err("Cloud window moved or resized; OCR cancelled.".into());
+        }
+        Ok(())
+    };
+    let (image, backend) = crate::capture::frame::first_usable(
+        |backend| {
+            // Fault injection is available only on the authenticated private desktop.
+            if native::fixture_root().is_some_and(|root| {
+                root.join("capture-all-blank").exists()
+                    || (root.join("capture-black-accelerated").exists()
+                        && crate::capture::frame::BACKENDS[..2].contains(&backend))
+            }) {
+                eprintln!("ocr {backend}: blank frame (private fixture)");
+                return Ok(Image {
+                    width: rect.width as usize,
+                    height: rect.height as usize,
+                    pixels: vec![0; rect.width as usize * rect.height as usize * 4],
+                });
+            }
+            let image = match backend {
+                "Windows Graphics Capture" => super::window_capture::capture(
+                    windows::Win32::Foundation::HWND(target.window),
+                    rect,
+                    &check,
+                ),
+                "Desktop Duplication" => super::screen_capture::capture(rect, &check),
+                "Desktop GDI" => gdi(target.window, rect, true),
+                _ => gdi(target.window, rect, false),
+            };
+            match &image {
+                Ok(i) if !crate::capture::frame::has_content(&i.pixels) => {
+                    eprintln!("ocr {backend}: blank frame")
+                }
+                Err(error) => eprintln!("ocr {backend}: {error}"),
+                _ => {}
+            }
+            image
+        },
+        |i| crate::capture::frame::has_content(&i.pixels),
+        check,
+    )?;
     target.alt()?;
-    if !image
-        .pixels
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .any(|p| p[..3].iter().any(|c| *c > 80))
-    {
-        return Err("The captured frame is blank or protected. Try windowed/borderless mode and check that the selected executable owns the stream window.".into());
-    }
+    eprintln!("ocr capture backend={backend}");
     // Diagnostics are restricted to the authenticated private Windows fixture.
     if let Some(root) = native::fixture_root() {
         if let Ok(f) = std::fs::File::create(root.join("ocr-snapshot.ppm")) {
