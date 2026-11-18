@@ -10,7 +10,8 @@
 - Standard edition uses `awakened-crab-trade` for executable, settings and IPC.
 - Windows OCR edition uses `awakened-crab-trade-ocr` for its profile, cache and
   control endpoint. It is compiled with `cloud-ocr`; standard builds omit OCR.
-- Keep capture methods fixed per edition and shortcut scopes separate.
+- Keep capture methods fixed per edition and default shortcut scopes separate.
+  Local PoE OCR testing is an explicit opt-in using Ctrl+Alt+O, never clipboard copy.
 - OCR must locate the tooltip automatically; do not require manual coordinates.
 - Import older profiles through the compatibility module; preserve user settings.
 - Never send test input to the real game or use the user's Steam/Wine prefix.

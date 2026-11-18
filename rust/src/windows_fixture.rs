@@ -24,6 +24,7 @@ mod test {
         UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
     };
     static CLOUD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    static OCR_PIXELS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     static COPIES: AtomicU32 = AtomicU32::new(0);
     static KEYS: AtomicU32 = AtomicU32::new(0);
     fn wide(s: &str) -> Vec<u16> {
@@ -76,8 +77,14 @@ mod test {
     }
     unsafe extern "system" fn proc(window: HWND, message: u32, w: WPARAM, l: LPARAM) -> LRESULT {
         match message {
+            WM_TIMER if CLOUD.load(Ordering::Relaxed) => {
+                if root().join("hide-cloud").exists() {
+                    ShowWindow(window, SW_HIDE);
+                }
+                0
+            }
             WM_PAINT => {
-                if !CLOUD.load(Ordering::Relaxed) {
+                if !OCR_PIXELS.load(Ordering::Relaxed) {
                     return DefWindowProcW(window, message, w, l);
                 }
                 let mut paint: PAINTSTRUCT = std::mem::zeroed();
@@ -115,14 +122,14 @@ mod test {
                 0
             }
             WM_KEYUP | WM_SYSKEYUP => {
-                if CLOUD.load(Ordering::Relaxed) {
+                if OCR_PIXELS.load(Ordering::Relaxed) {
                     InvalidateRect(window, std::ptr::null(), 1);
                     UpdateWindow(window);
                 }
                 DefWindowProcW(window, message, w, l)
             }
             WM_KEYDOWN | WM_SYSKEYDOWN => {
-                if CLOUD.load(Ordering::Relaxed) {
+                if OCR_PIXELS.load(Ordering::Relaxed) {
                     InvalidateRect(window, std::ptr::null(), 1);
                     UpdateWindow(window);
                 }
@@ -188,6 +195,10 @@ mod test {
             let foreign = std::env::args().any(|a| a == "--foreign");
             let cloud = std::env::args().any(|a| a == "--cloud");
             CLOUD.store(cloud, Ordering::Relaxed);
+            OCR_PIXELS.store(
+                cloud || std::env::args().any(|a| a == "--ocr-local"),
+                Ordering::Relaxed,
+            );
             let windowed = std::env::args().any(|a| a == "--windowed");
             let class = wide(if foreign {
                 "APTForeignFixture"
@@ -250,6 +261,9 @@ mod test {
                 return Err("CreateWindow failed".into());
             }
             ShowWindow(w, SW_SHOW);
+            if cloud {
+                SetTimer(w, 1, 50, None);
+            }
             SetForegroundWindow(w);
             UpdateWindow(w);
             if !foreign {

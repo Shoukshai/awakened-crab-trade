@@ -263,8 +263,8 @@ impl<'a> Target<'a> {
     fn new(context: &'a Context<'a>) -> Result<Self, String> {
         context.check()?;
         let window = native::focused_target()
-            .ok_or("The selected cloud client must be in the foreground.")?;
-        let (pid, path) = native::process(window).ok_or("Cloud client process unavailable.")?;
+            .ok_or("The selected application must be in the foreground.")?;
+        let (pid, path) = native::process(window).ok_or("Target process unavailable.")?;
         Ok(Self {
             context,
             window,
@@ -278,14 +278,17 @@ impl<'a> Target<'a> {
             || !native::is_target(self.window)
             || native::process(self.window) != Some((self.pid, self.path.clone()))
         {
-            return Err("Cloud client changed; OCR cancelled.".into());
+            return Err("Target application changed; OCR cancelled.".into());
         }
         Ok(())
     }
     fn alt(&self) -> Result<(), String> {
         self.check()?;
         if unsafe { GetAsyncKeyState(i32::from(VK_MENU)) } >= 0 {
-            Err("Hold Alt before Ctrl+D and keep Alt held until the image is captured.".into())
+            Err(
+                "Hold Alt before the OCR shortcut and keep Alt held until the image is captured."
+                    .into(),
+            )
         } else {
             Ok(())
         }
@@ -810,10 +813,10 @@ pub fn capture(
     settings.validate()?;
     let target = Target::new(context)?;
     if expected != Some(native::id(target.window)) {
-        return Err("Cloud client changed; OCR cancelled.".into());
+        return Err("Target application changed; OCR cancelled.".into());
     }
     target.alt()?;
-    let rect = native::rect(target.window).ok_or("Cloud client has no visible area.")?;
+    let rect = native::rect(target.window).ok_or("Target window has no visible area.")?;
     if rect.width < 100
         || rect.height < 100
         || i64::from(rect.width) * i64::from(rect.height) > 24_000_000
@@ -823,7 +826,7 @@ pub fn capture(
     let check = || {
         target.alt()?;
         if native::rect(target.window) != Some(rect) {
-            return Err("Cloud window moved or resized; OCR cancelled.".into());
+            return Err("Target window moved or resized; OCR cancelled.".into());
         }
         Ok(())
     };

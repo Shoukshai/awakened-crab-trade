@@ -138,7 +138,7 @@ unsafe fn read_frame(
         if size.Width != bounds.right - bounds.left || size.Height != bounds.bottom - bounds.top {
             return Err(windows::core::Error::new(
                 windows::Win32::Foundation::E_FAIL,
-                "Cloud window changed size during capture",
+                "Target window changed size during capture",
             ));
         }
         (client.x - bounds.left, client.y - bounds.top)

@@ -20,6 +20,8 @@ pub struct Panel {
     source: gtk::Label,
     #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     client: gtk::Entry,
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    local_poe: gtk::CheckButton,
     automatic_league: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
@@ -171,7 +173,7 @@ impl Panel {
             }
             keys.push(entry);
         }
-        let record = keys
+        let record: Vec<gtk::Button> = keys
             .iter()
             .enumerate()
             .map(|(i, _)| {
@@ -198,30 +200,48 @@ impl Panel {
             &shortcuts_scroll,
             Some(&gtk::Label::new(Some("Raccourcis"))),
         );
+        let capture = Rc::new(Cell::new(None));
         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
-        let (source, client) = {
+        let (source, client, local_poe) = {
             let grid = gtk::Grid::new();
             grid.set_border_width(12);
             grid.set_column_spacing(12);
             grid.set_row_spacing(12);
-            let source = gtk::Label::new(Some("OCR (cloud gaming)"));
+            let source = gtk::Label::new(Some("OCR"));
             source.set_xalign(0.);
             row(&grid, 0, "Source", &source);
             let client = gtk::Entry::new();
             client.set_placeholder_text(Some("Boosteroid.exe"));
             row(&grid, 1, "Exécutable du client", &client);
+            let local_poe = gtk::CheckButton::with_label("Tester sur PoE local (Ctrl+Alt+O)");
+            grid.attach(&local_poe, 0, 2, 2, 1);
             let hint=gtk::Label::new(Some("La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais."));
             hint.set_line_wrap(true);
             hint.set_xalign(0.);
-            grid.attach(&hint, 0, 2, 2, 1);
+            grid.attach(&hint, 0, 3, 2, 1);
+            let client_control = client.clone();
+            let key_controls = keys.clone();
+            let key_buttons = record.clone();
+            let recording = capture.clone();
+            local_poe.connect_toggled(move |toggle| {
+                let local = toggle.is_active();
+                client_control.set_sensitive(!local);
+                for key in &key_controls { key.set_sensitive(!local); }
+                for button in &key_buttons { button.set_sensitive(!local); }
+                recording.set(None);
+                hint.set_text(&crate::i18n::tr(if local {
+                    "Maintenez Alt, puis Ctrl+Alt+O sur un objet de PoE. Échap pour fermer. Jeu en anglais."
+                } else {
+                    "La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais."
+                }));
+            });
             let scroll =
                 gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
             scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
             scroll.add(&grid);
             form.append_page(&scroll, Some(&gtk::Label::new(Some("Capture"))));
-            (source, client)
+            (source, client, local_poe)
         };
-        let capture = Rc::new(Cell::new(None));
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
         message.set_line_wrap(true);
@@ -249,6 +269,8 @@ impl Panel {
             source,
             #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
             client,
+            #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+            local_poe,
             automatic_league,
             online,
             scale,
@@ -293,6 +315,7 @@ impl Panel {
         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         {
             self.client.set_text(&s.capture.executable);
+            self.local_poe.set_active(s.capture.local_poe);
         }
         self.language.set_active_id(Some(s.language.id()));
         self.theme.set_active_id(Some(s.theme.id()));
@@ -329,6 +352,7 @@ impl Panel {
         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         {
             s.capture.executable = self.client.text().trim().into();
+            s.capture.local_poe = self.local_poe.is_active();
         }
         s.language = if self.language.active_id().as_deref() == Some("fr") {
             crate::i18n::Language::Fr
@@ -459,7 +483,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"source":{"value":"ocr","rect":rect(self.source.upcast_ref())},"client":{"value":self.client.text().as_str(),"rect":rect(self.client.upcast_ref())}})
+        serde_json::json!({"source":{"value":"ocr","rect":rect(self.source.upcast_ref())},"client":{"value":self.client.text().as_str(),"enabled":self.client.is_sensitive(),"rect":rect(self.client.upcast_ref())},"local_poe":{"value":self.local_poe.is_active(),"rect":rect(self.local_poe.upcast_ref())}})
     }
     #[cfg(not(all(target_os = "windows", feature = "cloud-ocr")))]
     fn capture_diagnostics(&self, _window: &gtk::Window) -> serde_json::Value {

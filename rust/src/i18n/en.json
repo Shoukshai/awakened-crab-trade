@@ -264,6 +264,8 @@
   "Source": "Source",
   "Presse-papiers (PoE local)": "Clipboard (local PoE)",
   "OCR (cloud gaming)": "OCR (cloud gaming)",
+  "Tester sur PoE local (Ctrl+Alt+O)": "Test on local PoE (Ctrl+Alt+O)",
+  "Maintenez Alt, puis Ctrl+Alt+O sur un objet de PoE. Échap pour fermer. Jeu en anglais.": "Hold Alt, then press Ctrl+Alt+O over a PoE item. Escape closes the panel. English game text is required.",
   "Exécutable du client": "Client executable",
   "Vérifier la capture OCR": "Review OCR capture",
   "Utiliser ces stats": "Use these stats",

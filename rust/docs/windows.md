@@ -1,4 +1,4 @@
-# Windows price checker 0.36.0
+# Windows price checker 0.36.1
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -39,9 +39,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.36.0-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.36.1-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.36.0-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.36.1-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -55,6 +55,20 @@ existing profile. OCR has its own `awakened-crab-trade-ocr` configuration, cache
 logs, extraction cache and control endpoint; the notification tooltip includes OCR.
 Both may run together: standard shortcuts target local PoE, OCR shortcuts target
 the chosen cloud client. Quit the old mixed 0.34 build before using these editions.
+
+## Test OCR with local PoE
+
+In the OCR edition, open Settings > Capture, enable **Test on local PoE
+(Ctrl+Alt+O)**, then Save. Hover an item in local PoE, hold Alt until advanced
+details appear and press Ctrl+Alt+O. Release Alt after capture. Escape closes the
+panel; Ctrl+Shift+O also hides it. Use windowed or borderless PoE with English text.
+
+This opt-in target uses the same capture/PP-OCRv5/review pipeline as cloud gaming,
+without injecting Ctrl+Alt+C. It recognizes the normal Steam and standalone PoE
+executables. No Boosteroid process or executable-path entry is needed. Clipboard
+shortcuts remain available in the standard edition, with an independent profile.
+Cloud shortcut fields are inactive in this test mode; their saved values are kept.
+Disable the option and Save to restore the configured cloud target and shortcuts.
 
 ## Cloud gaming OCR (experimental)
 

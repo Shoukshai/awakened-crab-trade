@@ -16,17 +16,24 @@ pub struct Settings {
     pub mode: Mode,
     /// Executable basename or absolute path chosen by the user, never a title.
     pub executable: String,
+    /// Explicit opt-in for testing the OCR edition on native PoE.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub local_poe: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
         Self {
             mode: crate::edition::capture_mode(),
             executable: "Boosteroid.exe".into(),
+            local_poe: false,
         }
     }
 }
 impl Settings {
     pub fn validate(&self) -> Result<(), String> {
+        if self.mode == Mode::Ocr && self.local_poe {
+            return Ok(());
+        }
         if self.executable.trim().is_empty()
             || self.executable.len() > 1024
             || !self.executable.to_ascii_lowercase().ends_with(".exe")
@@ -47,6 +54,7 @@ mod tests {
         let settings = Settings {
             mode: Mode::Ocr,
             executable: r"C:\Program Files\Boosteroid\Boosteroid.exe".into(),
+            local_poe: false,
         };
         settings.validate().unwrap();
         let decoded: Settings =

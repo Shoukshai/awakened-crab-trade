@@ -37,7 +37,7 @@ for p in root.rglob('control.json'):p.unlink()
 for parent in [root/'cache/awakened-crab-trade-ocr',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade-ocr'))]:
  for name in ['economy','icons']:shutil.rmtree(parent/name,ignore_errors=True)
  (parent/'checker.log').unlink(missing_ok=True)
-for name in ['cloud.state.json','foreign.state.json','clipboard-read.txt','capture-black-accelerated','capture-all-blank']:(root/name).unlink(missing_ok=True)
+for name in ['cloud.state.json','foreign.state.json','clipboard-read.txt','capture-black-accelerated','capture-all-blank','hide-cloud']:(root/name).unlink(missing_ok=True)
 wp=lambda p:'Z:'+str(pathlib.Path(p).resolve()).replace('/','\\')
 env.update(APPDATA=wp(root/'config'),LOCALAPPDATA=wp(root/'cache'),APT_RS_WINDOWS_TEST_DIR=wp(root),APT_RS_WINDOWS_TEST_TOKEN=(root/'fixture.guard').read_text(),GDK_BACKEND='win32',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',NO_PROXY='127.0.0.1,localhost')
 for d in ['config/awakened-crab-trade-ocr','cache/awakened-crab-trade-ocr']:(root/d).mkdir(parents=True,exist_ok=True)
@@ -83,6 +83,10 @@ def pointer(x,y):subprocess.run(['xdotool','mousemove','--sync',str(int(x)),str(
 def control(rect):
  st=status();o=st['origin'];assert st['state']=='Interactive' and rect and rect.get('mapped',True),rect
  click(o['x']+rect['x']+rect['width']/2,o['y']+rect['y']+rect['height']/2)
+def capture_settings():
+ command('settings');wait(lambda:status()['view']=='Settings' and status()['state']=='Interactive','settings opened')
+ control(status()['preferences']['tabs'][2])
+ wait(lambda:status()['preferences']['capture_source']['local_poe']['rect'].get('mapped'),'capture tab opened')
 def shot(name):
  folder=r/'dist/previews/windows';folder.mkdir(parents=True,exist_ok=True);st=status();o=st['origin']
  subprocess.run(['grim','-g',f"{o['x']},{o['y']} {st['width']}x{st['height']}",str(folder/name)],env=env,check=True)
@@ -103,6 +107,7 @@ try:
   rows += [('Adds 1 to 2 Physical Damage to Attacks','#9999ff'),('+445 to Accuracy Rating','#9999ff'),('+13 to maximum Energy Shield','#9999ff'),('+119 to maximum Life','#9999ff'),('Regenerate 56.5 Life per second','#9999ff'),('+19 to maximum Mana','#9999ff'),('+35% to Fire Resistance','#9999ff')]
   for i,(text,color) in enumerate(rows):d.text((940,20+i*37),text,fill=color,font=font if i<2 else small,anchor='mt')
   image.save(root/('fixture-ocr-advanced.bmp' if advanced else 'fixture-ocr.bmp'))
+  if advanced:image.save(root/'fixture-local-ready.bmp')
  launch(app,['daemon'],'ocr-checker');wait(lambda:endpoint(),'OCR control socket',45)
  if len(sys.argv)>2:
   normal=pathlib.Path(sys.argv[2]).resolve()
@@ -117,14 +122,18 @@ try:
   assert normal_command('status')['settings']['capture']['mode']=='clipboard'
   assert normal_command('status')['settings']['theme']=='terminal' and status()['settings']['theme']=='tide'
   (root/'fixture-item.txt').write_text((r/'src/fixtures/driftwood-wand.txt').read_text())
-  launch(root/'apt-win32-fixture.exe',['--windowed'],'local-game');wait(lambda:(root/'fixture.state.json').exists(),'local game')
+  launch(root/'apt-win32-fixture.exe',['--windowed','--ocr-local'],'local-game');wait(lambda:(root/'fixture.state.json').exists(),'local game')
   click(200,700);wait(lambda:normal_command('status')['game_active'],'normal scope')
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
   wait(lambda:normal_command('status')['item'] and normal_command('status')['state']=='Interactive','normal shortcut')
   assert status()['state']=='Hidden' and status()['capture_pending'] is None
   normal_command('hide');normal_generation=normal_command('status')['generation']
  launch(root/'apt-cloud-fixture.exe',['--windowed','--cloud'],'cloud')
- wait(lambda:(root/'cloud.state.json').exists(),'cloud fixture');assert json.loads((root/'cloud.state.json').read_text())['topmost'];click(200,700);wait(lambda:status()['game_active'],'cloud process selected')
+ wait(lambda:(root/'cloud.state.json').exists(),'cloud fixture');assert json.loads((root/'cloud.state.json').read_text())['topmost']
+ def focus_cloud():
+  click(200,700)
+  return status()['game_active']
+ wait(focus_cloud,'cloud process selected')
  # Alt must already be held when the pixels are acquired. Keep it long enough
  # to test the gate, then release before review becomes interactive.
  (root/'capture-black-accelerated').touch()
@@ -204,6 +213,42 @@ try:
  assert 'region' not in status()['settings']['capture']
  control(status()['preferences']['apply']);wait(lambda:status()['state']=='Hidden' and status()['settings']['capture']['mode']=='ocr','OCR settings saved')
  assert status()['edition']=='awakened-crab-trade-ocr'
+ if len(sys.argv)>2:
+  # A draft must not change the active target or its bindings until Save.
+  capture_settings()
+  local=status()['preferences']['capture_source']['local_poe'];assert not local['value']
+  control(local['rect']);wait(lambda:status()['preferences']['capture_source']['local_poe']['value'],'local OCR draft selected')
+  assert not status()['preferences']['capture_source']['client']['enabled']
+  assert not status()['settings']['capture'].get('local_poe',False)
+  control(status()['preferences']['cancel']);wait(lambda:status()['state']=='Hidden','cancel local OCR draft')
+  capture_settings();assert not status()['preferences']['capture_source']['local_poe']['value']
+  cloud_keys=status()['preferences']['hotkeys']
+  control(status()['preferences']['capture_source']['local_poe']['rect']);wait(lambda:status()['preferences']['capture_source']['local_poe']['value'],'local OCR selected for Save')
+  control(status()['preferences']['apply'])
+  wait(lambda:status()['state']=='Hidden' and status()['settings']['capture'].get('local_poe'),'local OCR target saved')
+  capture_settings();assert status()['preferences']['capture_source']['local_poe']['value']
+  assert [k['value'] for k in status()['preferences']['hotkeys']]==[k['value'] for k in cloud_keys]
+  control(status()['preferences']['cancel'])
+  shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr.bmp');shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr-advanced.bmp')
+  (root/'hide-cloud').touch();time.sleep(.2);command('hide');click(200,700)
+  wait(lambda:status()['game_active'] and normal_command('status')['game_active'],'local game selected by both editions')
+  normal_before=normal_command('status')['generation'];copies_before=json.loads((root/'fixture.state.json').read_text())['copies']
+  (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
+  subprocess.run(['xdotool','keydown','Alt_L','keydown','Control_L','key','o','keyup','Control_L'],env=env,check=True)
+  wait(lambda:(root/'ocr-snapshot.ppm').exists(),'local OCR physical shortcut capture',15)
+  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
+  wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','local OCR review',35)
+  local_review=status()['ocr_review'];assert local_review['apply']['enabled'] and 'PP-OCRv5' in local_review['status'],local_review
+  assert "Assassin's Mitts" in local_review['text'] and 'Item Level: 71' in local_review['text'],local_review
+  assert json.loads((root/'fixture.state.json').read_text())['copies']==copies_before,'Local OCR injected copy'
+  assert normal_command('status')['state']=='Hidden' and normal_command('status')['generation']==normal_before,'Local OCR triggered standard hotkeys'
+  assert not posts
+  control(local_review['apply']);wait(lambda:status()['item'] and not status()['ocr_review']['mapped'],'accept local OCR')
+  command('hide');click(200,700);wait(lambda:normal_command('status')['game_active'],'standard local scope restored')
+  subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
+  wait(lambda:normal_command('status')['state']=='Interactive' and normal_command('status')['item']['base']=='Driftwood Wand','standard clipboard remains available')
+  assert status()['state']=='Hidden' and status()['capture_pending'] is None
+  report['local_poe_ocr_opt_in_no_clipboard_or_shortcut_conflict']=True
  report.update(capture_settings_persist=True,physical_shortcut=True,ocr_text=review['text'],ocr_status=review['status'],no_clipboard_injection=True,no_automatic_trade=True,cancellation=True,foreign_scope=True,max_status_ms=round(max(checks)*1000),topmost_fixture=True)
  (r/'dist/windows-ocr-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
 finally:
@@ -217,6 +262,6 @@ finally:
    try:process.wait(timeout=3)
    except subprocess.TimeoutExpired:process.kill();process.wait()
  for log in logs:log.close()
- for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp','capture-black-accelerated','capture-all-blank']:(root/name).unlink(missing_ok=True)
+ for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp','fixture-local-ready.bmp','capture-black-accelerated','capture-all-blank','hide-cloud']:(root/name).unlink(missing_ok=True)
  server.shutdown()
  if not success:print('Diagnostics:',root)

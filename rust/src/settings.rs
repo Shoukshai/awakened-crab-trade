@@ -141,6 +141,11 @@ impl Settings {
     /// Install only price-checker actions while preserving historical preferences.
     pub fn checker_hotkeys(&self) -> crate::hotkeys::Hotkeys {
         let mut h = crate::hotkeys::Hotkeys::disabled();
+        if self.capture.mode == crate::capture::Mode::Ocr && self.capture.local_poe {
+            h.inspect = Some("Ctrl + Alt + O".into());
+            h.hide = Some("Ctrl + Shift + O".into());
+            return h;
+        }
         h.price = self.hotkeys.price.clone();
         h.inspect = self.hotkeys.inspect.clone();
         h.interact = self.hotkeys.interact.clone();
@@ -152,6 +157,27 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn local_ocr_uses_separate_shortcuts_and_preserves_cloud_preferences() {
+        let mut settings = Settings::default();
+        let original = settings.hotkeys.clone();
+        settings.capture.mode = crate::capture::Mode::Ocr;
+        settings.capture.local_poe = true;
+        settings.validate().unwrap();
+        let local = settings.checker_hotkeys().bindings().unwrap();
+        let normal = original.bindings().unwrap();
+        assert!(local
+            .iter()
+            .any(|(key, action)| key.text() == "Ctrl + Alt + O" && action.is_copy()));
+        assert!(local
+            .iter()
+            .all(|(key, _)| !normal.iter().any(|(other, _)| key == other)));
+        settings.capture.local_poe = false;
+        assert_eq!(settings.checker_hotkeys(), original);
+        settings.capture.local_poe = true;
+        settings.capture.mode = crate::capture::Mode::Clipboard;
+        assert_eq!(settings.checker_hotkeys(), original);
+    }
     #[test]
     fn loading_an_old_mixed_profile_cannot_switch_the_executable_edition() {
         let root = std::env::temp_dir().join(format!("act-edition-{}", std::process::id()));

@@ -130,8 +130,12 @@ pub fn is_target(window: HWND) -> bool {
     if settings.mode == crate::capture::Mode::Clipboard {
         return is_game(window);
     }
-    // Keep default hotkeys disjoint even if the OCR executable setting names
-    // a local PoE process: the cloud edition does not target native game windows.
+    if settings.local_poe {
+        // The OCR test target uses Ctrl+Alt+O, not clipboard edition bindings.
+        return is_game(window);
+    }
+    // Cloud targeting never accepts native PoE through the executable field.
+    // Local OCR requires the explicit test option and separate bindings above.
     if is_game(window) {
         return false;
     }
