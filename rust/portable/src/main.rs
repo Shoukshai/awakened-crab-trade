@@ -11,6 +11,11 @@ use std::{
 const PAYLOAD: &[u8] = include_bytes!(env!("APT_PORTABLE_PAYLOAD_PATH"));
 const ID: &str = env!("APT_PORTABLE_ID");
 const MAGIC: &[u8; 8] = b"APTSELF1";
+const STORAGE_ID: &str = if cfg!(feature = "cloud-ocr") {
+    "awakened-crab-trade-ocr"
+} else {
+    "awakened-crab-trade"
+};
 const APP: &str = "awakened-crab-trade.exe";
 
 fn main() -> ExitCode {
@@ -48,7 +53,7 @@ fn run() -> Result<u8, String> {
     let local = std::env::var_os("LOCALAPPDATA")
         .or_else(|| std::env::var_os("APPDATA"))
         .ok_or("Le dossier de données Windows est introuvable.")?;
-    let root = PathBuf::from(local).join("awakened-crab-trade/portable");
+    let root = PathBuf::from(local).join(STORAGE_ID).join("portable");
     let cache =
         prepare(&root, PAYLOAD, ID).map_err(|e| format!("Préparation du programme : {e}"))?;
     let args: Vec<_> = std::env::args_os().skip(1).collect();

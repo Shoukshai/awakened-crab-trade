@@ -12,11 +12,13 @@ mod desktop;
 #[path = "desktop/windows/mod.rs"]
 mod desktop;
 mod economy;
+mod edition;
 mod filters;
 mod hotkeys;
 mod i18n;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ipc;
+#[cfg(any(test, feature = "cloud-ocr"))]
 mod ocr;
 mod paths;
 #[cfg(target_os = "windows")]

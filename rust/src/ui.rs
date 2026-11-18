@@ -1,4 +1,4 @@
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
 mod ocr_review;
 use crate::{
     desktop::{
@@ -64,7 +64,7 @@ enum Event {
     Windows(Snapshot),
     TrackerError(String),
     Captured(u64, bool, Box<Result<(Item, u128), String>>),
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     Ocr(u64, Option<u32>, Box<Result<crate::ocr::Draft, String>>),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
@@ -85,7 +85,7 @@ struct CaptureJob {
     interactive: bool,
     restore: bool,
     source: crate::capture::Settings,
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     target: Option<u32>,
 }
 struct Job {
@@ -103,7 +103,7 @@ struct Ui {
     started: Instant,
     frames: Cell<u64>,
     desktop: RefCell<Snapshot>,
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     ocr_review: ocr_review::Panel,
     title: gtk::Label,
     text: gtk::Label,
@@ -407,10 +407,11 @@ impl Ui {
     fn diagnostics(&self) -> serde_json::Value {
         let state = self.state.borrow();
         let mut value = serde_json::json!({"state":format!("{:?}",state.state),"last_hide_reason":state.last_hide.map(|r|format!("{r:?}")),"desktop":*self.desktop.borrow(),"mod_scroll":self.mod_scroll.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.mod_scroll.allocated_width(),"height":self.mod_scroll.allocated_height(),"value":self.mod_scroll.vadjustment().value(),"upper":self.mod_scroll.vadjustment().upper(),"page_size":self.mod_scroll.vadjustment().page_size()})),"mercenary_controls":self.mercenary_panel.borrow().as_ref().map(|p|p.diagnostics(&self.window)),"stat_controls":self.stat_rows.borrow().iter().map(|r|r.diagnostics(&self.window)).collect::<Vec<_>>(),"preset_control":self.preset.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.preset.allocated_width(),"height":self.preset.allocated_height(),"popup":self.preset.is_popup_shown()})),"mod_expander":self.mod_expander.translate_coordinates(&self.window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.mod_expander.allocated_width(),"height":self.mod_expander.allocated_height(),"expanded":self.mod_expander.is_expanded()})),"generation":state.generation,"game_active":state.game_active,"rendered":state.rendered,"visible":self.window.is_visible(),"width":self.window.allocated_width(),"height":self.window.allocated_height(),"scale":self.window.scale_factor(),"view":format!("{:?}",self.view.get()),"preset":self.preset.active_id().as_deref(),"app_scale":self.settings.borrow().scale,"keyboard_mode":format!("{:?}",self.window.keyboard_mode()),"owned_popup":owned_popup(&self.window).is_some(),"origin":{"x":self.window.layer_shell_margin(Edge::Left),"y":self.window.layer_shell_margin(Edge::Top)},"overlay_focused":self.window.is_active(),"payment_currency":self.currency.active_id().as_deref(),"minimum_stock":self.item_filters.read().ok().and_then(|p|p.stack_size.filter(|f|!f.disabled).map(|f|f.value)),"item_filters":self.item_filters.read().ok(),"item":self.item.borrow().as_ref().map(|i| serde_json::json!({"name":i.name,"base":i.base,"trade_tag":i.trade_tag,"stack":i.stack_size,"reference":i.reference,"namespace":i.namespace,"unidentified":i.unidentified,"virtual":i.raw=="VIRTUAL_ITEM"})),"economy_panel":self.economy_panel.diagnostics(&self.window),"economy":self.economy_result.borrow().as_ref().filter(|(generation,_)| *generation==self.quote_current.load(Ordering::Acquire)).map(|(_,r)| match r {Ok(r)=>serde_json::to_value(r).unwrap_or_default(),Err(e)=>serde_json::json!({"error":e})}),"trade_link":self.url.borrow().clone(),"request":self.request.borrow().as_ref().filter(|(generation,_)| *generation==state.generation).map(|(_,q)| q),"query":self.result.borrow().as_ref().filter(|(generation,_)| *generation == state.generation).map(|(_,r)| match r { Ok(p) => serde_json::json!({"kind":p.kind,"total":p.total,"listings":p.listings.len(),"first_offer":p.listings.first().map(|l| serde_json::json!({"unit_price":l.amount,"currency":l.currency,"bulk":l.bulk})),"network_ms":p.network_ms,"cached":p.cached}), Err(e) => serde_json::json!({"error":e}) })});
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         {
             value["ocr_review"] = self.ocr_review.diagnostics(&self.window);
         }
+        value["edition"] = serde_json::json!(crate::edition::id());
         value["popup_controls"] = popup_controls(&self.window);
         value["header_text"] = serde_json::json!(self.title.text().as_str());
         value["status_text"] = serde_json::json!(self.text.text().as_str());
@@ -863,7 +864,7 @@ impl Ui {
                         interactive: command.starts_with("locked-"),
                         restore: self.settings.borrow().restore_clipboard,
                         source: self.settings.borrow().capture.clone(),
-                        #[cfg(target_os = "windows")]
+                        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
                         target: crate::desktop::native::focused_target()
                             .map(crate::desktop::native::id),
                     })
@@ -1490,7 +1491,7 @@ impl Ui {
                 self.state.borrow_mut().fail();
                 eprintln!("tracker: {error}");
             }
-            #[cfg(target_os = "windows")]
+            #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
             Event::Ocr(generation, target, result) => {
                 if self.capture_pending.get() == Some(generation) {
                     self.capture_pending.set(None);
@@ -1612,6 +1613,7 @@ impl Ui {
 #[allow(deprecated)] // GTK3's matching glib 0.18 channel; wakes the main loop without polling.
 pub fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    #[cfg(feature = "cloud-ocr")]
     if args.first().is_some_and(|a| a == "ocr-parse") {
         let lines: Vec<crate::ocr::Line> = serde_json::from_slice(
             &std::fs::read(args.get(1).ok_or("ocr-parse LINES.json")?)
@@ -1625,7 +1627,7 @@ pub fn run() -> Result<(), String> {
         );
         return Ok(());
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     if args
         .first()
         .is_some_and(|a| a == "ocr-image" || a == "ocr-lines")
@@ -1742,7 +1744,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--version") {
-        println!("awakened-crab-trade {}", env!("CARGO_PKG_VERSION"));
+        println!("{} {}", crate::edition::id(), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
@@ -1794,7 +1796,7 @@ pub fn run() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     crate::desktop::native::set_capture(&settings.capture);
     crate::i18n::set_language(settings.language);
-    if crate::compat::active_legacy_instance() {
+    if !crate::edition::is_ocr() && crate::compat::active_legacy_instance() {
         return Err(crate::i18n::tr(
             "Fermez la version précédente avant de lancer Awakened Crab Trade.",
         ));
@@ -1824,7 +1826,7 @@ pub fn run() -> Result<(), String> {
     eprintln!("backend=Win32 league={:?}", settings.league);
     let control = crate::ipc::Server::bind()?;
     let window = gtk::Window::new(gtk::WindowType::Toplevel);
-    window.set_title("Awakened Crab Trade");
+    window.set_title(crate::edition::title());
     window.set_icon(Some(&app_icon));
     window.set_widget_name("apt-native");
     window.set_decorated(false);
@@ -1834,7 +1836,7 @@ pub fn run() -> Result<(), String> {
         window.set_visual(Some(&visual));
     }
     window.init_layer_shell();
-    window.set_namespace("awakened-crab-trade");
+    window.set_namespace(crate::edition::id());
     window.set_layer(Layer::Overlay);
     window.set_anchor(Edge::Top, true);
     window.set_anchor(Edge::Left, true);
@@ -1981,9 +1983,9 @@ pub fn run() -> Result<(), String> {
     workspace.apply(settings.theme, settings.scale);
     price_content.pack_start(&workspace.container, true, true, 0);
     stack.add_named(&preferences.container, "settings");
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     let ocr_review = ocr_review::Panel::new();
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     stack.add_named(&ocr_review.container, "ocr");
     preferences.container.show_all();
     stack.add_named(&unidentified.container, "identify");
@@ -2024,13 +2026,13 @@ pub fn run() -> Result<(), String> {
                     continue;
                 }
                 let started = Instant::now();
-                #[cfg(not(target_os = "windows"))]
-                if job.copy && job.source.mode == crate::capture::Mode::Ocr {
+                #[cfg(not(all(target_os = "windows", feature = "cloud-ocr")))]
+                if job.source.mode == crate::capture::Mode::Ocr {
                     let _=sender.send(Event::Captured(job.generation,job.interactive,Box::new(Err("Cloud OCR currently requires Windows 10 or 11. Select clipboard capture for local PoE.".into()))));
                     continue;
                 }
-                #[cfg(target_os = "windows")]
-                if job.copy && job.source.mode == crate::capture::Mode::Ocr {
+                #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+                if job.source.mode == crate::capture::Mode::Ocr {
                     let result = crate::desktop::ocr::capture(
                         &crate::desktop::game_input::Context {
                             active: &active,
@@ -2173,7 +2175,7 @@ pub fn run() -> Result<(), String> {
         started: Instant::now(),
         frames: Cell::new(0),
         desktop: RefCell::new(Snapshot::default()),
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         ocr_review,
         title,
         text,
@@ -2264,7 +2266,7 @@ pub fn run() -> Result<(), String> {
             }
         });
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     {
         let owner = ui.clone();
         ui.ocr_review.apply.connect_clicked(move |_| {

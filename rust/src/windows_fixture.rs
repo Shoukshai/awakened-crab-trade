@@ -36,6 +36,8 @@ mod test {
         let data = serde_json::json!({"ready":true,"window":window as usize,"copies":COPIES.load(Ordering::Relaxed),"keys":KEYS.load(Ordering::Relaxed),"foreground":unsafe{GetForegroundWindow()}==window,"topmost":unsafe{GetWindowLongPtrW(window,GWL_EXSTYLE)} as u32 & WS_EX_TOPMOST!=0});
         let file = root().join(if std::env::args().any(|a| a == "--foreign") {
             "foreign.state.json"
+        } else if CLOUD.load(Ordering::Relaxed) {
+            "cloud.state.json"
         } else {
             "fixture.state.json"
         });

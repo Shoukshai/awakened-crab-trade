@@ -34,19 +34,19 @@ for i,block in enumerate(blocks):
 if not found:blocks.append(section+'\n"Managed"="N"')
 user.write_text('\n\n'.join(blocks)+'\n')
 for p in root.rglob('control.json'):p.unlink()
-for parent in [root/'cache/awakened-crab-trade',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade'))]:
+for parent in [root/'cache/awakened-crab-trade-ocr',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade-ocr'))]:
  for name in ['economy','icons']:shutil.rmtree(parent/name,ignore_errors=True)
-for name in ['fixture.state.json','foreign.state.json','clipboard-read.txt']:(root/name).unlink(missing_ok=True)
+for name in ['cloud.state.json','foreign.state.json','clipboard-read.txt']:(root/name).unlink(missing_ok=True)
 wp=lambda p:'Z:'+str(pathlib.Path(p).resolve()).replace('/','\\')
 env.update(APPDATA=wp(root/'config'),LOCALAPPDATA=wp(root/'cache'),APT_RS_WINDOWS_TEST_DIR=wp(root),APT_RS_WINDOWS_TEST_TOKEN=(root/'fixture.guard').read_text(),GDK_BACKEND='win32',HTTPS_PROXY='http://127.0.0.1:9',HTTP_PROXY='http://127.0.0.1:9',NO_PROXY='127.0.0.1,localhost')
-for d in ['config/awakened-crab-trade','cache/awakened-crab-trade']:(root/d).mkdir(parents=True,exist_ok=True)
-config=root/'config/awakened-crab-trade/config.json'
-config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':True,'language':os.environ.get('APT_FIXTURE_LANGUAGE','en'),'theme':'tide','restore_clipboard':True,'capture':{'mode':'ocr','executable':'apt-cloud-fixture.exe','region':[38,0,59,85]}})
+for d in ['config/awakened-crab-trade-ocr','cache/awakened-crab-trade-ocr']:(root/d).mkdir(parents=True,exist_ok=True)
+config=root/'config/awakened-crab-trade-ocr/config.json'
+config_data=json.dumps({'league':'Covens','automatic_league':False,'automatic_search':True,'language':os.environ.get('APT_FIXTURE_LANGUAGE','en'),'theme':'tide','restore_clipboard':True,'capture':{'mode':'ocr','executable':'apt-cloud-fixture.exe'}})
 config.write_text(config_data)
 # Wine initializes APPDATA from its private registry when starting explorer.
 for user in (root/'prefix/drive_c/users').iterdir():
  if (user/'AppData').is_dir():
-  path=user/'AppData/Roaming/awakened-crab-trade/config.json';path.parent.mkdir(parents=True,exist_ok=True);path.write_text(config_data)
+  path=user/'AppData/Roaming/awakened-crab-trade-ocr/config.json';path.parent.mkdir(parents=True,exist_ok=True);path.write_text(config_data)
 posts=[];ninja=[];family_env={'APT_FIXTURE_ITEM':'wand'}
 server=http.server.ThreadingHTTPServer(('127.0.0.1',0),make_handler(r,family_env,posts,ninja));threading.Thread(target=server.serve_forever,daemon=True).start()
 env['APT_RS_TEST_TRADE_BASE']=env['APT_RS_TEST_ECONOMY_BASE']=f'http://127.0.0.1:{server.server_address[1]}'
@@ -56,17 +56,18 @@ def launch(exe,args,name):
  log=(root/(name+'.log')).open('w');logs.append(log)
  command=[s['wine'],wp(exe),*args]
  p=subprocess.Popen(command,env=env,stdout=log,stderr=subprocess.STDOUT);processes.append(p);return p
-def endpoint():
- p=root/'cache/awakened-crab-trade/control.json'
+def endpoint(app_id="awakened-crab-trade-ocr"):
+ p=root/('cache/'+app_id+'/control.json')
  if not p.exists():
-  matches=list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade/control.json'));p=matches[0] if matches else p
+  matches=list((root/'prefix/drive_c/users').glob('*/AppData/Local/'+app_id+'/control.json'));p=matches[0] if matches else p
  return json.loads(p.read_text())
-def command(name):
- e=endpoint()
+def command(name,app_id="awakened-crab-trade-ocr"):
+ e=endpoint(app_id)
  with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock:
   sock.settimeout(10);sock.connect(('127.0.0.1',e['port']));sock.send(json.dumps({'token':e['token'],'command':name}).encode());body=sock.recv(65536)
  return json.loads(body) if name=='status' else body.decode()
 def status():return command('status')
+def normal_command(name):return command(name,"awakened-crab-trade")
 def wait(fn,label,seconds=15):
  until=time.monotonic()+seconds;last=None
  while time.monotonic()<until:
@@ -89,6 +90,7 @@ try:
  subprocess.run(['sh',str(r/'scripts/cargo-windows.sh'),'build','--locked','--offline','--features','windows-test-fixture','--bin','apt-win32-fixture','-j3'],check=True)
  shutil.copy2(r/'target/x86_64-pc-windows-gnullvm/debug/apt-win32-fixture.exe',root/'apt-cloud-fixture.exe')
  shutil.copy2(r/'target/x86_64-pc-windows-gnullvm/debug/apt-win32-fixture.exe',root/'apt-win32-fixture.exe')
+ shutil.copy2(r/'dist/windows-tools/llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64/x86_64-w64-mingw32/bin/libunwind.dll',root/'libunwind.dll')
  from PIL import ImageDraw,ImageFont
  font_file=subprocess.check_output(['fc-match','-f','%{file}','sans-serif'],text=True).strip()
  font=ImageFont.truetype(font_file,22)
@@ -101,27 +103,74 @@ try:
   for i,(text,color) in enumerate(rows):d.text((940,20+i*37),text,fill=color,font=font if i<2 else small,anchor='mt')
   image.save(root/('fixture-ocr-advanced.bmp' if advanced else 'fixture-ocr.bmp'))
  launch(app,['daemon'],'ocr-checker');wait(lambda:endpoint(),'OCR control socket',45)
+ if len(sys.argv)>2:
+  normal=pathlib.Path(sys.argv[2]).resolve()
+  data=json.dumps({'league':'Covens','automatic_league':False,'language':'en','theme':'terminal','capture':{'mode':'ocr','executable':'apt-cloud-fixture.exe'}})
+  paths=[root/'config/awakened-crab-trade/config.json',*list((root/'prefix/drive_c/users').glob('*/AppData/Roaming/awakened-crab-trade/config.json'))]
+  for user in (root/'prefix/drive_c/users').iterdir():
+   if (user/'AppData').is_dir():paths.append(user/'AppData/Roaming/awakened-crab-trade/config.json')
+  for path in paths:path.parent.mkdir(parents=True,exist_ok=True);path.write_text(data)
+  launch(normal,['daemon'],'normal-checker');wait(lambda:endpoint('awakened-crab-trade'),'normal control socket',45)
+  assert endpoint()['port']!=endpoint('awakened-crab-trade')['port']
+  assert normal_command('status')['edition']=='awakened-crab-trade'
+  assert normal_command('status')['settings']['capture']['mode']=='clipboard'
+  assert normal_command('status')['settings']['theme']=='terminal' and status()['settings']['theme']=='tide'
+  (root/'fixture-item.txt').write_text((r/'src/fixtures/driftwood-wand.txt').read_text())
+  launch(root/'apt-win32-fixture.exe',['--windowed'],'local-game');wait(lambda:(root/'fixture.state.json').exists(),'local game')
+  click(200,700);wait(lambda:normal_command('status')['game_active'],'normal scope')
+  subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
+  wait(lambda:normal_command('status')['item'] and normal_command('status')['state']=='Interactive','normal shortcut')
+  assert status()['state']=='Hidden' and status()['capture_pending'] is None
+  normal_command('hide');normal_generation=normal_command('status')['generation']
  launch(root/'apt-cloud-fixture.exe',['--windowed','--cloud'],'cloud')
- wait(lambda:(root/'fixture.state.json').exists(),'cloud fixture');assert json.loads((root/'fixture.state.json').read_text())['topmost'];click(200,700);wait(lambda:status()['game_active'],'cloud process selected')
+ wait(lambda:(root/'cloud.state.json').exists(),'cloud fixture');assert json.loads((root/'cloud.state.json').read_text())['topmost'];click(200,700);wait(lambda:status()['game_active'],'cloud process selected')
  # Alt must already be held when the pixels are acquired. Keep it long enough
  # to test the gate, then release before review becomes interactive.
+ (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.3)
  subprocess.run(['grim',str(root/'ocr-before.png')],env=env,check=True);subprocess.run(['xdotool','keydown','Control_L','key','d','keyup','Control_L'],env=env,check=True);wait(lambda:status()['capture_pending'] is not None,'OCR queued')
  checks=[]
  for _ in range(8):
   start=time.monotonic();st=status();checks.append(time.monotonic()-start);time.sleep(.1)
+ wait(lambda:(root/'ocr-snapshot.ppm').exists(),'pixels captured while Alt held',15)
  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
  wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','OCR review',30)
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
  assert 'Item Level: 71' in review['text'],review
  assert 'Regenerate 56.5 Life per second' in review['text'],review
  assert not posts and st['request'] is None
- assert json.loads((root/'fixture.state.json').read_text())['copies']==0,'OCR must never inject Ctrl+Alt+C'
+ assert json.loads((root/'cloud.state.json').read_text())['copies']==0,'OCR must never inject Ctrl+Alt+C'
  assert max(checks)<1,'GTK status stopped responding during OCR'
+ if len(sys.argv)>2:
+  assert normal_command('status')['state']=='Hidden' and normal_command('status')['generation']==normal_generation
+  assert json.loads((root/'fixture.state.json').read_text())['copies']>=1
+  assert json.loads((root/'cloud.state.json').read_text())['copies']==0
+  report['two_editions_running_without_shared_shortcuts_or_profiles']=True
+
  shot('ocr-review.png');control(review['apply'])
  wait(lambda:status()['item'] and not status()['ocr_review']['mapped'],'OCR accepted')
  st=status();assert st['item']['base']=="Assassin's Mitts",st['item'];assert len(st['stat_controls'])>=7,st['stat_controls'];assert st['item_filters']['itemLevel']['value']==71,st['item_filters']
  shot('ocr-filters.png');assert not posts
+ auto_cases=[
+  ('gem','Gem',350,330,[('IMPALE SUPPORT','#55d0bc'),('Level: 20','#eeeeee'),('Quality: +20%','#eeeeee')]),
+  ('currency','Currency',400,150,[('DIVINE ORB','#eeeeee'),('Stack Size: 1/20','#eeeeee')]),
+  ('unique','Unique',940,260,[('GOLDRIM','#df8d43'),('LEATHER CAP','#df8d43'),('Item Level: 71','#eeeeee'),('+35% to all Elemental Resistances','#9999ff')]),
+  ('map','Map',370,350,[('STRAND MAP','#eeeeee'),('Map Tier: 16','#eeeeee'),('Item Level: 83','#eeeeee')]),
+  ('wand','Equipment',940,220,[('GLYPHIC DRIFTWOOD WAND','#9999ff'),('Item Level: 71','#eeeeee'),('+25 to maximum Mana','#9999ff')]),
+ ]
+ for case,expected,cx,top,rows in auto_cases:
+  image=Image.new('RGB',(1392,866),(30,34,40));draw=ImageDraw.Draw(image);draw.rectangle((max(0,cx-340),top-10,min(1390,cx+340),min(850,top+len(rows)*40+40)),fill=(5,5,5))
+  for i,(text,color) in enumerate(rows):draw.text((cx,top+i*38),text,fill=color,font=font if i==0 else small,anchor='mt')
+  for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp']:image.save(root/name)
+  family_env['APT_FIXTURE_ITEM']=case;command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused '+case)
+  (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
+  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');wait(lambda:(root/'ocr-snapshot.ppm').exists(),'auto snapshot '+case,15);subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
+  wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','automatic '+case,35)
+  current=status()['ocr_review'];assert current['apply']['enabled'],(case,current)
+  control(current['apply']);wait(lambda:status()['item'] and not status()['ocr_review']['mapped'],'accept '+case)
+  assert status()['family']==expected,(case,status()['item'],status()['family']);assert not posts
+  print('automatic',case,'passed',flush=True)
+ report['automatic_families']=[expected for _,expected,_,_,_ in auto_cases]
  # A second request is cancelled by Escape/hide before it may reopen the panel.
  command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused again')
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');time.sleep(.15);command('hide');subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
@@ -129,16 +178,17 @@ try:
  # A foreign executable must not be accepted just because its title resembles a client.
  launch(root/'apt-win32-fixture.exe',['--foreign'],'ocr-foreign');wait(lambda:(root/'foreign.state.json').exists(),'foreign fixture')
  subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True);time.sleep(.3);assert status()['state']=='Hidden' and status()['capture_pending'] is None
- for mode in ['clipboard','ocr']:
-  command('settings');wait(lambda:status()['view']=='Settings' and status()['state']=='Interactive','capture settings')
-  control(status()['preferences']['tabs'][2]);wait(lambda:(status()['preferences']['capture_source']['source']['rect'] or {}).get('mapped'),'capture tab')
-  control(status()['preferences']['capture_source']['source']['rect']);wait(lambda:status()['owned_popup'],'source menu')
-  subprocess.run(['xdotool','key','--clearmodifiers','Home',*(['Down'] if mode=='ocr' else []),'Return'],env=env,check=True)
-  wait(lambda:status()['preferences']['capture_source']['source']['value']==mode and not status()['owned_popup'],'capture mode draft')
-  control(status()['preferences']['apply']);wait(lambda:status()['state']=='Hidden' and status()['settings']['capture']['mode']==mode,'capture mode saved')
+ command('settings');wait(lambda:status()['view']=='Settings' and status()['state']=='Interactive','OCR settings')
+ control(status()['preferences']['tabs'][2]);wait(lambda:(status()['preferences']['capture_source']['source']['rect'] or {}).get('mapped'),'OCR capture tab')
+ assert status()['preferences']['capture_source']['source']['value']=='ocr'
+ assert 'region' not in status()['settings']['capture']
+ control(status()['preferences']['apply']);wait(lambda:status()['state']=='Hidden' and status()['settings']['capture']['mode']=='ocr','OCR settings saved')
+ assert status()['edition']=='awakened-crab-trade-ocr'
  report.update(capture_settings_persist=True,physical_shortcut=True,ocr_text=review['text'],ocr_status=review['status'],no_clipboard_injection=True,no_automatic_trade=True,cancellation=True,foreign_scope=True,max_status_ms=round(max(checks)*1000),topmost_fixture=True)
  (r/'dist/windows-ocr-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
 finally:
+ try:normal_command('quit')
+ except Exception:pass
  try:command('quit')
  except Exception:pass
  for process in reversed(processes):

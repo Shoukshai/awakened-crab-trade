@@ -1,6 +1,6 @@
 [package]
 name = "awakened-crab-trade-portable"
-version = "0.34.0"
+version = "0.35.0"
 edition = "2021"
 license = "MIT"
 
@@ -18,3 +18,6 @@ panic = "abort"
 lto = true
 strip = true
 codegen-units = 1
+
+[features]
+cloud-ocr = []

@@ -10,7 +10,8 @@ pub fn new(sender: glib::Sender<super::Event>) -> Result<glib::Object, String> {
     }
     let object: glib::Object = unsafe { from_glib_full(raw as *mut glib::gobject_ffi::GObject) };
     unsafe {
-        gtk::ffi::gtk_status_icon_set_tooltip_text(raw, c"Awakened Crab Trade".as_ptr());
+        let title = std::ffi::CString::new(crate::edition::title()).unwrap();
+        gtk::ffi::gtk_status_icon_set_tooltip_text(raw, title.as_ptr());
         gtk::ffi::gtk_status_icon_set_visible(raw, 1);
     }
     let actions = sender.clone();

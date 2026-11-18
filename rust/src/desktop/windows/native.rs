@@ -130,6 +130,11 @@ pub fn is_target(window: HWND) -> bool {
     if settings.mode == crate::capture::Mode::Clipboard {
         return is_game(window);
     }
+    // Keep default hotkeys disjoint even if the OCR executable setting names
+    // a local PoE process: the cloud edition does not target native game windows.
+    if is_game(window) {
+        return false;
+    }
     let Some((pid, path)) = process(window) else {
         return false;
     };

@@ -30,7 +30,11 @@ fn main() {
         );
         let object = out.join("portable-res.o");
         let compiler = env::var_os("APT_WINDOWS_WINDRES").expect("Set APT_WINDOWS_WINDRES");
-        assert!(Command::new(compiler)
+        let mut command = Command::new(compiler);
+        if env::var_os("CARGO_FEATURE_CLOUD_OCR").is_some() {
+            command.arg("-DACT_OCR");
+        }
+        assert!(command
             .current_dir(resources)
             .args(["-i", "app.rc", "-O", "coff", "-o"])
             .arg(&object)

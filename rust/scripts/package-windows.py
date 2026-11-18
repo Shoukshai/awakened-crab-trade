@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """Assemble a portable Windows ZIP, following PE imports recursively."""
-import hashlib, json, pathlib, re, shutil, subprocess, tomllib, zipfile
+import hashlib, json, pathlib, re, shutil, subprocess, tomllib, zipfile, argparse
 
 root = pathlib.Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser();parser.add_argument('--ocr',action='store_true');options=parser.parse_args()
+app_id='awakened-crab-trade-ocr' if options.ocr else 'awakened-crab-trade'
 version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
 tools = root / 'dist/windows-tools'
 llvm = tools / 'llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64'
 sysroot = tools / 'sysroot/ucrt64'
-output = root / f'dist/awakened-crab-trade-{version}-windows-x64'
+output = root / f'dist/{app_id}-{version}-windows-x64'
 if output.exists():
     shutil.rmtree(output)
 output.mkdir()
-exe = root / 'target/x86_64-pc-windows-gnullvm/release/awakened-crab-trade.exe'
+target=root/'target/windows-ocr' if options.ocr else root/'target'
+exe = target / 'x86_64-pc-windows-gnullvm/release/awakened-crab-trade.exe'
+ocr_product = ('Awakened Crab Trade OCR' + '\0').encode('utf-16le')
+if (ocr_product in exe.read_bytes()) != options.ocr:
+    raise SystemExit('Wrong executable edition: rebuild the requested target before packaging')
+(output/'edition.json').write_text(json.dumps({'edition':app_id,'capture':'ocr' if options.ocr else 'clipboard'})+'\n')
 shutil.copy2(exe, output / exe.name)
-for name in ['gdk-pixbuf-query-loaders.exe', 'tesseract.exe']:
+for name in ['gdk-pixbuf-query-loaders.exe'] + (['tesseract.exe'] if options.ocr else []):
     shutil.copy2(sysroot / 'bin' / name, output / name)
 for name in ['lib/gdk-pixbuf-2.0/2.10.0/loaders', 'share/glib-2.0/schemas',
-             'share/icons', 'share/mime', 'etc/fonts', 'share/tessdata']:
+             'share/icons', 'share/mime', 'etc/fonts'] + (['share/tessdata'] if options.ocr else []):
     shutil.copytree(sysroot / name, output / name)
 subprocess.run(['glib-compile-schemas', str(output / 'share/glib-2.0/schemas')], check=True)
 # Cache files contain build-machine absolute paths. Generate loaders on first run.
@@ -50,12 +57,15 @@ while pending:
             shutil.copy2(available[name], target)
             pending.append(target)
 licenses = output / 'licenses'
-subprocess.run(['python3', str(root / 'scripts/collect-licenses.py'), str(licenses / 'rust'), 'x86_64-pc-windows-gnullvm'], check=True)
+subprocess.run(['python3', str(root / 'scripts/collect-licenses.py'), str(licenses / 'rust'), 'x86_64-pc-windows-gnullvm', str(root/'Cargo.toml'), *(['cloud-ocr'] if options.ocr else [])], check=True)
 shutil.copytree(sysroot / 'share/licenses', licenses / 'runtime')
+if not options.ocr:
+    shutil.rmtree(licenses/'runtime/tessdata-fast',ignore_errors=True)
 shutil.copy2(llvm / 'LICENSE.TXT', licenses / 'LLVM-MinGW-LICENSE.TXT')
 shutil.copy2(root.parent / 'LICENSE', output / 'LICENSE')
 shutil.copy2(root / 'packaging/windows/runtime-lock.json', licenses / 'runtime-lock.json')
-shutil.copy2(root / 'packaging/windows/ocr-data.json', licenses / 'ocr-data.json')
+if options.ocr:
+    shutil.copy2(root / 'packaging/windows/ocr-data.json', licenses / 'ocr-data.json')
 shutil.copy2(root / 'docs/windows.md', output / 'README.md')
 (licenses / 'runtime-sources.txt').write_text('Unmodified MSYS2 UCRT64 runtime DLLs, dynamically linked.\n'
     'Exact package versions and SHA256: runtime-lock.json.\n'

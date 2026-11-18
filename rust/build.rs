@@ -8,7 +8,11 @@ fn main() {
     let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("app-res.o");
     let tool = std::env::var_os("APT_WINDOWS_WINDRES").unwrap_or_else(|| "llvm-windres".into());
-    let status = std::process::Command::new(tool)
+    let mut command = std::process::Command::new(tool);
+    if std::env::var_os("CARGO_FEATURE_CLOUD_OCR").is_some() {
+        command.arg("-DACT_OCR");
+    }
+    let status = command
         .current_dir(root.join("packaging/windows"))
         .args(["-i", "app.rc", "-O", "coff", "-o"])
         .arg(&output)

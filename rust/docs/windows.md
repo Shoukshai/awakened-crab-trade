@@ -1,4 +1,4 @@
-# Windows price checker 0.34.0
+# Windows price checker 0.35.0
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -31,16 +31,28 @@ programs, normally without administrator rights. Automated tests use Wine, a
 fake game and local network responses; Windows hardware still needs real-game
 validation.
 
-Preferences: `%APPDATA%\awakened-crab-trade\config.json`.
-Cache and `checker.log`: `%LOCALAPPDATA%\awakened-crab-trade`.
+Preferences: `%APPDATA%\awakened-crab-trade\config.json` (standard) or
+`%APPDATA%\awakened-crab-trade-ocr\config.json` (OCR).
+Cache and `checker.log`: the matching edition directory under `%LOCALAPPDATA%`.
 
 Quit the running checker from its notification icon before launching an updated EXE.
 
-## Cloud gaming OCR (experimental)
+## Separate Windows editions
 
-In Settings > Capture, select OCR and set the executable that owns the cloud
-stream window. Boosteroid.exe is the default; a different .exe basename or full
-path can be entered. Clipboard mode remains the default for local PoE.
+- `awakened-crab-trade-0.35.0-windows-x64-portable.exe`: standard clipboard edition
+  for local PoE. It does not include the OCR engines or language model.
+- `awakened-crab-trade-ocr-0.35.0-windows-x64-portable.exe`: cloud OCR edition,
+  enabled immediately. Boosteroid.exe is the default client; change the executable
+  basename or full path in Settings > Capture if needed.
+
+The capture method is fixed at build time. Renaming an EXE or loading an older
+profile cannot switch it to the other edition. The standard edition retains the
+existing profile. OCR has its own `awakened-crab-trade-ocr` configuration, cache,
+logs, extraction cache and control endpoint; the notification tooltip includes OCR.
+Both may run together: standard shortcuts target local PoE, OCR shortcuts target
+the chosen cloud client. Quit the old mixed 0.34 build before using these editions.
+
+## Cloud gaming OCR (experimental)
 
 Hover an item, hold Alt until its advanced tooltip is visible, then press Ctrl+D
 (with Alt still held). Release Alt after capture. The panel shows editable item
@@ -62,11 +74,14 @@ explicit open reasserts topmost placement without a recurring focus-stealing loo
 Use windowed or borderless cloud streaming; protected video and exclusive fullscreen
 can prevent capture or normal desktop overlays. Blank captures fail explicitly.
 
-The automatic area detector handles yellow rare-item headers. For other layouts,
-or if surrounding UI text interferes, set OCR area to x, y, width, height as
-percentages of the client area (for example 58, 0, 38, 65). A configured area is
-used exactly. Spelling is not guessed; unknown stats require manual correction.
-OCR does not reconstruct unseen socket links, icon-only influence or hidden mods.
+The area is automatic. A scout pass reads the client frame and matches visible
+item names/bases against the catalogue; a second pass reads the isolated tooltip.
+Rare headers can provide an initial hint, while other rarities use the full frame.
+The detector handles gem/currency titles, unique name + base, magic base names and
+map names. There is no coordinate field or rectangle-selection step. If the frame
+is ambiguous, retry while hovering one item with its advanced tooltip visible.
+Spelling is not guessed, and OCR does not reconstruct unseen socket links,
+icon-only influence or hidden mods. Always review values before searching.
 
 The private Wine suite checks real pixel recognition with the bundled fallback,
 Alt-only metadata, responsive GTK, cancellation, process scope and a topmost fake
@@ -84,8 +99,9 @@ pkg-config and glib-compile-schemas. Windows build inputs stay in `rust/dist`.
 
 ```sh
 python3 rust/scripts/setup-windows.py
-sh rust/scripts/cargo-windows.sh build --release --locked --bin awakened-crab-trade -j 3
-python3 rust/scripts/package-windows.py
+cargo fetch --locked --manifest-path rust/Cargo.toml --target x86_64-pc-windows-gnullvm
+cargo fetch --locked --manifest-path rust/portable/Cargo.toml --target x86_64-pc-windows-gnullvm
+python3 rust/scripts/build-windows-editions.py
 ```
 
 The pinned MSYS2 inputs and SHA256 hashes are recorded in

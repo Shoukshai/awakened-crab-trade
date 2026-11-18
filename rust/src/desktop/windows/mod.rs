@@ -3,9 +3,11 @@ pub mod clipboard;
 pub mod game_geometry;
 pub mod game_input;
 pub mod native;
+#[cfg(feature = "cloud-ocr")]
 pub mod ocr;
 #[path = "../preferences.rs"]
 pub mod preferences;
+#[cfg(feature = "cloud-ocr")]
 mod screen_capture;
 pub mod shortcuts;
 pub mod tracker;

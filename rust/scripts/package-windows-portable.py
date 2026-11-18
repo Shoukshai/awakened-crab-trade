@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Embed the validated Windows distribution in a standalone, static launcher."""
-import gzip, hashlib, json, os, pathlib, shutil, struct, subprocess, tomllib
+import gzip, hashlib, json, os, pathlib, shutil, struct, subprocess, tomllib, argparse
 
 root = pathlib.Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser();parser.add_argument('--ocr',action='store_true');options=parser.parse_args()
+app_id='awakened-crab-trade-ocr' if options.ocr else 'awakened-crab-trade'
 version = tomllib.loads((root / 'portable/Cargo.toml').read_text())['package']['version']
-source = root / f'dist/awakened-crab-trade-{version}-windows-x64'
-destination = root / 'dist/portable-payload-root'
+source = root / f'dist/{app_id}-{version}-windows-x64'
+destination = root / f'dist/{app_id}-payload-root'
 if destination.exists():
     shutil.rmtree(destination)
+assert json.loads((source/'edition.json').read_text())['edition']==app_id,'Payload edition does not match launcher'
 manifest = json.loads((source / 'SHA256FILES.json').read_text())
 for name, digest in manifest.items():
     if hashlib.sha256((source / name).read_bytes()).hexdigest() != digest:
@@ -22,7 +25,7 @@ manifest = {p.relative_to(destination).as_posix(): hashlib.sha256(p.read_bytes()
 (destination / 'SHA256FILES.json').write_text(json.dumps(manifest, indent=2) + '\n')
 files = sorted(p for p in destination.rglob('*') if p.is_file())
 seen = set()
-payload = root / 'dist/windows-portable-payload.gz'
+payload = root / f'dist/{app_id}-payload.gz'
 with payload.open('wb') as output, gzip.GzipFile(filename='', mode='wb', fileobj=output, compresslevel=9, mtime=0) as archive:
     archive.write(b'APTSELF1' + struct.pack('<I', len(files)))
     for file in files:
@@ -43,8 +46,8 @@ env.update(APT_PORTABLE_PAYLOAD=str(payload), APT_PORTABLE_ID=identity,
            CARGO_TARGET_DIR=str(root / 'portable/target'),
            RUSTFLAGS='-C target-feature=+crt-static')
 subprocess.run(['cargo', 'build', '--release', '--locked', '--manifest-path', str(root / 'portable/Cargo.toml'),
-                '--target', 'x86_64-pc-windows-gnullvm'], env=env, check=True)
-exe = root / f'dist/awakened-crab-trade-{version}-windows-x64-portable.exe'
+                '--target', 'x86_64-pc-windows-gnullvm', *(['--features','cloud-ocr'] if options.ocr else [])], env=env, check=True)
+exe = root / f'dist/{app_id}-{version}-windows-x64-portable.exe'
 shutil.copy2(root / 'portable/target/x86_64-pc-windows-gnullvm/release/awakened-crab-trade-portable.exe', exe)
 imports = subprocess.check_output([str(llvm / 'bin/llvm-readobj'), '--coff-imports', str(exe)], text=True)
 import re
@@ -57,8 +60,8 @@ if unexpected:
     raise SystemExit(f'Launcher must not depend on external DLLs: {unexpected}')
 digest = hashlib.sha256(exe.read_bytes()).hexdigest()
 exe.with_suffix('.exe.sha256').write_text(f'{digest}  {exe.name}\n')
-report = {'exe': str(exe), 'sha256': digest, 'bytes': exe.stat().st_size,
+report = {'edition':app_id,'exe': str(exe), 'sha256': digest, 'bytes': exe.stat().st_size,
           'payload_sha256': identity, 'embedded_files': len(files), 'imports': names,
           'inner_binary_sha256': manifest['awakened-crab-trade.exe']}
-(root / 'dist/windows-portable-build.json').write_text(json.dumps(report, indent=2) + '\n')
+(root / ('dist/windows-ocr-portable-build.json' if options.ocr else 'dist/windows-portable-build.json')).write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

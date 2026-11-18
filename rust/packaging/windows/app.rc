@@ -2,8 +2,8 @@
 1 ICON "../../assets/branding/app.ico"
 1 RT_MANIFEST "app.manifest"
 1 VERSIONINFO
-FILEVERSION 0,34,0,0
-PRODUCTVERSION 0,34,0,0
+FILEVERSION 0,35,0,0
+PRODUCTVERSION 0,35,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS VOS_NT_WINDOWS32
@@ -13,10 +13,18 @@ BEGIN
  BEGIN
   BLOCK "040904b0"
   BEGIN
+#ifdef ACT_OCR
+   VALUE "FileDescription", "Awakened Crab Trade OCR - Cloud Price Checker"
+#else
    VALUE "FileDescription", "Awakened Crab Trade - Price Checker"
-   VALUE "FileVersion", "0.34.0"
+#endif
+   VALUE "FileVersion", "0.35.0"
+#ifdef ACT_OCR
+   VALUE "ProductName", "Awakened Crab Trade OCR"
+#else
    VALUE "ProductName", "Awakened Crab Trade"
-   VALUE "ProductVersion", "0.34.0"
+#endif
+   VALUE "ProductVersion", "0.35.0"
    VALUE "OriginalFilename", "awakened-crab-trade.exe"
   END
  END

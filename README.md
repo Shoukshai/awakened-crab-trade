@@ -5,14 +5,14 @@
 A native Path of Exile 1 price checker for Linux and Windows, inspired by
 Awakened PoE Trade.
 
-**[Download the latest release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)**
+**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.35.0)**
 
 - Select item modifiers and adjust integer Min/Max filters.
 - Search Trade offers and hover over a result to see its full mods and price.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
 - Use a full-height overlay beside the inventory, with automatic league selection.
 - Ten live-switchable styles, including light themes, tabs and a split view.
-- Experimental Windows cloud OCR, with local recognition and editable review.
+- Separate standard and cloud OCR executables, with automatic tooltip detection.
 
 ## Screenshots
 
@@ -30,7 +30,7 @@ English demo views from version 0.32.0. Click for full panels. Offers and prices
 
 ## Usage
 
-On Windows, run the portable EXE. In PoE, hover over an item and press
+On Windows, use the standard portable EXE for local PoE. Hover over an item and press
 `Ctrl+Alt+D` to open the interactive checker. `Ctrl+D` opens a passive view.
 Select filters, then click **Search**. Opening the panel never starts a Trade search.
 Press `Esc` or click outside the panel to close it.
@@ -40,9 +40,11 @@ remain in English. Existing preferences are imported automatically.
 Choose **Style** in Settings to preview a theme; Save keeps it and Cancel restores
 the previous style. Filters and displayed offers survive a style change.
 
-For cloud gaming, see the experimental [Windows OCR mode](rust/docs/windows.md#cloud-gaming-ocr-experimental).
-Hold Alt for advanced item details before capturing; review the recognized stats
-before searching.
+For cloud gaming, use the separate **OCR** portable EXE (experimental).
+Hold Alt until the advanced tooltip appears, then press Ctrl+D. The tooltip area
+is detected automatically. English game text is required; review the recognized
+values before searching. Both executables have independent settings and caches,
+and scope shortcuts to their own target windows. See [Windows editions](rust/docs/windows.md).
 
 Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),

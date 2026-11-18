@@ -101,6 +101,12 @@ struct Identity {
     namespace: String,
     craftable: Option<Category>,
     unique: Option<Unique>,
+    #[serde(default)]
+    exchangeable: bool,
+    #[serde(default, rename = "tradeTag")]
+    trade_tag: Option<String>,
+    #[serde(default)]
+    category: Option<String>,
 }
 #[derive(serde::Deserialize)]
 struct Category {
@@ -118,50 +124,122 @@ fn identities() -> &'static HashMap<String, Vec<Identity>> {
             .lines()
             .chain(include_str!("data/current-items.ndjson").lines())
         {
-            let entry: Identity = serde_json::from_str(line).unwrap();
-            if entry.namespace != "AREA" {
-                out.entry(key(&entry.name)).or_default().push(entry);
+            let mut entry: Identity = serde_json::from_str(line).unwrap();
+            if entry.namespace == "AREA" {
+                entry.name.push_str(" Map");
+                entry.namespace = "MAP".into();
             }
+            out.entry(key(&entry.name)).or_default().push(entry);
         }
         out
     })
 }
+fn identity(line: &Line) -> Option<&'static Identity> {
+    let k = key(&line.text);
+    identities().get(&k).and_then(|v| v.first()).or_else(|| {
+        identities()
+            .iter()
+            .filter(|(name, v)| {
+                let magic = line.rarity == Some(Rarity::Magic)
+                    && !line.text.chars().any(|c| c.is_ascii_digit())
+                    && v[0].craftable.is_some()
+                    && v[0].namespace == "ITEM";
+                name.len() >= 8
+                    && k.find(name.as_str()).is_some_and(|start| {
+                        magic || (start <= 2 && k.len() - start - name.len() <= 3)
+                    })
+            })
+            .max_by_key(|(name, _)| name.len())
+            .and_then(|(_, v)| v.first())
+    })
+}
+fn select_item(lines: &[Line]) -> Result<(usize, &'static Identity), String> {
+    let candidates: Vec<_> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(i, l)| identity(l).map(|e| (i, e)))
+        .collect();
+    let mut ranked: Vec<_> = candidates
+        .iter()
+        .filter(|(i, e)| {
+            !candidates.iter().any(|(j, u)| {
+                u.namespace == "UNIQUE"
+                    && j < i
+                    && lines[*i].y - lines[*j].y < 70.
+                    && u.unique.as_ref().and_then(|u| u.base.as_deref()) == Some(e.name.as_str())
+            })
+        })
+        .map(|(i, e)| {
+            let h = &lines[*i];
+            let cx = h.x + h.width / 2.;
+            let mut score = 0;
+            let mut bottom = h.y + h.height;
+            for l in lines
+                .iter()
+                .skip(*i + 1)
+                .filter(|l| (l.x + l.width / 2. - cx).abs() < 80.)
+            {
+                if l.y - bottom > 95. {
+                    break;
+                }
+                bottom = bottom.max(l.y + l.height);
+                if l.text.contains(':') || stat(&l.text).is_some() {
+                    score += 1;
+                }
+            }
+            (*i, *e, score)
+        })
+        .collect();
+    ranked.sort_by_key(|(_, _, score)| std::cmp::Reverse(*score));
+    if let Some((i, e, score)) = ranked.first() {
+        if ranked.len() == 1 || (*score > 0 && *score > ranked[1].2) {
+            return Ok((*i, *e));
+        }
+    }
+    Err("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).".into())
+}
+/// The scout pass finds catalogue text; all later OCR is restricted to that
+/// tooltip's centered text column. No coordinates or manual region are needed.
+pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
+    let mut sorted = lines.to_vec();
+    sorted.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
+    let (i, _) = select_item(&sorted)?;
+    let h = &sorted[i];
+    let center = h.x + h.width / 2.;
+    let mut x = h.x;
+    let mut right = h.x + h.width;
+    let top = (h.y - 65.).max(0.);
+    let mut bottom = h.y + h.height;
+    for line in sorted
+        .iter()
+        .skip(i + 1)
+        .filter(|l| (l.x + l.width / 2. - center).abs() < 90.)
+    {
+        if line.y - bottom > 95. {
+            break;
+        }
+        x = x.min(line.x);
+        right = right.max(line.x + line.width);
+        bottom = bottom.max(line.y + line.height);
+    }
+    Ok([
+        (x - 18.).max(0.),
+        top,
+        (right - x + 36.).max(220.),
+        bottom - top + 20.,
+    ])
+}
 pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     if lines.len() > 4096 || lines.iter().map(|l| l.text.len()).sum::<usize>() > 65536 {
-        return Err("Too much text in the OCR area. Select a smaller tooltip area.".into());
+        return Err(
+            "Too much text in the capture. Hover a single item tooltip and try again.".into(),
+        );
     }
     lines.retain(|l| {
         !l.text.trim().is_empty() && [l.x, l.y, l.width, l.height].iter().all(|v| v.is_finite())
     });
     lines.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
-    let matches: Vec<_> = lines
-        .iter()
-        .enumerate()
-        .filter_map(|(i, l)| {
-            let k = key(&l.text);
-            let exact = identities().get(&k).and_then(|v| v.first());
-            // OCR sometimes appends a tiny gilded corner ornament to the base line.
-            // Accept an exact catalogue prefix with <= 3 trailing glyphs, never a
-            // substring inside a sales-history line or an edit-distance correction.
-            let entry = exact.or_else(|| {
-                identities()
-                    .iter()
-                    .filter(|(name, _)| {
-                        name.len() >= 8
-                            && k.find(name.as_str()).is_some_and(|start| {
-                                start <= 2 && k.len() - start - name.len() <= 3
-                            })
-                    })
-                    .max_by_key(|(name, _)| name.len())
-                    .and_then(|(_, v)| v.first())
-            });
-            entry.map(|e| (i, e))
-        })
-        .collect();
-    // Multiple named items in inventory/history must not silently select one.
-    let (index, entry) = matches.iter().find(|(_, e)| e.namespace == "UNIQUE")
-        .copied().or_else(|| (matches.len()==1).then(|| matches[0]))
-        .ok_or("No unambiguous item base found. Set a smaller OCR area around the tooltip and try again (English game text).")?;
+    let (index, entry) = select_item(&lines)?;
     let header = &lines[index];
     let center = header.x + header.width / 2.;
     let in_column = |l: &Line| (l.x + l.width / 2. - center).abs() < (header.width * 0.4).max(42.);
@@ -173,14 +251,22 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         "UNIQUE" => Rarity::Unique,
         "GEM" => Rarity::Gem,
         "CURRENCY" => Rarity::Currency,
+        "ITEM"
+            if entry.craftable.is_none() && (entry.exchangeable || entry.trade_tag.is_some()) =>
+        {
+            Rarity::Currency
+        }
         "DIVINATION_CARD" => Rarity::Divination,
-        _ => previous
-            .and_then(|l| l.rarity.clone())
-            .or(header.rarity.clone())
+        _ => header
+            .rarity
+            .clone()
+            .or_else(|| previous.and_then(|l| l.rarity.clone()))
             .unwrap_or(Rarity::Normal),
     };
     let named = matches!(rarity, Rarity::Rare | Rarity::Unique);
-    let name = if rarity == Rarity::Unique {
+    let name = if entry.namespace == "MAP" && !named {
+        "Map".into()
+    } else if rarity == Rarity::Unique {
         entry.name.clone()
     } else if named {
         previous
@@ -189,24 +275,35 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     } else {
         entry.name.clone()
     };
-    let base = entry
-        .unique
-        .as_ref()
-        .and_then(|u| u.base.clone())
-        .unwrap_or_else(|| entry.name.clone());
-    let class = entry
-        .craftable
-        .as_ref()
-        .and_then(|c| c.category.clone())
-        .unwrap_or_else(|| {
-            match rarity {
-                Rarity::Gem => "Skill Gems",
-                Rarity::Currency => "Stackable Currency",
-                Rarity::Divination => "Divination Cards",
-                _ => "Items",
-            }
-            .into()
-        });
+    let base = if entry.namespace == "MAP" {
+        "Map".into()
+    } else {
+        entry
+            .unique
+            .as_ref()
+            .and_then(|u| u.base.clone())
+            .unwrap_or_else(|| entry.name.clone())
+    };
+    let class = if entry.namespace == "MAP"
+        || entry.category.as_deref() == Some("Map")
+        || entry.craftable.as_ref().and_then(|c| c.category.as_deref()) == Some("Map")
+    {
+        "Maps".into()
+    } else {
+        entry
+            .craftable
+            .as_ref()
+            .and_then(|c| c.category.clone())
+            .unwrap_or_else(|| {
+                match rarity {
+                    Rarity::Gem => "Skill Gems",
+                    Rarity::Currency => "Stackable Currency",
+                    Rarity::Divination => "Divination Cards",
+                    _ => "Items",
+                }
+                .into()
+            })
+    };
     let mut text = format!(
         "Item Class: {class}\nRarity: {}\n{name}\n",
         match rarity {
@@ -223,6 +320,18 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         text.push_str(&format!("{base}\n"));
     }
     text.push_str("--------\n");
+    if let Some(tier) = key(&header.text)
+        .strip_prefix("maptier")
+        .and_then(|v| v.parse::<u32>().ok())
+    {
+        text.push_str(&format!("Map Tier: {tier}\n"));
+    }
+    if entry.namespace == "MAP" {
+        text.push_str(&format!(
+            "Map Area: {}\n",
+            entry.name.trim_end_matches(" Map")
+        ));
+    }
     let mut unknown = Vec::new();
     let mut last_y = header.y + header.height;
     let properties = [
@@ -350,6 +459,7 @@ mod tests {
             line("+35% TO FIRE RESISTANCE", 154., None),
         ];
         let d = draft(lines, "test".into()).unwrap();
+        assert_eq!(d.engine, "test");
         let item = crate::item::Item::parse(&d.text).unwrap();
         assert_eq!(item.base, "Assassin's Mitts");
         assert_eq!(item.rarity, Rarity::Rare);
@@ -439,5 +549,68 @@ mod tests {
         let text = normalize_review(&corrected).unwrap();
         let fixed = crate::item::Item::parse(&text).unwrap();
         assert_eq!(fixed.modifiers.len(), 1);
+    }
+    #[test]
+    fn all_tooltip_families_resolve_without_coordinates() {
+        let cases = [
+            (
+                vec![
+                    line("Impale Support", 80., None),
+                    line("Level: 20", 110., None),
+                    line("Quality: +20%", 140., None),
+                ],
+                crate::item::Family::Gem,
+            ),
+            (
+                vec![
+                    line("Divine Orb", 80., None),
+                    line("Stack Size: 1/20", 110., None),
+                ],
+                crate::item::Family::Currency,
+            ),
+            (
+                vec![
+                    line("Goldrim", 80., Some(Rarity::Unique)),
+                    line("Leather Cap", 105., Some(Rarity::Unique)),
+                    line("Item Level: 71", 135., None),
+                    line("+35% to all Elemental Resistances", 165., None),
+                ],
+                crate::item::Family::Unique,
+            ),
+            (
+                vec![
+                    line("Strand Map", 80., Some(Rarity::Normal)),
+                    line("Map Tier: 16", 110., None),
+                    line("Item Level: 83", 140., None),
+                ],
+                crate::item::Family::Map,
+            ),
+        ];
+        for (lines, family) in cases {
+            let bounds = tooltip_bounds(&lines).unwrap();
+            assert!(bounds[2] > 0. && bounds[3] > 0.);
+            let d = draft(lines, "test".into()).unwrap();
+            let item = crate::item::Item::parse(&d.text).unwrap();
+            assert_eq!(item.family(), family, "{}", d.text);
+        }
+    }
+    #[test]
+    fn a_magic_name_can_identify_its_exact_catalogue_base() {
+        let d = draft(
+            vec![
+                line(
+                    "GLYPHIC DRIFTWOOD WAND OF THE SCHOLAR",
+                    20.,
+                    Some(Rarity::Magic),
+                ),
+                line("Item Level: 71", 50., None),
+                line("+25 to maximum Mana", 80., None),
+            ],
+            "test".into(),
+        )
+        .unwrap();
+        let i = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(i.base, "Driftwood Wand");
+        assert_eq!(i.rarity, Rarity::Magic);
     }
 }

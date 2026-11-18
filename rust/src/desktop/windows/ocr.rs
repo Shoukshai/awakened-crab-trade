@@ -413,6 +413,13 @@ pub fn fallback(
     image: &Image,
     check: &impl Fn() -> Result<(), String>,
 ) -> Result<Vec<Line>, String> {
+    fallback_pass(image, check, false)
+}
+fn fallback_pass(
+    image: &Image,
+    check: &impl Fn() -> Result<(), String>,
+    scout: bool,
+) -> Result<Vec<Line>, String> {
     use std::os::windows::process::CommandExt;
     let runtime = std::env::current_exe()
         .map_err(|e| e.to_string())?
@@ -422,7 +429,7 @@ pub fn fallback(
     let exe = runtime.join("tesseract.exe");
     let mut f = Vec::new();
     // Upscale small PoE text, invert bright glyphs for the English LSTM model.
-    let scale = if image.width <= 2560 && image.height <= 1600 {
+    let scale = if !scout && image.width <= 2560 && image.height <= 1600 {
         2
     } else {
         1
@@ -459,7 +466,11 @@ pub fn fallback(
             "-l",
             "eng",
             "--psm",
-            if image.width < 1100 { "6" } else { "11" },
+            if !scout && image.width < 1100 {
+                "6"
+            } else {
+                "11"
+            },
             "tsv",
         ])
         .env("OMP_THREAD_LIMIT", "2")
@@ -487,7 +498,7 @@ pub fn fallback(
             if started.elapsed() < Duration::from_secs(18) {
                 Ok(())
             } else {
-                Err("OCR timed out. Use a smaller tooltip area.".into())
+                Err("OCR timed out. Keep the advanced tooltip visible and try again.".into())
             }
         }) {
             break Err(error);
@@ -541,30 +552,66 @@ pub fn fallback(
     Ok(lines)
 }
 pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Result<Draft, String> {
-    recognize_in_area(image, check, true)
-}
-fn recognize_in_area(
-    image: &Image,
-    check: &impl Fn() -> Result<(), String>,
-    automatic: bool,
-) -> Result<Draft, String> {
     check()?;
-    let cropped = if automatic {
-        image.automatic_area().map(|r| image.crop(r))
-    } else {
-        None
-    };
-    let image = cropped.as_ref().unwrap_or(image);
-    eprintln!("ocr recognition area={}x{}", image.width, image.height);
-    match native_ocr(image, check).and_then(|lines| crate::ocr::draft(lines, "Windows OCR".into()))
-    {
-        Ok(draft) => Ok(draft),
-        Err(error) => {
-            check()?;
-            eprintln!("Windows OCR unavailable or unreadable; using local OCR: {error}");
-            crate::ocr::draft(fallback(image, check)?, "Local OCR".into())
-        }
+    let rough = image.automatic_area().map(|r| image.crop(r));
+    let scout = rough.as_ref().unwrap_or(image);
+    let mut passes = Vec::new();
+    if let Ok(lines) = native_ocr(scout, check) {
+        passes.push((lines, "Windows OCR"));
     }
+    check()?;
+    if passes
+        .first()
+        .is_none_or(|(lines, _)| crate::ocr::tooltip_bounds(lines).is_err())
+    {
+        passes.push((fallback_pass(scout, check, true)?, "Local OCR"));
+    }
+    // Small PoE capitals may need the detailed/upscaled pass even to locate
+    // the base. Retry automatically before widening to the whole client frame.
+    if !passes
+        .iter()
+        .any(|(lines, _)| crate::ocr::tooltip_bounds(lines).is_ok())
+        && rough.is_some()
+    {
+        check()?;
+        passes.push((fallback(scout, check)?, "Local OCR"));
+    }
+    let mut source = scout;
+    let mut located = passes.into_iter().find_map(|(lines, engine)| {
+        crate::ocr::tooltip_bounds(&lines)
+            .ok()
+            .map(|r| (lines, engine, r))
+    });
+    if located.is_none() && rough.is_some() {
+        check()?;
+        source = image;
+        let (lines, engine) = match native_ocr(image, check) {
+            Ok(lines) if crate::ocr::tooltip_bounds(&lines).is_ok() => (lines, "Windows OCR"),
+            _ => (fallback_pass(image, check, true)?, "Local OCR"),
+        };
+        let r = crate::ocr::tooltip_bounds(&lines)?;
+        located = Some((lines, engine, r));
+    }
+    let (lines,engine,r)=located.ok_or("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).")?;
+    let x = r[0].min((source.width - 1) as f64);
+    let y = r[1].min((source.height - 1) as f64);
+    let region = [
+        x / source.width as f64 * 100.,
+        y / source.height as f64 * 100.,
+        r[2].min(source.width as f64 - x) / source.width as f64 * 100.,
+        r[3].min(source.height as f64 - y) / source.height as f64 * 100.,
+    ];
+    let focused = source.crop(region);
+    eprintln!("ocr automatic tooltip={}x{}", focused.width, focused.height);
+    let refined = if engine == "Windows OCR" {
+        native_ocr(&focused, check)
+    } else {
+        fallback(&focused, check)
+    };
+    check()?;
+    refined
+        .and_then(|result| crate::ocr::draft(result, engine.into()))
+        .or_else(|_| crate::ocr::draft(lines, engine.into()))
 }
 pub fn capture(
     context: &Context<'_>,
@@ -584,15 +631,12 @@ pub fn capture(
     {
         return Err("Unsupported capture size.".into());
     }
-    let mut image = super::screen_capture::capture(rect).or_else(|error| {
+    let image = super::screen_capture::capture(rect).or_else(|error| {
         eprintln!("DXGI capture unavailable: {error}");
         target.alt()?;
         gdi(target.window, rect)
     })?;
     target.alt()?;
-    if let Some(region) = settings.region {
-        image = image.crop(region);
-    }
     if !image
         .pixels
         .as_chunks::<4>()
@@ -617,7 +661,7 @@ pub fn capture(
         "ocr snapshot={}x{} alt_held=true",
         image.width, image.height
     );
-    let result = recognize_in_area(&image, &|| target.check(), settings.region.is_none());
+    let result = recognize(&image, &|| target.check());
     let start = Instant::now();
     while unsafe { GetAsyncKeyState(i32::from(VK_MENU)) } < 0 {
         target.check()?;

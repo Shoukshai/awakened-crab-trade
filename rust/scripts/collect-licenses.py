@@ -20,6 +20,7 @@ host = sys.argv[2] if len(sys.argv)>2 else next(line.split(': ', 1)[1] for line 
 metadata = json.loads(subprocess.check_output([
     'cargo', 'metadata', '--locked', '--offline', '--format-version', '1',
     '--filter-platform', host, '--manifest-path', str(pathlib.Path(sys.argv[3]).resolve() if len(sys.argv)>3 else root / 'Cargo.toml'),
+*(['--features',sys.argv[4]] if len(sys.argv)>4 else []),
 ], text=True))
 nodes = {node['id']: node for node in metadata['resolve']['nodes']}
 reachable = set()

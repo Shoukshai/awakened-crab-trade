@@ -43,15 +43,20 @@ impl Default for Settings {
     }
 }
 pub fn path() -> std::path::PathBuf {
-    crate::paths::config_root().join("awakened-crab-trade/config.json")
+    crate::paths::config_root()
+        .join(crate::edition::id())
+        .join("config.json")
 }
 impl Settings {
     pub fn load() -> Result<Self, String> {
         Self::load_from_root(&crate::paths::config_root())
     }
     fn load_from_root(root: &std::path::Path) -> Result<Self, String> {
-        let path = root.join("awakened-crab-trade/config.json");
+        let path = root.join(crate::edition::id()).join("config.json");
         if !path.exists() {
+            if crate::edition::is_ocr() {
+                return Ok(Self::default());
+            }
             let legacy = crate::compat::legacy_settings(root);
             if !legacy.exists() {
                 return Ok(Self::default());
@@ -70,6 +75,7 @@ impl Settings {
             serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| format!("Invalid settings: {e}"))?;
         settings.legacy.remove("automatic_search");
+        settings.capture.mode = crate::edition::capture_mode();
         settings.validate()?;
         Ok(settings)
     }
@@ -147,6 +153,18 @@ impl Settings {
 mod tests {
     use super::*;
     #[test]
+    fn loading_an_old_mixed_profile_cannot_switch_the_executable_edition() {
+        let root = std::env::temp_dir().join(format!("act-edition-{}", std::process::id()));
+        let path = root.join(crate::edition::id()).join("config.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let value = serde_json::json!({"capture":{"mode":"ocr","executable":"Boosteroid.exe"},"league":"Covens"});
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let read = Settings::load_from_root(&root).unwrap();
+        assert_eq!(read.capture.mode, crate::edition::capture_mode());
+        assert_eq!(read.league, "Covens");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn historical_widget_data_is_preserved_without_installing_its_shortcuts() {
         let input = serde_json::json!({"widget_order":[{"type":"image","id":3}],"stash_scroll":true,"stopwatches":[{"id":999}],"hotkeys":{"delve":"Ctrl + D","similar":"Ctrl + K"}});
         let s: Settings = serde_json::from_value(input.clone()).unwrap();
@@ -206,7 +224,7 @@ mod tests {
         assert_eq!(imported.league, "Covens");
         assert!(imported.restore_clipboard);
         assert_eq!(imported.legacy["custom_ui"]["kept"], 42);
-        let new = root.join("awakened-crab-trade/config.json");
+        let new = root.join(crate::edition::id()).join("config.json");
         let saved: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&new).unwrap()).unwrap();
         assert!(saved.get("automatic_search").is_none());

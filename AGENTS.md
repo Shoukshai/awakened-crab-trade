@@ -7,7 +7,11 @@
 - Keep the root README short, in English, with ASCII characters only and no emoji.
 - Preserve the upstream MIT license and credit Awakened PoE Trade.
 - Use `rust/assets/branding/` for app, notification and executable icons.
-- Use `awakened-crab-trade` for current executable, settings and IPC names.
+- Standard edition uses `awakened-crab-trade` for executable, settings and IPC.
+- Windows OCR edition uses `awakened-crab-trade-ocr` for its profile, cache and
+  control endpoint. It is compiled with `cloud-ocr`; standard builds omit OCR.
+- Keep capture methods fixed per edition and shortcut scopes separate.
+- OCR must locate the tooltip automatically; do not require manual coordinates.
 - Import older profiles through the compatibility module; preserve user settings.
 - Never send test input to the real game or use the user's Steam/Wine prefix.
   Use the guarded private test desktops under `rust/scripts/`.

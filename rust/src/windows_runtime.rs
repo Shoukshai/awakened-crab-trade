@@ -20,7 +20,7 @@ pub fn initialize() -> Result<(), String> {
             || std::env::args().nth(1).is_none_or(|a| a == "daemon")
         {
             use std::os::windows::io::IntoRawHandle;
-            let dir = crate::paths::cache_root().join("awakened-crab-trade");
+            let dir = crate::paths::cache_root().join(crate::edition::id());
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             let file = std::fs::OpenOptions::new()
                 .append(true)
@@ -50,7 +50,7 @@ pub fn initialize() -> Result<(), String> {
         root.hash(&mut hash);
         env!("CARGO_PKG_VERSION").hash(&mut hash);
         let cache = crate::paths::cache_root()
-            .join("awakened-crab-trade")
+            .join(crate::edition::id())
             .join(format!("loaders-{:016x}.cache", hash.finish()));
         if !cache.is_file() {
             use std::os::windows::process::CommandExt;
@@ -77,7 +77,7 @@ pub fn report_error(message: &str) {
             windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxW(
                 std::ptr::null_mut(),
                 crate::desktop::native::wide(message).as_ptr(),
-                crate::desktop::native::wide("Awakened Crab Trade").as_ptr(),
+                crate::desktop::native::wide(crate::edition::title()).as_ptr(),
                 windows_sys::Win32::UI::WindowsAndMessaging::MB_OK
                     | windows_sys::Win32::UI::WindowsAndMessaging::MB_ICONERROR,
             );

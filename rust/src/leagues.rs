@@ -85,7 +85,9 @@ fn valid_id(id: &str) -> Result<String, String> {
     }
 }
 fn cache_path() -> std::path::PathBuf {
-    crate::paths::cache_root().join("awakened-crab-trade/leagues.json")
+    crate::paths::cache_root()
+        .join(crate::edition::id())
+        .join("leagues.json")
 }
 pub fn resolve() -> Result<Selection, String> {
     resolve_at(
