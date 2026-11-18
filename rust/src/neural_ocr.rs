@@ -58,6 +58,7 @@ static MODEL_SESSION: OnceLock<Result<Mutex<Model>, String>> = OnceLock::new();
 
 impl Model {
     fn load(root: &Path) -> Result<Self, String> {
+        let started = Instant::now();
         let path = root.join("share/ocr").join(MODEL);
         if std::fs::metadata(&path)
             .map_err(|e| format!("Neural OCR model: {e}"))?
@@ -110,6 +111,10 @@ impl Model {
         let mut dictionary = vec![String::new()]; // CTC blank
         dictionary.extend(chars.lines().map(str::to_owned));
         dictionary.push(" ".into()); // Paddle's use_space_char
+        eprintln!(
+            "ocr neural model=PP-OCRv5 runtime=ONNX threads=2 load_ms={}",
+            started.elapsed().as_millis()
+        );
         Ok(Self {
             session,
             dictionary,
@@ -174,7 +179,8 @@ fn glyph(image: &Image<'_>, x: usize, y: usize, colored: bool) -> bool {
     let blue = b > 100 && b - r > 18 && b - g > 12;
     let neutral = r.min(g).min(b) > 95 && r.max(g).max(b) - r.min(g).min(b) < 40;
     let gold = r > 185 && g > 165 && b < 155 && r - g < 40;
-    if !blue && (colored || (!neutral && !gold)) {
+    let red = r > 150 && r > g * 2 && r > b * 2;
+    if !blue && (colored || (!neutral && !gold && !red)) {
         return false;
     }
     let v = brightness(image, x, y, colored);
@@ -268,6 +274,18 @@ pub fn recognize(
     colored: bool,
     check: &impl Fn() -> Result<(), String>,
 ) -> Result<Vec<Reading>, String> {
+    recognize_seeded(root, image, colored, &[], check)
+}
+
+/// Positioned scout lines supplement projection when translucent backgrounds
+/// join adjacent baselines. Coordinates always come from automatic OCR.
+pub fn recognize_seeded(
+    root: &Path,
+    image: Image<'_>,
+    colored: bool,
+    hints: &[[usize; 4]],
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<Vec<Reading>, String> {
     check()?;
     if image.width < 2
         || image.height < 2
@@ -291,8 +309,18 @@ pub fn recognize(
         .lock()
         .map_err(|_| "Neural OCR session unavailable.")?;
     check()?;
+    let mut boxes = if hints.is_empty() {
+        regions(&image, colored)?
+    } else {
+        hinted_regions(&image, hints, colored)?
+    };
+    boxes.sort_by_key(|r| r[1]);
+    if boxes.is_empty() {
+        return Err("No text lines found by neural segmentation.".into());
+    }
+    let region_count = boxes.len();
     let mut out = Vec::new();
-    for r in regions(&image, colored)? {
+    for r in boxes {
         check()?;
         if started.elapsed() > Duration::from_secs(15) {
             return Err("Neural OCR timed out.".into());
@@ -310,12 +338,130 @@ pub fn recognize(
             });
         }
     }
+    eprintln!(
+        "ocr neural colored={colored} hints={} regions={region_count} lines={} elapsed_ms={}",
+        hints.len(),
+        out.len(),
+        started.elapsed().as_millis()
+    );
     Ok(out)
+}
+
+fn hinted_regions(
+    image: &Image<'_>,
+    hints: &[[usize; 4]],
+    colored: bool,
+) -> Result<Vec<[usize; 4]>, String> {
+    if hints.len() > MAX_LINES {
+        return Err("Too many automatic OCR line hints.".into());
+    }
+    let mut boxes: Vec<[usize; 4]> = Vec::new();
+    for &[x, y, w, h] in hints {
+        if w == 0 || h == 0 || x >= image.width || y >= image.height {
+            continue;
+        }
+        let left = x.saturating_sub(3);
+        let top = y.saturating_sub(2);
+        let right = x.saturating_add(w).saturating_add(3).min(image.width);
+        let bottom = y.saturating_add(h).saturating_add(2).min(image.height);
+        if bottom - top > 64 {
+            continue;
+        }
+        let (left, top, right, bottom) = if colored {
+            // A scout row can include neighboring gold UI text. Masked pixels
+            // must not shift the centered tooltip row out of its text column.
+            let mut bounds = [right, bottom, left, top];
+            for yy in top..bottom {
+                let xs: Vec<_> = (left..right)
+                    .filter(|&xx| brightness(image, xx, yy, true) > 105)
+                    .collect();
+                if xs.len() >= 6 {
+                    bounds[0] = bounds[0].min(xs[0]);
+                    bounds[1] = bounds[1].min(yy);
+                    bounds[2] = bounds[2].max(xs[xs.len() - 1] + 1);
+                    bounds[3] = bounds[3].max(yy + 1);
+                }
+            }
+            if bounds[2] <= bounds[0] || bounds[3] <= bounds[1] {
+                continue;
+            }
+            (
+                bounds[0].saturating_sub(3).max(left),
+                bounds[1].saturating_sub(2).max(top),
+                (bounds[2] + 3).min(right),
+                (bounds[3] + 2).min(bottom),
+            )
+        } else {
+            (left, top, right, bottom)
+        };
+        let r = [left, top, right - left, bottom - top];
+        if let Some(old) = boxes.iter_mut().find(|b| {
+            let overlap = (b[1] + b[3]).min(bottom).saturating_sub(b[1].max(top));
+            overlap * 2 > b[3].min(r[3])
+                && (b[1] as f64 + b[3] as f64 / 2. - top as f64 - r[3] as f64 / 2.).abs()
+                    < b[3].max(r[3]) as f64 * 0.6
+        }) {
+            let x2 = (old[0] + old[2]).max(right);
+            let y2 = (old[1] + old[3]).max(bottom);
+            old[0] = old[0].min(left);
+            old[1] = old[1].min(top);
+            old[2] = x2 - old[0];
+            old[3] = y2 - old[1];
+        } else {
+            boxes.push(r);
+        }
+    }
+    Ok(boxes)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn scout_hints_retain_lines_on_a_flat_background_and_clip_outside_boxes() {
+        let pixels = vec![200u8; 100 * 80 * 4];
+        let image = Image {
+            width: 100,
+            height: 80,
+            bgra: &pixels,
+        };
+        assert!(regions(&image, false).unwrap().is_empty());
+        let boxes = hinted_regions(
+            &image,
+            &[[4, 10, 80, 12], [8, 35, 120, 12], [120, 20, 9, 9]],
+            false,
+        )
+        .unwrap();
+        assert_eq!(boxes.len(), 2);
+        assert!(boxes
+            .iter()
+            .all(|r| r[0] + r[2] <= 100 && r[1] + r[3] <= 80));
+        assert!(hinted_regions(&image, &[[4, 10, 80, 12]], true)
+            .unwrap()
+            .is_empty());
+    }
+    #[test]
+    fn colored_hint_bounds_ignore_masked_neighboring_text() {
+        let mut pixels = vec![0u8; 200 * 60 * 4];
+        for y in 20..32 {
+            for x in 100..180 {
+                let p = &mut pixels[(y * 200 + x) * 4..][..4];
+                p.copy_from_slice(&[240, 170, 140, 255]);
+            }
+            for x in 5..70 {
+                pixels[(y * 200 + x) * 4..][..4].copy_from_slice(&[90, 170, 200, 255]);
+            }
+        }
+        let image = Image {
+            width: 200,
+            height: 60,
+            bgra: &pixels,
+        };
+        let boxes = hinted_regions(&image, &[[0, 18, 190, 18]], true).unwrap();
+        assert_eq!(boxes.len(), 1);
+        assert_eq!(boxes[0][0], 97);
+        assert_eq!(boxes[0][2], 86);
+    }
     #[test]
     fn ctc_keeps_repeated_digits_separated_by_blank() {
         let dict = vec!["".into(), "1".into(), "4".into()];

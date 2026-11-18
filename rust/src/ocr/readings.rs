@@ -24,6 +24,13 @@ pub(super) fn property(text: &str) -> Option<(&'static str, String)> {
     let (label, value) = text.split_once(':')?;
     let name = *PROPERTIES.iter().find(|p| key(p) == key(label))?;
     let value = value.trim();
+    // Some OCR passes read the quality '+' as a hash/backslash. Remove only
+    // those leading punctuation glyphs; never change a digit or a sign.
+    let value = if name == "Quality" {
+        value.trim_start_matches(['\\', '#']).trim()
+    } else {
+        value
+    };
     if ["Armour", "Evasion Rating", "Energy Shield", "Ward"].contains(&name)
         && ranges().is_match(value)
         && super::base_roll(value).is_none()
@@ -118,7 +125,14 @@ pub fn repair_properties(lines: &mut Vec<Line>) {
 }
 
 fn canonical(text: &str) -> Option<String> {
-    stat(text).or_else(|| property(text).map(|(p, v)| format!("{p}: {v}")))
+    stat(text)
+        .or_else(|| property(text).map(|(p, v)| format!("{p}: {v}")))
+        .or_else(|| match key(text).as_str() {
+            "corrupted" => Some("Corrupted".into()),
+            "mirrored" => Some("Mirrored".into()),
+            "unidentified" => Some("Unidentified".into()),
+            _ => None,
+        })
 }
 fn ranges() -> &'static Regex {
     static RANGE: OnceLock<Regex> = OnceLock::new();

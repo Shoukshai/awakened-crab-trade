@@ -52,6 +52,30 @@ The isolated GUI suite separately checks cancellation, responsiveness, five item
 families, independent standard/OCR shortcuts and the absence of automatic Trade
 searches. Real Boosteroid capture and overlay behavior still require Windows tests.
 
+## 0.36.2 regression fixes
+
+Additional local Windows reports exposed valid rolls rejected by literal fragments
+of composite catalogue entries (including 25 Life and 9 Energy Shield). Variable
+stat templates now take precedence without changing any observed numbers. Quality
+punctuation and explanatory Cold Exposure reminders are handled separately.
+Gem descriptions no longer count as unknown item modifiers or trigger extra
+recognition passes. Corruption footers remain readable across the gap left by
+removed descriptions. Missing searchable properties remain uncertain.
+
+Neural recognition can use automatically positioned scout rows when projection
+cannot separate text from the translucent background. Empty output is reported
+explicitly, and logs identify the version, model, line counts and stage timings.
+The regression set now includes seven supplied tooltip images placed in complete
+frames without passing their coordinates to the app. The new cases check the
+belt's seven modifiers and implicit Life, both glove implicits and all seven
+other glove rolls, and Kinetic Blast's level 21, quality 20 and corruption flag.
+The normal tooltip pixels do not contain ilvl, so these tests require it to stay
+absent. Separate text tests cover the reported advanced roll notation and noise;
+the partially covered advanced screenshots are not complete pixel fixtures.
+
+These changes do not train or replace the model. User timing on native Windows
+is still required; there is no claimed speedup for every item.
+
 ## Reproduce
 
 For a Windows ZIP, run the extracted checker from its directory:

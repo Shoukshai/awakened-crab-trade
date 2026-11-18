@@ -2,8 +2,8 @@
 1 ICON "../../assets/branding/app.ico"
 1 RT_MANIFEST "app.manifest"
 1 VERSIONINFO
-FILEVERSION 0,36,1,0
-PRODUCTVERSION 0,36,1,0
+FILEVERSION 0,36,2,0
+PRODUCTVERSION 0,36,2,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS VOS_NT_WINDOWS32
@@ -18,13 +18,13 @@ BEGIN
 #else
    VALUE "FileDescription", "Awakened Crab Trade - Price Checker"
 #endif
-   VALUE "FileVersion", "0.36.1"
+   VALUE "FileVersion", "0.36.2"
 #ifdef ACT_OCR
    VALUE "ProductName", "Awakened Crab Trade OCR"
 #else
    VALUE "ProductName", "Awakened Crab Trade"
 #endif
-   VALUE "ProductVersion", "0.36.1"
+   VALUE "ProductVersion", "0.36.2"
    VALUE "OriginalFilename", "awakened-crab-trade.exe"
   END
  END

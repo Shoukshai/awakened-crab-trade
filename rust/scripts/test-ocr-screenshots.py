@@ -39,7 +39,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   assert any(m['kind']=='crafted' and m['value']==33 for m in mods),text
   assert any(m['value']==318 and m['min']==301 and m['max']==375 for m in mods),text
   for value in [38,14,74,46,37]:assert any(m['kind']=='explicit' and m['value']==value for m in mods),(value,text)
- else:
+ elif case['file']=='boots-stream.png':
   assert item['base']=='Warlock Boots',text
   flat=[m for m in item['modifiers'] if m['reference']=='+# to maximum Energy Shield']
   # Discord compression may erase the final digit of +41. Accept a correct
@@ -48,7 +48,26 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   if flat:assert item['properties']['energy_shield']==308,text
   else:assert 'Uncertain defence values:' in text and item['properties']['energy_shield'] is None,text
   assert any(m['reference']=='Has # Abyssal Sockets' and m['value']==1 for m in item['modifiers']),text
- report['cases'].append({'file':case['file'],'full_frame':True,'elapsed_ms':round((time.monotonic()-start)*1000),'engine':data['engine'],'text':text,'unknown':data['unknown'],'ilvl':item['item_level'],'modifiers':item['modifiers']})
+ elif case['file']=='leather-belt-local.png':
+  assert item['base']=='Leather Belt' and item['rarity']=='Rare',text
+  assert not data['unknown'],text
+  mods=item['modifiers'];assert len(mods)==7,text
+  assert any(m['kind']=='implicit' and m['value']==25 and 'maximum Life' in m['reference'] for m in mods),text
+  for value in [456,41,40,32,29,14]:assert any(m['value']==value and m['kind']!='implicit' for m in mods),(value,text)
+ elif case['file']=='paladin-gloves-local.png':
+  assert item['base']=='Paladin Gloves' and item['rarity']=='Rare',text
+  assert item['quality']==20,text
+  assert not data['unknown'],text
+  mods=item['modifiers']
+  assert any(m['kind']=='implicit' and m['value']==6 and 'Cold Damage over Time' in m['reference'] for m in mods),text
+  assert any(m['kind']=='implicit' and m['value']==-11 and 'Cold Exposure' in m['reference'] for m in mods),text
+  for value in [32,65,10,22,25,23,20]:assert any(m['value']==value and m['kind']!='implicit' for m in mods),(value,text)
+ elif case['file']=='kinetic-blast-local.png':
+  assert item['base']=='Kinetic Blast' and item['rarity']=='Gem',text
+  assert item['gem_level']==21 and item['quality']==20 and item['corrupted'],text
+  assert not data['unknown'] and not item['modifiers'],text
+ else:raise AssertionError('Uncovered OCR fixture: '+case['file'])
+ report['cases'].append({'file':case['file'],'full_frame':True,'elapsed_ms':round((time.monotonic()-start)*1000),'engine':data['engine'],'diagnostics':[line for line in result.stderr.decode(errors='replace').splitlines() if line.startswith('ocr ')],'text':text,'unknown':data['unknown'],'ilvl':item['item_level'],'quality':item['quality'],'gem_level':item['gem_level'],'corrupted':item['corrupted'],'modifiers':item['modifiers']})
 image=r/'assets/fixtures/ocr/boots-stream.png'
 result=subprocess.run([s['wine'],wp(app),'ocr-neural',wp(image),wp(app.parent),'6'],env=env,capture_output=True,timeout=90)
 assert result.returncode==0,result.stderr.decode(errors='replace')

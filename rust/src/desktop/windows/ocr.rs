@@ -27,6 +27,49 @@ pub struct Image {
     pub pixels: Vec<u8>,
 }
 impl Image {
+    fn body_rules(&self, center: f64, after: f64, before: f64) -> Vec<f64> {
+        let left = (center - self.width as f64 * 0.3).max(0.) as usize;
+        let right = (center + self.width as f64 * 0.3).min((self.width - 1) as f64) as usize;
+        let mut peaks: Vec<(usize, usize)> = Vec::new();
+        for y in (after.ceil() as usize).max(2)
+            ..(before.ceil() as usize).min(self.height.saturating_sub(2))
+        {
+            let (mut count, mut run, mut longest) = (0, 0, 0);
+            for x in left..right {
+                let pixel = |xx, yy| &self.pixels[(yy * self.width + xx) * 4..][..3];
+                let p = pixel(x, y);
+                let up = pixel(x, y - 2);
+                let down = pixel(x, y + 2);
+                let next = pixel(x + 1, y);
+                let (b, g, r) = (p[0] as i32, p[1] as i32, p[2] as i32);
+                if r > 20
+                    && r < 235
+                    && r >= g
+                    && g >= b
+                    && r - b >= 4
+                    && r > up[2].max(down[2]) as i32 + 2
+                    && p.iter().zip(next).all(|(a, b)| a.abs_diff(*b) < 7)
+                {
+                    count += 1;
+                    run += 1;
+                    longest = longest.max(run);
+                } else {
+                    run = 0;
+                }
+            }
+            if count > self.width * 16 / 100 && longest > (self.width / 10).min(48) {
+                if let Some((yy, old)) = peaks.last_mut().filter(|(yy, _)| y - *yy <= 3) {
+                    if count > *old {
+                        *yy = y;
+                        *old = count;
+                    }
+                } else {
+                    peaks.push((y, count));
+                }
+            }
+        }
+        peaks.into_iter().map(|(y, _)| y as f64).collect()
+    }
     fn crop(&self, r: [f64; 4]) -> Self {
         let x = (r[0] * self.width as f64 / 100.) as usize;
         let y = (r[1] * self.height as f64 / 100.) as usize;
@@ -176,8 +219,12 @@ impl Image {
             let line = lines.last_mut().unwrap();
             line.text.push(' ');
             line.text.push_str(&word.text);
-            line.width = line.width.max(word.x + word.width - line.x);
-            line.height = line.height.max(word.y + word.height - line.y);
+            let right = (line.x + line.width).max(word.x + word.width);
+            let bottom = (line.y + line.height).max(word.y + word.height);
+            line.x = line.x.min(word.x);
+            line.y = line.y.min(word.y);
+            line.width = right - line.x;
+            line.height = bottom - line.y;
             line.rarity = self.rarity(line.x, line.y, line.width, line.height);
             line.source = self
                 .line(String::new(), line.x, line.y, line.width, line.height)
@@ -483,6 +530,8 @@ pub fn fallback(
 fn neural_pass(
     image: &Image,
     colored: bool,
+    hints: &[Line],
+    gem: bool,
     check: &impl Fn() -> Result<(), String>,
 ) -> Result<Vec<Line>, String> {
     let root = std::env::current_exe()
@@ -490,7 +539,22 @@ fn neural_pass(
         .parent()
         .ok_or("Runtime directory unavailable")?
         .to_owned();
-    crate::neural_ocr::recognize(
+    let hints: Vec<_> = crate::ocr::neural_seed_lines(hints, gem)
+        .into_iter()
+        .filter_map(|l| {
+            let x = l.x.max(0.).floor() as usize;
+            let y = l.y.max(0.).floor() as usize;
+            let right = (l.x + l.width).ceil().max(0.) as usize;
+            let bottom = (l.y + l.height).ceil().max(0.) as usize;
+            (right > x && bottom > y).then_some([
+                x,
+                y,
+                right.saturating_sub(x),
+                bottom.saturating_sub(y),
+            ])
+        })
+        .collect();
+    crate::neural_ocr::recognize_seeded(
         &root,
         crate::neural_ocr::Image {
             width: image.width,
@@ -498,6 +562,7 @@ fn neural_pass(
             bgra: &image.pixels,
         },
         colored,
+        &hints,
         check,
     )
     .map(|readings| {
@@ -526,6 +591,7 @@ fn fallback_pass(
     scout: bool,
     detail_scale: usize,
 ) -> Result<Vec<Line>, String> {
+    let total_started = Instant::now();
     use std::os::windows::process::CommandExt;
     let runtime = std::env::current_exe()
         .map_err(|e| e.to_string())?
@@ -655,9 +721,15 @@ fn fallback_pass(
         );
         previous = group;
     }
+    eprintln!(
+        "ocr tesseract scout={scout} scale={scale} lines={} total_ms={}",
+        lines.len(),
+        total_started.elapsed().as_millis()
+    );
     Ok(lines)
 }
 pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Result<Draft, String> {
+    let started = Instant::now();
     check()?;
     let rough = image.rare_hint();
     let scout = rough.as_ref().unwrap_or(image);
@@ -703,7 +775,12 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         r[3].min(source.height as f64 - y) / source.height as f64 * 100.,
     ];
     let focused = source.crop(region);
-    eprintln!("ocr automatic tooltip={}x{}", focused.width, focused.height);
+    eprintln!(
+        "ocr automatic tooltip={}x{} locate_ms={}",
+        focused.width,
+        focused.height,
+        started.elapsed().as_millis()
+    );
     let translated = || {
         lines
             .iter()
@@ -725,9 +802,12 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     };
     check()?;
     let mut refined = refined.unwrap_or_else(|_| translated());
+    crate::ocr::repair_properties(&mut refined);
+    let seed = refined.clone();
+    let gem = crate::ocr::is_gem_tooltip(&refined);
     // The small model reads the isolated tooltip, not the whole desktop.
     // Scout text remains independent evidence for obscured glyphs/properties.
-    let neural = match neural_pass(&focused, false, check) {
+    let neural = match neural_pass(&focused, false, &seed, gem, check) {
         Ok(mut neural) if !neural.is_empty() => {
             crate::ocr::merge_stats(&mut neural, refined.clone(), 3);
             let mut anchors = crate::ocr::anchors(&lines);
@@ -743,7 +823,10 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
             engine = "PP-OCRv5 English (CPU)";
             true
         }
-        Ok(_) => false,
+        Ok(_) => {
+            eprintln!("ocr neural fallback: no readable output lines");
+            false
+        }
         Err(error) => {
             check()?;
             eprintln!("ocr neural fallback: {error}");
@@ -779,8 +862,10 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     }
     // Independent colored glyphs recover stats obscured by translucent map
     // labels. Only exact catalogue stat matches are merged into the reading.
-    match if neural {
-        neural_pass(&focused, true, check)
+    match if gem {
+        Ok(Vec::new())
+    } else if neural {
+        neural_pass(&focused, true, &seed, false, check)
     } else {
         fallback(&focused.colored(), check)
     } {
@@ -803,13 +888,37 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     }
     check()?;
     crate::ocr::verify_defence_conflicts(&mut refined);
-    crate::ocr::draft(refined, engine.into()).or_else(|_| crate::ocr::draft(lines, engine.into()))
+    if let Some((center, after, before)) =
+        crate::ocr::layout_range(&seed).or_else(|| crate::ocr::layout_range(&refined))
+    {
+        let rules = focused.body_rules(center, after, before);
+        crate::ocr::apply_implicit_section(&mut refined, &rules, center);
+    }
+    let result = crate::ocr::draft(
+        refined,
+        if neural {
+            engine.into()
+        } else {
+            "Fallback OCR".into()
+        },
+    )
+    .or_else(|_| crate::ocr::draft(lines, "Fallback OCR".into()));
+    eprintln!(
+        "ocr recognition engine={} gem={gem} total_ms={}",
+        result
+            .as_ref()
+            .map(|d| d.engine.as_str())
+            .unwrap_or("failed"),
+        started.elapsed().as_millis()
+    );
+    result
 }
 pub fn capture(
     context: &Context<'_>,
     settings: &crate::capture::Settings,
     expected: Option<u32>,
 ) -> Result<Draft, String> {
+    let capture_started = Instant::now();
     settings.validate()?;
     let target = Target::new(context)?;
     if expected != Some(native::id(target.window)) {
@@ -881,8 +990,10 @@ pub fn capture(
     }
     // Alt can be released after this point; pixels stay in memory until review.
     eprintln!(
-        "ocr snapshot={}x{} alt_held=true",
-        image.width, image.height
+        "ocr snapshot={}x{} alt_held=true capture_ms={}",
+        image.width,
+        image.height,
+        capture_started.elapsed().as_millis()
     );
     let result = recognize(&image, &|| target.check());
     let start = Instant::now();
@@ -894,5 +1005,10 @@ pub fn capture(
         std::thread::sleep(Duration::from_millis(10));
     }
     target.check()?;
+    eprintln!(
+        "ocr alt_release_wait_ms={} total_ms={}",
+        start.elapsed().as_millis(),
+        capture_started.elapsed().as_millis()
+    );
     result
 }

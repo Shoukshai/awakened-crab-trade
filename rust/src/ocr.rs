@@ -118,6 +118,7 @@ fn stat(s: &str) -> Option<String> {
         }
     }
     let mut results = Vec::new();
+    let mut variables = 0;
     static TOKENS: OnceLock<Regex> = OnceLock::new();
     let tokens = TOKENS.get_or_init(|| Regex::new(r"#|-?\d+(?:\.\d+)?").unwrap());
     for template in matchers.get(&stat_key(&text))? {
@@ -131,6 +132,16 @@ fn stat(s: &str) -> Option<String> {
             .any(|(p, v)| p.as_str() != "#" && p.as_str() != &v[1])
         {
             continue;
+        }
+        // Literal fragments of multi-line catalogue entries (for example
+        // '+25 to maximum Life') must not make a valid generic roll ambiguous.
+        let count = parts.iter().filter(|p| p.as_str() == "#").count();
+        if count < variables {
+            continue;
+        }
+        if count > variables {
+            results.clear();
+            variables = count;
         }
         let mut result = String::new();
         let mut offset = 0;
@@ -379,6 +390,75 @@ pub fn anchors(lines: &[Line]) -> Vec<Line> {
     out.push(base.clone());
     out
 }
+pub fn is_gem_tooltip(lines: &[Line]) -> bool {
+    select_item(lines).is_ok_and(|(_, entry)| entry.namespace == "GEM")
+}
+pub fn neural_seed_lines(lines: &[Line], gem: bool) -> Vec<&Line> {
+    lines
+        .iter()
+        .filter(|l| {
+            if !gem {
+                return true;
+            }
+            let k = key(&l.text);
+            k.starts_with("level")
+                || k.starts_with("quality")
+                || k.starts_with("itemlevel")
+                || ["corrupted", "mirrored", "unidentified"].contains(&k.as_str())
+        })
+        .collect()
+}
+pub fn layout_range(lines: &[Line]) -> Option<(f64, f64, f64)> {
+    let (i, entry) = select_item(lines).ok()?;
+    if entry.namespace == "GEM" {
+        return None;
+    }
+    let center = lines[i].x + lines[i].width / 2.;
+    let after = lines
+        .iter()
+        .filter(|l| key(&l.text).starts_with("requires"))
+        .map(|l| l.y + l.height)
+        .max_by(f64::total_cmp)?;
+    let before = lines
+        .iter()
+        .filter(|l| stat(&l.text).is_some())
+        .map(|l| l.y + l.height)
+        .max_by(f64::total_cmp)?;
+    Some((center, after, before))
+}
+/// Two visible PoE body dividers separate an implicit block from explicits.
+/// Require actual recognized mods on both sides and no contradictory source
+/// header. Do not infer a section from text order or a guessed base implicit.
+pub fn apply_implicit_section(lines: &mut Vec<Line>, rules: &[f64], center: f64) {
+    let [a, b] = rules else {
+        return;
+    };
+    if b - a < 12. {
+        return;
+    }
+    let first = lines
+        .iter()
+        .any(|l| l.y > *a && l.y < *b && stat(&l.text).is_some());
+    let second = lines.iter().any(|l| l.y > *b && stat(&l.text).is_some());
+    let contradictory = lines.iter().any(|l| {
+        l.y > *a && l.y < *b && modifier_header(&l.text).is_some_and(|(kind, _)| kind != "implicit")
+    });
+    if !first || !second || contradictory {
+        return;
+    }
+    for (y, kind) in [(*a, "Implicit"), (*b, "Explicit")] {
+        lines.push(Line {
+            text: format!("{kind} Modifier"),
+            x: center - 1.,
+            y: y + 0.5,
+            width: 2.,
+            height: 1.,
+            rarity: None,
+            source: None,
+            readings: Vec::new(),
+        });
+    }
+}
 /// The scout pass finds catalogue text; all later OCR is restricted to that
 /// tooltip's centered text column. No coordinates or manual region are needed.
 pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
@@ -521,7 +601,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     let mut modifier = "Explicit Modifier".to_string();
     let mut written = false;
     for line in lines.iter().skip(index + 1).filter(|l| in_column(l)) {
-        if line.y - last_y > 95. {
+        if line.y - last_y > 95. && rarity != Rarity::Gem {
             break;
         }
         last_y = line.y + line.height;
@@ -554,6 +634,14 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
                 "{}{property}: {value}\n",
                 if base { "Base " } else { "" }
             ));
+            continue;
+        }
+        if rarity == Rarity::Gem {
+            // Skill descriptions, tags, mana costs and quality effects are not
+            // Trade item modifiers. Keep only uncertain searchable properties.
+            if k.starts_with("quality") || k.starts_with("level") {
+                unknown.push(line.text.clone());
+            }
             continue;
         }
         if let Some(s) = stat(&line.text) {
@@ -713,6 +801,8 @@ fn reminder(text: &str) -> bool {
     text.trim().starts_with('(')
         || k.contains("ailmentsareignited")
         || k.contains("abyssjewelscanbesocketed")
+        || k.contains("coldexposuresubtractsfromcoldresistance")
+        || (k.len() < 3 && k.chars().all(|c| c.is_ascii_alphabetic()))
 }
 
 fn base_roll(text: &str) -> Option<[f64; 3]> {
@@ -783,6 +873,134 @@ fn restore_defences(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reported_uppercase_rolls_are_valid_without_ocr_spelling_errors() {
+        assert_eq!(
+            stat("+25(25-40) TO MAXIMUM LIFE").as_deref(),
+            Some("25(25-40) to maximum Life")
+        );
+        assert!(stat("+9(5-12) TO MAXIMUM ENERGY SHIELD").is_some());
+    }
+    #[test]
+    fn gem_review_ignores_skill_description_but_keeps_observed_trade_properties() {
+        let rows = [
+            "Kinetic Blast",
+            "Attack, Projectile, AoE",
+            "Level: 21 (Max)",
+            "Cost: 9 Mana",
+            "Attack Speed: 115% of base",
+            "Quality: +20%",
+            "Requires Level 72, 159 Int",
+            "Fires a projectile from a wand that causes a",
+            "series of area explosions in a secondary",
+            "Kinetic Blast creates 5 additional Explosions",
+            "150% Arcane Might",
+            "Corrupted",
+            "Place into an item socket to gain this skill.",
+        ];
+        let lines: Vec<_> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, s)| line(s, i as f64 * 22., None))
+            .collect();
+        assert!(is_gem_tooltip(&lines));
+        assert_eq!(neural_seed_lines(&lines, true).len(), 3);
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        assert!(
+            d.text.contains("Level: 21 (Max)")
+                && d.text.contains("Quality: +20%")
+                && d.text.contains("Corrupted")
+        );
+        assert!(!d.text.contains("Explosions") && !d.text.contains("Cost:"));
+        // Metadata-only recognition leaves a large gap before the footer flag.
+        let sparse = vec![
+            line("Kinetic Blast", 0., None),
+            line("Level: 21 (Max)", 22., None),
+            line("Quality: +20%", 44., None),
+            line("Corrupted", 486., None),
+        ];
+        assert!(draft(sparse, "test".into())
+            .unwrap()
+            .text
+            .contains("Corrupted"));
+        let mut missing = vec![
+            line("Kinetic Blast", 0., None),
+            line("Level:", 22., None),
+            line("Cost: 9 Mana", 44., None),
+        ];
+        assert!(draft(missing.clone(), "test".into())
+            .unwrap()
+            .unknown
+            .iter()
+            .any(|s| s == "Level:"));
+        merge_stats(&mut missing, vec![line("Corrupted", 88., None)], 1);
+        assert!(draft(missing, "test".into())
+            .unwrap()
+            .text
+            .contains("Corrupted"));
+    }
+    #[test]
+    fn reported_quality_punctuation_and_exposure_reminder_do_not_hide_mods() {
+        let rows = [
+            "Paladin Boots",
+            r"QUALITY:\#20%",
+            "Searing Exarch Implicit Modifier",
+            "6(5-7)% to Cold Damage over Time Multiplier",
+            "Eater of Worlds Implicit Modifier",
+            "Inflict Cold Exposure on Hit, applying -11% to Cold Resistance",
+            "i f* (Cold Exposure subtracts from Cold Resistance for 4 seconds)",
+            "ee",
+            "Explicit Prefix Modifier (Tier: 3)",
+            "9(5-12) to maximum Energy Shield",
+        ];
+        let lines = rows
+            .iter()
+            .enumerate()
+            .map(|(i, s)| line(s, i as f64 * 22., None))
+            .collect();
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(item.quality, Some(20));
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.kind == "implicit" && m.reference.contains("Cold Exposure")));
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.value == Some(9.) && m.reference.contains("maximum Energy Shield")));
+    }
+    #[test]
+    fn visible_dividers_classify_implicits_without_overriding_source_headers() {
+        let rows = [
+            ("Leather Belt", 0.),
+            ("Requires Level 66", 25.),
+            ("25(25-40) to maximum Life", 60.),
+            ("456(401-460) to Armour", 100.),
+        ];
+        let mut lines: Vec<_> = rows.iter().map(|(s, y)| line(s, *y, None)).collect();
+        assert!(layout_range(&lines).is_some());
+        apply_implicit_section(&mut lines, &[50., 90.], 950.);
+        let item = crate::item::Item::parse(&draft(lines, "test".into()).unwrap().text).unwrap();
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.kind == "implicit" && m.value == Some(25.)));
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.kind == "explicit" && m.value == Some(456.)));
+        let mut ambiguous = vec![
+            line("Leather Belt", 0., None),
+            line("Explicit Modifier", 55., None),
+            line("25 to maximum Life", 60., None),
+            line("456 to Armour", 100., None),
+        ];
+        apply_implicit_section(&mut ambiguous, &[50., 90.], 950.);
+        assert_eq!(ambiguous.len(), 4);
+    }
     fn line(text: &str, y: f64, rarity: Option<Rarity>) -> Line {
         Line {
             text: text.into(),

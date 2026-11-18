@@ -54,5 +54,42 @@
     "sha256": "d0472b147e8698a918128da434961a9e204c5cceb12c0fad772669eb110e6b2c",
     "advanced_tooltip": false,
     "expected_ilvl": null
+  },
+  {
+    "file": "leather-belt-local.png",
+    "source": "PoE tooltip pixels from user local Windows OCR test, 2026-11-18",
+    "original_sha256": "4c927a38ecdcbc1e8467afb02760292c27fa6420cd7a988d49fea25d81b3a88a",
+    "crop_xyxy": [
+      624,
+      128,
+      1010,
+      400
+    ],
+    "sha256": "33d0f0875e2c8df18366f07554defa21ec8869d89c6774bfdb3b8ce75932c189",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
+  },
+  {
+    "file": "paladin-gloves-local.png",
+    "source": "PoE tooltip pixels from user local Windows OCR test, 2026-11-18",
+    "original_sha256": "74b0bd3b0a514f325afe63bd5d0187c8211d087eeb4e1df7d34791a409882122",
+    "crop_xyxy": [
+      0,
+      0,
+      570,
+      388
+    ],
+    "sha256": "541c8dd1b3900d1ad620e2f4dd73ef0fa4ebecdedbc9446a618dfc8dac10c479",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
+  },
+  {
+    "file": "kinetic-blast-local.png",
+    "source": "PoE tooltip pixels from user local Windows OCR test, 2026-11-18",
+    "original_sha256": "90f64e4d7babacfeb3f485bbce36d964a3e7077a550b8b7a41804887b1af83db",
+    "crop_xyxy": null,
+    "sha256": "c4fbd7c80bc93c882660895935bbcbf455a4f22d02156b7851900f6274c38a64",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
   }
 ]

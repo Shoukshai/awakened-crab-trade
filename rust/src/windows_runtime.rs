@@ -30,6 +30,11 @@ pub fn initialize() -> Result<(), String> {
             SetStdHandle(STD_ERROR_HANDLE, file.into_raw_handle());
         }
     }
+    eprintln!(
+        "app version={} edition={}",
+        env!("CARGO_PKG_VERSION"),
+        crate::edition::id()
+    );
     let root = std::env::current_exe()
         .map_err(|e| e.to_string())?
         .parent()
