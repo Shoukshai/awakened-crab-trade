@@ -1,0 +1,76 @@
+{
+  "game_art_copyright": "Grinding Gear Games",
+  "project_icon": "Supplied by Shoukshai",
+  "source_catalogues": [
+    "rust/assets/fixtures/sources.json",
+    "rust/assets/influence/sources.json"
+  ],
+  "modifications": "None; copied unchanged from the existing project assets.",
+  "assets": [
+    {
+      "file": "crab.png",
+      "copied_from": "rust/assets/branding/icon-256.png",
+      "sha256": "cfc80515d731ec7c3d62e0dab8a138f33b8f169a448db2c3debb143bb4605d28"
+    },
+    {
+      "file": "chaos.png",
+      "copied_from": "rust/assets/currency/chaos.png",
+      "sha256": "98065c8ce6f918f6c68a72f0664ce9d165a4f2b13345038ccb7ede19aeb65e25",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9XQ/46a2347805/CurrencyRerollRare.png"
+    },
+    {
+      "file": "divine.png",
+      "copied_from": "rust/assets/currency/divine.png",
+      "sha256": "4648df6b1aeeb7b4d65439b7366a8a427b9d932c2becc7a077a3f88a282418a8",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/ec48896769/CurrencyModValues.png"
+    },
+    {
+      "file": "hunter.png",
+      "copied_from": "rust/assets/influence/influence-Hunter.png",
+      "sha256": "2822fe3a6089ec99be9a1e574a1ca267bbf0de95a53c4b662059bfc8fe963c79",
+      "source_url": "https://github.com/SnosMe/awakened-poe-trade"
+    },
+    {
+      "file": "ring.png",
+      "copied_from": "rust/assets/fixtures/ring.png",
+      "sha256": "0b695b5611dc147b7f557f9b1066c70fc7ab056cd0453d26ccf4ada62d925295",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvUmluZzQiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/2164e44179/Ring4.png"
+    },
+    {
+      "file": "wand.png",
+      "copied_from": "rust/assets/fixtures/wand.png",
+      "sha256": "5076188d6dbd9460d8e85902d13589f783629841fe04ca5e35d9dc2ce100abe3",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvV2VhcG9ucy9PbmVIYW5kV2VhcG9ucy9XYW5kcy9XYW5kMSIsInciOjEsImgiOjMsInNjYWxlIjoxfV0/899dabeaf1/Wand1.png"
+    },
+    {
+      "file": "gem.png",
+      "copied_from": "rust/assets/fixtures/gem.png",
+      "sha256": "f9b255c84e283c10b748c40b3507dc55d602ff309095238b463ae0ab4bde0d69",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L2ltcGFsZSIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/a974bd1dc1/impale.png"
+    },
+    {
+      "file": "unique.png",
+      "copied_from": "rust/assets/fixtures/unique.png",
+      "sha256": "987d2a6bab18c46ad2283d4dbcaf02531bcba7b81a75ceff8620fd631ff25f0f",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL0hlbG1ldERleFVuaXF1ZTIiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/7f4908ef2f/HelmetDexUnique2.png"
+    },
+    {
+      "file": "map.png",
+      "copied_from": "rust/assets/fixtures/map.png",
+      "sha256": "0a356cd837f4ec65e6d44b10cce573383b8b3b27f5cc9db0229036d445e183f3",
+      "source_url": "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9BdGxhczJNYXBzL05ldy9NYXBOdW1iZXJzMTYiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwibW4iOjI0LCJtdCI6MH1d/b4b8302406/MapNumbers16.png"
+    },
+    {
+      "file": "viscera-siren.png",
+      "copied_from": "rust/assets/fixtures/viscera-siren.png",
+      "sha256": "a69daf944af270d71155a069fb88f1b3b8534a64305294c696334a6b38bb91e8",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvVmlzY2VyYS9BY3QxL1Zpc2NlcmFNZXJ2ZWlsTGVnIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/233e4553e4/VisceraMerveilLeg.png"
+    },
+    {
+      "file": "influence.png",
+      "copied_from": "rust/assets/fixtures/influence.png",
+      "sha256": "20d5ca247b75886b3a1c92dc66ba01b51965299aa00b86b06b2c7fb5723de0b4",
+      "source_url": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL0hlbG1ldEludDExIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/4588b92597/HelmetInt11.png"
+    }
+  ]
+}

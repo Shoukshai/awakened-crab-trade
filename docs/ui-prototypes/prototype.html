@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Awakened Crab Trade — Prototype</title>
+  <link rel="icon" href="assets/crab.png"><link rel="stylesheet" href="lab.css"><link rel="stylesheet" href="styles.css">
+  <script src="data.js" defer></script><script src="app.js" defer></script>
+</head>
+<body class="prototype-page">
+  <header class="lab-header prototype-toolbar" id="lab-toolbar">
+    <a href="index.html" class="lab-brand"><img src="assets/crab.png" alt=""><span>CRAB TRADE <small>STYLE LAB</small></span></a>
+    <nav class="style-navigation" aria-label="Prototype"><button id="previous-style" aria-label="Style précédent">←</button><select id="style-picker" aria-label="Style"></select><button id="next-style" aria-label="Style suivant">→</button></nav>
+    <div class="lab-options"><select id="item-picker" aria-label="Demo item"></select><select id="width-picker" aria-label="Panel width"><option value="360">360 px</option><option value="440">440 px</option><option value="520">520 px</option><option value="640">640 px</option></select><button id="lab-language" aria-label="Switch language">EN / FR</button><a href="index.html" class="text-link">Tous les styles</a></div>
+  </header>
+  <main class="stage" id="stage">
+    <div class="game-context" aria-hidden="true"><div class="map-lines"></div><span class="zone-name">THE COAST</span><div class="inventory"><div class="inventory-heading">INVENTORY</div><div class="inventory-equipment"><img src="assets/wand.png" alt=""><img src="assets/unique.png" alt=""><img src="assets/influence.png" alt=""></div><div class="inventory-grid"></div><div class="inventory-bottom">12,486 <img src="assets/chaos.png" alt=""></div></div><div class="game-hud"><span class="orb life-orb"></span><span class="skill-slot">Q</span><span class="skill-slot">W</span><span class="skill-slot">E</span><span class="orb mana-orb"></span></div></div>
+    <aside class="concept-aside" id="concept-aside"></aside><div class="scene-veil" id="scene-veil"></div>
+    <button id="reopen" class="reopen" hidden>Open checker <kbd>Ctrl Alt D</kbd></button>
+    <article class="trade-panel" id="trade-panel" aria-label="Price checker"></article>
+    <div id="offer-tooltip" class="offer-tooltip owned" role="tooltip" hidden></div>
+    <dialog id="settings-dialog" class="settings-dialog owned" aria-labelledby="settings-title"></dialog>
+  </main>
+  <footer class="lab-footer" id="lab-footer"><span id="design-note"></span><span>Démo locale · aucune requête Trade</span></footer>
+</body>
+</html>
