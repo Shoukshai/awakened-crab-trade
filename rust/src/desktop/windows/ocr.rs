@@ -477,6 +477,46 @@ pub fn fallback(
 ) -> Result<Vec<Line>, String> {
     fallback_pass(image, check, false, 2)
 }
+fn neural_pass(
+    image: &Image,
+    colored: bool,
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<Vec<Line>, String> {
+    let root = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .parent()
+        .ok_or("Runtime directory unavailable")?
+        .to_owned();
+    crate::neural_ocr::recognize(
+        &root,
+        crate::neural_ocr::Image {
+            width: image.width,
+            height: image.height,
+            bgra: &image.pixels,
+        },
+        colored,
+        check,
+    )
+    .map(|readings| {
+        readings
+            .into_iter()
+            .map(|r| {
+                let text = if r.confidence < 0.55 {
+                    format!("Uncertain OCR: {}", r.text)
+                } else {
+                    r.text
+                };
+                image.line(
+                    text,
+                    r.x as f64,
+                    r.y as f64,
+                    r.width as f64,
+                    r.height as f64,
+                )
+            })
+            .collect()
+    })
+}
 fn fallback_pass(
     image: &Image,
     check: &impl Fn() -> Result<(), String>,
@@ -650,7 +690,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         let r = crate::ocr::tooltip_bounds(&lines)?;
         located = Some((lines, engine, r));
     }
-    let (lines,engine,r)=located.ok_or("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).")?;
+    let (lines,mut engine,r)=located.ok_or("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).")?;
     let x = r[0].min((source.width - 1) as f64);
     let y = r[1].min((source.height - 1) as f64);
     let region = [
@@ -682,6 +722,31 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     };
     check()?;
     let mut refined = refined.unwrap_or_else(|_| translated());
+    // The small model reads the isolated tooltip, not the whole desktop.
+    // Scout text remains independent evidence for obscured glyphs/properties.
+    let neural = match neural_pass(&focused, false, check) {
+        Ok(mut neural) if !neural.is_empty() => {
+            crate::ocr::merge_stats(&mut neural, refined.clone(), 3);
+            let mut anchors = crate::ocr::anchors(&lines);
+            for anchor in &mut anchors {
+                anchor.x -= x;
+                anchor.y -= y;
+            }
+            if let Some(base) = anchors.last() {
+                neural.retain(|l| l.y > base.y + base.height);
+                neural.extend(anchors);
+            }
+            refined = neural;
+            engine = "PP-OCRv5 English (CPU)";
+            true
+        }
+        Ok(_) => false,
+        Err(error) => {
+            check()?;
+            eprintln!("ocr neural fallback: {error}");
+            false
+        }
+    };
     if crate::ocr::tooltip_bounds(&refined).is_err() {
         let mut anchors = crate::ocr::anchors(&lines);
         for anchor in &mut anchors {
@@ -711,11 +776,21 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     }
     // Independent colored glyphs recover stats obscured by translucent map
     // labels. Only exact catalogue stat matches are merged into the reading.
-    match fallback(&focused.colored(), check) {
+    match if neural {
+        neural_pass(&focused, true, check)
+    } else {
+        fallback(&focused.colored(), check)
+    } {
         Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 1),
         Err(_) => check()?,
     }
     if crate::ocr::needs_retry(&refined) {
+        if neural {
+            match fallback(&focused.colored(), check) {
+                Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 4),
+                Err(_) => check()?,
+            }
+        }
         // A separate enlarged grayscale reading recovers faded source labels,
         // gold socket lines and split properties, and can break a value tie.
         match fallback_pass(&focused, check, false, 3) {
@@ -724,6 +799,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         }
     }
     check()?;
+    crate::ocr::verify_defence_conflicts(&mut refined);
     crate::ocr::draft(refined, engine.into()).or_else(|_| crate::ocr::draft(lines, engine.into()))
 }
 pub fn capture(

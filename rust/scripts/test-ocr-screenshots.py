@@ -23,6 +23,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  start=time.monotonic();result=subprocess.run([s['wine'],wp(app),'ocr-image',wp(image)],env=env,capture_output=True,timeout=90)
  assert result.returncode==0,(case['file'],result.stderr.decode(errors='replace'))
  data=json.loads(result.stdout);(root/('ocr-result-'+case['file']+'.json')).write_text(json.dumps(data,indent=2)+'\n')
+ assert data['engine']=='PP-OCRv5 English (CPU)','Packaged neural runtime/model was not used'
  text=data['text'];item=data['item'];assert item['item_level']==case['expected_ilvl'],'Wrong or invented item level'
  if case['file']=='gloves.png':
   assert "Assassin's Mitts" in text and 'Regenerate 56.5 Life per second' in text
@@ -48,5 +49,13 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   else:assert 'Uncertain defence values:' in text and item['properties']['energy_shield'] is None,text
   assert any(m['reference']=='Has # Abyssal Sockets' and m['value']==1 for m in item['modifiers']),text
  report['cases'].append({'file':case['file'],'full_frame':True,'elapsed_ms':round((time.monotonic()-start)*1000),'engine':data['engine'],'text':text,'unknown':data['unknown'],'ilvl':item['item_level'],'modifiers':item['modifiers']})
+image=r/'assets/fixtures/ocr/boots-stream.png'
+result=subprocess.run([s['wine'],wp(app),'ocr-neural',wp(image),wp(app.parent),'6'],env=env,capture_output=True,timeout=90)
+assert result.returncode==0,result.stderr.decode(errors='replace')
+neural=json.loads(result.stdout)
+assert neural['threads']==2 and 0<neural['peak_process_mib']<1024,neural
+import re
+assert any(re.search(r'\+41\b.*maximum.*energy shield',line['text'],re.I) for line in neural['runs'][0]['lines']),neural
+report['neural_diagnostic']=neural
 (r/'dist/ocr-screenshot-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report,indent=2))

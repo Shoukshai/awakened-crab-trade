@@ -1,4 +1,4 @@
-# Windows price checker 0.35.3
+# Windows price checker 0.36.0
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -39,11 +39,15 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.35.3-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.36.0-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.35.3-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.36.0-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
+
+The OCR package includes the English PP-OCRv5 recognition model and native CPU
+runtime. No Python interpreter, recognition server, GPU or model download at
+first launch is required. The standard package omits these assets.
 
 The capture method is fixed at build time. Renaming an EXE or loading an older
 profile cannot switch it to the other edition. The standard edition retains the
@@ -62,10 +66,19 @@ An absent item level stays absent; required character/gem levels are never used.
 
 Capture and OCR run on a bounded background worker. Window/focus changes and
 Hide cancel stale work. The image is acquired before the overlay opens, without
-injecting copy commands. Windows.Media.Ocr via windows-rs is tried first. Because
-Microsoft only supports that API for apps with package identity, this portable
-build also includes Tesseract and pinned English language data. Images are not
-uploaded to a recognition service. The local fallback exchanges pixels and text through memory pipes; captures are
+injecting copy commands. The existing Windows/Tesseract scout locates the tooltip;
+the small English PP-OCRv5 model then reads its lines through native ONNX Runtime
+called directly from Rust. The model is loaded once on first use and reused.
+Its CPU session uses two compute threads, sequential execution and no idle
+spinning. Rust handles line segmentation, resizing, CTC decoding and validation.
+There is no Python process or GPU inference. Recognition is bounded and checked
+for cancellation between lines. See [hardware targets and measurements](ocr-benchmark.md).
+
+Windows.Media.Ocr via windows-rs and bundled Tesseract remain local fallback
+readings for missing or uncertain text. Microsoft only supports its OCR API for
+apps with package identity; the included engines also work without a Windows OCR
+language pack. Images are not uploaded to a recognition service.
+The Tesseract fallback exchanges pixels and text through memory pipes; captures are
 not written to disk during normal use. Its child process is bounded and stopped
 by Windows when the checker exits.
 
@@ -92,6 +105,10 @@ Advanced tooltips keep observed roll ranges and modifier groups. A separate
 color reading removes neutral map labels behind translucent tooltips and recovers
 obscured stats. Fractured and crafted text colors supplement faded source labels.
 Conflicting stat readings stay in review instead of becoming search filters.
+Overlapping readings with different glyph heights count as one physical line.
+A conflicting flat defence roll can be resolved only when one observed candidate
+fits a separately observed total confirmed by two passes, the catalogue base range
+and all recognized modifiers. Missing values are never calculated this way.
 
 Windows OCR can split property labels from their values. A value is reattached
 only to its explicit label on the same baseline; a detached requirement level
@@ -120,7 +137,7 @@ API references: [windows-rs](https://github.com/microsoft/windows-rs),
 
 ## Build from Linux
 
-Requires stable Rust/rustup, Python 3.11+, HTTPS access, tar with zstd/xz,
+Requires stable Rust/rustup, Python 3.11+, 7-Zip, HTTPS access, tar with zstd/xz,
 pkg-config and glib-compile-schemas. Windows build inputs stay in `rust/dist`.
 
 ```sh
@@ -134,6 +151,9 @@ The pinned MSYS2 inputs and SHA256 hashes are recorded in
 `rust/packaging/windows/runtime-lock.json`. The final package includes only the
 required DLL import closure, image loaders, GTK resources, local OCR and licenses.
 `ocr-data.json` pins the English model and its license to upstream hashes.
+`neural-ocr.json` pins PP-OCRv5, native ONNX Runtime and app-local Visual C++ DLLs.
+`setup-neural-ocr.py` is a build helper only: it extracts native libraries and
+license notices from checksum-verified upstream containers, never Python modules.
 `runtime-imports.json` lists PE imports; `SHA256FILES.json` records file hashes.
 
 `windows-sandbox.py` and `test-windows.py` use a private Wine prefix and River

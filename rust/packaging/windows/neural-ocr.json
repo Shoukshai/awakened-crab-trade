@@ -1,0 +1,45 @@
+{
+  "model": {
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv5/rec/en_PP-OCRv5_rec_mobile.onnx",
+    "sha256": "c3461add59bb4323ecba96a492ab75e06dda42467c9e3d0c18db5d1d21924be8",
+    "file": "en_PP-OCRv5_rec_mobile.onnx",
+    "source": "https://github.com/RapidAI/RapidOCR/blob/2e44a297bc47b23f3d55e76d092431c484d56c76/python/rapidocr/default_models.yaml"
+  },
+  "model_license": {
+    "url": "https://raw.githubusercontent.com/RapidAI/RapidOCR/2e44a297bc47b23f3d55e76d092431c484d56c76/LICENSE",
+    "sha256": "3e0af25fdd06aa9586ae97adb00ea927ebe5a3805ac77d2d3a81ce5f55693333"
+  },
+  "runtime": {
+    "windows": {
+      "version": "1.23.2",
+      "url": "https://files.pythonhosted.org/packages/3a/db/1b4a62e23183a0c3fe441782462c0ede9a2a65c6bbffb9582fab7c7a0d38/onnxruntime-1.23.2-cp311-cp311-win_amd64.whl",
+      "sha256": "902c756d8b633ce0dedd889b7c08459433fbcf35e9c38d1c03ddc020f0648c6e",
+      "library": "onnxruntime.dll"
+    },
+    "linux": {
+      "version": "1.23.2",
+      "url": "https://files.pythonhosted.org/packages/e9/80/113381ba832d5e777accedc6cb41d10f9eca82321ae31ebb6bcede530cea/onnxruntime-1.23.2-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "da44b99206e77734c5819aa2142c69e64f3b46edc3bd314f6a45a932defc0b3e",
+      "library": "libonnxruntime.so.1.23.2"
+    }
+  },
+  "visual_cpp": {
+    "url": "https://download.visualstudio.microsoft.com/download/pr/e9604e21-4b79-4096-a4b3-1b63d4b55b4d/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+    "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+    "bootstrap_cab": {
+      "offset": 479744,
+      "size": 195988
+    },
+    "payload_cab": {
+      "offset": 686152,
+      "size": 24939223
+    },
+    "license_sha256": "8099dc3cf9502c335da829e5c755948a12e3e6de490eb492a99deb673d883d8b",
+    "dlls": {
+      "msvcp140.dll": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9",
+      "msvcp140_1.dll": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d",
+      "vcruntime140.dll": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+      "vcruntime140_1.dll": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+    }
+  }
+}

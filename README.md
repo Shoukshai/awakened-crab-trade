@@ -5,7 +5,7 @@
 A native Path of Exile 1 price checker for Linux and Windows, inspired by
 Awakened PoE Trade.
 
-**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.35.3)**
+**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.36.0)**
 
 - Select item modifiers and adjust integer Min/Max filters.
 - Search Trade offers and hover over a result to see its full mods and price.
@@ -45,6 +45,16 @@ Hold Alt until the advanced tooltip appears, then press Ctrl+D. The tooltip area
 is detected automatically. English game text is required; review the recognized
 values before searching. Both executables have independent settings and caches,
 and scope shortcuts to their own target windows. See [Windows editions](rust/docs/windows.md).
+
+## OCR requirements (experimental)
+
+Windows 10 1903+ or Windows 11, x64. Recognition runs locally through Rust and
+native ONNX Runtime, with the small English PP-OCRv5 model included. No Python,
+recognition server or dedicated GPU is required.
+
+Provisional test target: an i3-8300-class quad-core CPU and 8 GB system RAM, with
+memory available alongside the cloud client. This is not a validated minimum;
+Boosteroid tests on that PC are still needed. [Measurements and test command](rust/docs/ocr-benchmark.md).
 
 Linux currently targets River/Wayland with PoE running through XWayland.
 Build and platform details: [native app](rust/README.md),

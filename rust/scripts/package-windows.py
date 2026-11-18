@@ -20,6 +20,12 @@ if (ocr_product in exe.read_bytes()) != options.ocr:
     raise SystemExit('Wrong executable edition: rebuild the requested target before packaging')
 (output/'edition.json').write_text(json.dumps({'edition':app_id,'capture':'ocr' if options.ocr else 'clipboard'})+'\n')
 shutil.copy2(exe, output / exe.name)
+neural = root / 'dist/neural-runtime-windows'
+if options.ocr:
+    subprocess.run(['python3', str(root / 'scripts/setup-neural-ocr.py')], check=True)
+    for dll in neural.glob('*.dll'):
+        shutil.copy2(dll, output / dll.name)
+    shutil.copytree(neural / 'share/ocr', output / 'share/ocr')
 for name in ['gdk-pixbuf-query-loaders.exe'] + (['tesseract.exe'] if options.ocr else []):
     shutil.copy2(sysroot / 'bin' / name, output / name)
 for name in ['lib/gdk-pixbuf-2.0/2.10.0/loaders', 'share/glib-2.0/schemas',
@@ -36,6 +42,7 @@ system = set('xmllite wldap32 combase advapi32 bcrypt bcryptprimitives cfgmgr32 
              ' user32 userenv usp10 uxtheme version winhttp winmm winspool wintrust ws2_32 wtsapi32'.split())
 available = {p.name.lower(): p for p in (sysroot / 'bin').glob('*.dll')}
 available.update({p.name.lower(): p for p in (llvm / 'x86_64-w64-mingw32/bin').glob('*.dll') if p.name.lower() not in available})
+available.update({p.name.lower(): p for p in output.glob('*.dll')})
 pending = list(output.rglob('*.exe')) + list(output.rglob('*.dll'))
 visited, imports = set(), {}
 while pending:
@@ -66,7 +73,9 @@ shutil.copy2(root.parent / 'LICENSE', output / 'LICENSE')
 shutil.copy2(root / 'packaging/windows/runtime-lock.json', licenses / 'runtime-lock.json')
 if options.ocr:
     shutil.copy2(root / 'packaging/windows/ocr-data.json', licenses / 'ocr-data.json')
+    shutil.copytree(neural / 'licenses/neural-ocr', licenses / 'neural-ocr')
 shutil.copy2(root / 'docs/windows.md', output / 'README.md')
+shutil.copy2(root / 'docs/ocr-benchmark.md', output / 'ocr-benchmark.md')
 (licenses / 'runtime-sources.txt').write_text('Unmodified MSYS2 UCRT64 runtime DLLs, dynamically linked.\n'
     'Exact package versions and SHA256: runtime-lock.json.\n'
     'Package build recipes and upstream source locations: https://github.com/msys2/MINGW-packages\n'

@@ -1,8 +1,12 @@
 # Windows portable EXE
 
-Run `awakened-crab-trade-0.35.3-windows-x64-portable.exe` for local PoE, or
-`awakened-crab-trade-ocr-0.35.3-windows-x64-portable.exe` for cloud OCR. No manual
+Run `awakened-crab-trade-0.36.0-windows-x64-portable.exe` for local PoE, or
+`awakened-crab-trade-ocr-0.36.0-windows-x64-portable.exe` for cloud OCR. No manual
 extraction, installer or administrator privileges are needed.
+
+The OCR EXE also includes PP-OCRv5 and its native CPU runtime. It runs locally
+without Python or a recognition server; a dedicated GPU is not required.
+See [experimental OCR hardware targets](ocr-benchmark.md).
 
 On first launch, GTK, the checker and their licenses are extracted to
 `%LOCALAPPDATA%\awakened-crab-trade\portable`. Later launches reuse that cache;

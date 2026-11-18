@@ -1613,6 +1613,69 @@ impl Ui {
 #[allow(deprecated)] // GTK3's matching glib 0.18 channel; wakes the main loop without polling.
 pub fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    #[cfg(feature = "neural-ocr")]
+    if args.first().is_some_and(|a| a == "ocr-neural") {
+        use gtk::gdk_pixbuf::Pixbuf;
+        let p = Pixbuf::from_file(
+            args.get(1)
+                .ok_or("ocr-neural IMAGE [RUNTIME_ROOT] [REPEATS]")?,
+        )
+        .map_err(|e| e.to_string())?;
+        let bytes = p.read_pixel_bytes();
+        let mut pixels = Vec::new();
+        for y in 0..p.height() as usize {
+            for x in 0..p.width() as usize {
+                let i = y * p.rowstride() as usize + x * p.n_channels() as usize;
+                pixels.extend_from_slice(&[bytes[i + 2], bytes[i + 1], bytes[i], 255]);
+            }
+        }
+        let root = args.get(2).map(std::path::PathBuf::from).unwrap_or(
+            std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .parent()
+                .ok_or("Runtime root unavailable")?
+                .to_owned(),
+        );
+        let repeats = args
+            .get(3)
+            .map(|s| s.parse::<usize>())
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .unwrap_or(1)
+            .clamp(1, 20);
+        let mut runs = Vec::new();
+        for _ in 0..repeats {
+            let started = Instant::now();
+            let lines = crate::neural_ocr::recognize(
+                &root,
+                crate::neural_ocr::Image {
+                    width: p.width() as usize,
+                    height: p.height() as usize,
+                    bgra: &pixels,
+                },
+                false,
+                &|| Ok(()),
+            )?;
+            let original_ms = started.elapsed().as_millis();
+            let started = Instant::now();
+            let colored = crate::neural_ocr::recognize(
+                &root,
+                crate::neural_ocr::Image {
+                    width: p.width() as usize,
+                    height: p.height() as usize,
+                    bgra: &pixels,
+                },
+                true,
+                &|| Ok(()),
+            )?;
+            runs.push(serde_json::json!({"original_ms":original_ms,"colored_ms":started.elapsed().as_millis(),"lines":lines,"colored":colored}));
+        }
+        println!(
+            "{}",
+            serde_json::json!({"engine":"PP-OCRv5 English / CPU","threads":2,"peak_process_mib":crate::neural_ocr::peak_memory_mib(),"scope":"Cropped image recognition; excludes screen capture and tooltip location","runs":runs})
+        );
+        return Ok(());
+    }
     #[cfg(feature = "cloud-ocr")]
     if args.first().is_some_and(|a| a == "ocr-parse") {
         let lines: Vec<crate::ocr::Line> = serde_json::from_slice(

@@ -159,6 +159,53 @@ fn stat(s: &str) -> Option<String> {
 mod readings;
 pub use readings::{merge_stats, needs_retry, repair_properties};
 
+/// A conflicting flat defence can be settled only by a unique observed reading
+/// consistent with a separately observed total, the catalogue and all mods.
+/// Never derive a missing roll, or use an Alt base roll as an independent total.
+pub fn verify_defence_conflicts(lines: &mut [Line]) {
+    for i in 0..lines.len() {
+        if !lines[i].text.starts_with("Conflicting OCR readings:") {
+            continue;
+        }
+        let candidates: Vec<_> = lines[i].readings.iter().map(|r| r.text.clone()).collect();
+        let field = if candidates
+            .iter()
+            .all(|t| t.ends_with(" to maximum Energy Shield"))
+        {
+            "Energy Shield"
+        } else if candidates.iter().all(|t| t.ends_with(" to Armour")) {
+            "Armour"
+        } else if candidates.iter().all(|t| t.ends_with(" to Evasion Rating")) {
+            "Evasion Rating"
+        } else {
+            continue;
+        };
+        let observed = lines.iter().any(|l| {
+            l.text
+                .strip_prefix(&format!("{field}: "))
+                .is_some_and(|s| s.parse::<f64>().is_ok())
+                && l.readings.iter().filter(|r| r.text == l.text).count() >= 2
+        });
+        if !observed {
+            continue;
+        }
+        let mut valid = Vec::new();
+        for candidate in candidates {
+            if valid.contains(&candidate) {
+                continue;
+            }
+            let mut trial = lines.to_vec();
+            trial[i].text = candidate.clone();
+            if draft(trial, "verification".into()).is_ok_and(|d| d.unknown.is_empty()) {
+                valid.push(candidate);
+            }
+        }
+        if let [value] = valid.as_slice() {
+            lines[i].text = value.clone();
+        }
+    }
+}
+
 fn modifier_header(text: &str) -> Option<(String, String)> {
     let k = key(text);
     let words: Vec<_> = text
@@ -1229,6 +1276,68 @@ mod tests {
             .unwrap()
             .modifiers
             .is_empty());
+    }
+    #[test]
+    fn different_ocr_glyph_heights_do_not_duplicate_one_physical_stat() {
+        let mut l = vec![
+            line("Warlock Boots", 0., None),
+            line("18% to Fire and Cold Resistances", 40., None),
+        ];
+        let mut shorter = line("18% to Fire and Cold Resistances", 48., None);
+        shorter.height = 7.;
+        merge_stats(&mut l, vec![shorter], 1);
+        merge_stats(
+            &mut l,
+            vec![line("14% increased Stun and Block Recovery", 65., None)],
+            2,
+        );
+        let i = crate::item::Item::parse(&draft(l, "test".into()).unwrap().text).unwrap();
+        let resist = i
+            .modifiers
+            .iter()
+            .find(|m| m.reference == "+#% to Fire and Cold Resistances")
+            .unwrap();
+        assert_eq!(resist.value, Some(18.));
+        assert_eq!(resist.sources.len(), 1);
+        assert!(i.modifiers.iter().any(|m| m.value == Some(14.)));
+    }
+    #[test]
+    fn a_conflicting_roll_needs_a_unique_verified_candidate_and_independent_total() {
+        let mut lines: Vec<_> = [
+            "Warlock Boots",
+            "Quality: +26%",
+            "Energy Shield: 308",
+            "+41 to maximum Energy Shield",
+            "102% increased Energy Shield",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, s)| line(s, i as f64 * 25., None))
+        .collect();
+        merge_stats(
+            &mut lines,
+            vec![line("+4 to maximum Energy Shield", 75., None)],
+            1,
+        );
+        let mut no_total = lines.clone();
+        verify_defence_conflicts(&mut no_total);
+        assert!(no_total[3].text.starts_with("Conflicting"));
+        merge_stats(&mut lines, vec![line("Energy Shield: 308", 50., None)], 2);
+        let mut ambiguous = lines.clone();
+        ambiguous[3].readings[1].text = "42 to maximum Energy Shield".into();
+        verify_defence_conflicts(&mut ambiguous);
+        assert!(ambiguous[3].text.starts_with("Conflicting"));
+        verify_defence_conflicts(&mut lines);
+        assert_eq!(lines[3].text, "41 to maximum Energy Shield");
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        assert_eq!(
+            crate::item::Item::parse(&d.text)
+                .unwrap()
+                .properties
+                .energy_shield,
+            Some(308.)
+        );
     }
     #[test]
     fn a_placeholder_source_header_can_be_enriched_by_a_readable_header() {

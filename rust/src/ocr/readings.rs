@@ -47,7 +47,9 @@ pub(super) fn property(text: &str) -> Option<(&'static str, String)> {
 }
 
 fn same_row(a: &Line, b: &Line) -> bool {
-    (a.y + a.height / 2. - b.y - b.height / 2.).abs() < a.height.min(b.height).max(8.) * 0.6
+    let overlap = (a.y + a.height).min(b.y + b.height) - a.y.max(b.y);
+    overlap > a.height.min(b.height) * 0.5
+        && (a.y + a.height / 2. - b.y - b.height / 2.).abs() < a.height.max(b.height).max(8.) * 0.6
 }
 
 /// Reattach only an explicit property label and its unique right-hand value on

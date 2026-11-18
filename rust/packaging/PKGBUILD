@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-crab-trade
-pkgver=0.35.3
+pkgver=0.36.0
 pkgrel=1
 pkgdesc='Native Rust PoE price checker for River and XWayland'
 arch=('x86_64')
@@ -36,7 +36,7 @@ package() {
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     cp -a license-bundle "$pkgdir/usr/share/licenses/$pkgname/dependencies"
     install -Dm644 rust/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
-    for doc in CHECKER-VALIDATION.md GAME-ART.md windows.md windows-portable.md current-data.json; do
+    for doc in CHECKER-VALIDATION.md GAME-ART.md windows.md windows-portable.md ocr-benchmark.md current-data.json; do
         install -Dm644 "rust/docs/$doc" "$pkgdir/usr/share/doc/$pkgname/docs/$doc"
     done
 }

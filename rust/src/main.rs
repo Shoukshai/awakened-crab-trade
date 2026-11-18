@@ -30,6 +30,8 @@ mod item;
 mod item_filters;
 mod leagues;
 mod modifiers;
+#[cfg(feature = "neural-ocr")]
+mod neural_ocr;
 mod overlay;
 mod presets;
 mod price_layout;

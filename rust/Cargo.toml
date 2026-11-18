@@ -1,6 +1,6 @@
 [package]
 name = "awakened-crab-trade"
-version = "0.35.3"
+version = "0.36.0"
 edition = "2021"
 license = "MIT"
 description = "Native Path of Exile price checker for Linux and Windows"
@@ -11,6 +11,8 @@ serde_json = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 unicode-normalization = "0.1.25"
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "load-dynamic"], optional = true }
+sha2 = { version = "0.10", optional = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 gtk = "0.18"
@@ -35,7 +37,8 @@ lto = "thin"
 strip = true
 
 [features]
-cloud-ocr = ["dep:windows", "windows-sys/Win32_System_JobObjects"]
+cloud-ocr = ["dep:windows", "windows-sys/Win32_System_JobObjects", "neural-ocr"]
+neural-ocr = ["dep:ort", "dep:sha2", "windows-sys/Win32_System_ProcessStatus"]
 windows-test-fixture = []
 
 [[bin]]
