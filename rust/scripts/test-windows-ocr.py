@@ -108,6 +108,11 @@ try:
   for i,(text,color) in enumerate(rows):d.text((940,20+i*37),text,fill=color,font=font if i<2 else small,anchor='mt')
   image.save(root/('fixture-ocr-advanced.bmp' if advanced else 'fixture-ocr.bmp'))
   if advanced:image.save(root/'fixture-local-ready.bmp')
+ # Old runs stay in the disk log but must not leak into a copied session report.
+ log_paths=[root/'cache/awakened-crab-trade-ocr/checker.log']
+ log_paths += [u/'AppData/Local/awakened-crab-trade-ocr/checker.log' for u in (root/'prefix/drive_c/users').iterdir() if (u/'AppData').is_dir()]
+ for path in log_paths:
+  path.parent.mkdir(parents=True,exist_ok=True);path.write_text('APT OLD SESSION MUST NOT BE COPIED\n')
  launch(app,['daemon'],'ocr-checker');wait(lambda:endpoint(),'OCR control socket',45)
  if len(sys.argv)>2:
   normal=pathlib.Path(sys.argv[2]).resolve()
@@ -149,14 +154,19 @@ try:
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
  if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')=='1':
   assert review['status'].startswith('Fallback OCR'),review
-  assert review['diagnostic_visible'] and 'Version 0.36.3' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
+  assert review['diagnostic_visible'] and 'Version 0.36.4' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
   assert review['copy_diagnostic']['width']>0,review
   shot('ocr-fallback-diagnostic-en.png')
   control(review['copy_diagnostic'])
   click(200,700);wait(lambda:status()['state']=='Hidden' and status()['game_active'],'return to cloud after copying diagnostic')
-  subprocess.run(['xdotool','key','--clearmodifiers','F12'],env=env,check=True)
-  wait(lambda:(root/'clipboard-read.txt').exists(),'read copied diagnostic')
-  assert (root/'clipboard-read.txt').read_text()==review['diagnostic']
+  def copied_diagnostic():
+   subprocess.run(['xdotool','key','--clearmodifiers','F12'],env=env,check=True)
+   p=root/'clipboard-read.txt'
+   text=p.read_text() if p.exists() else ''
+   return text if 'Awakened Crab Trade diagnostics' in text and 'Neural OCR model:' in text else None
+  full=wait(copied_diagnostic,'read full copied diagnostic')
+  assert 'Version: 0.36.4' in full and 'CPU:' in full and 'Complete current session log' in full,full
+  assert 'ocr neural fallback:' in full and 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
   assert json.loads((root/'cloud.state.json').read_text())['copies']==0
   report.update(neural_failure_visible=True,diagnostic_copied=True,diagnostic=review['diagnostic'],no_clipboard_injection=True)
   (r/'dist/windows-ocr-fallback-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
@@ -259,11 +269,40 @@ try:
   assert normal_command('status')['state']=='Hidden' and normal_command('status')['generation']==normal_before,'Local OCR triggered standard hotkeys'
   assert not posts
   control(local_review['apply']);wait(lambda:status()['item'] and not status()['ocr_review']['mapped'],'accept local OCR')
-  command('hide');click(200,700);wait(lambda:normal_command('status')['game_active'],'standard local scope restored')
+  command('hide')
+  def focus_local():
+   click(200,700)
+   return normal_command('status')['game_active']
+  wait(focus_local,'standard local scope restored')
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
   wait(lambda:normal_command('status')['state']=='Interactive' and normal_command('status')['item']['base']=='Driftwood Wand','standard clipboard remains available')
   assert status()['state']=='Hidden' and status()['capture_pending'] is None
   report['local_poe_ocr_opt_in_no_clipboard_or_shortcut_conflict']=True
+ # The diagnostic tab must copy a fresh, complete report asynchronously.
+ command('settings');wait(lambda:status()['view']=='Settings' and status()['state']=='Interactive','log settings')
+ control(status()['preferences']['tabs'][-1])
+ wait(lambda:status()['preferences']['logs']['mapped'] and not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['bytes']>0,'session log view')
+ log_info=status()['preferences']['logs']
+ assert 'Version: 0.36.4' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
+ shot('session-log-en.png')
+ control(log_info['copy'])
+ wait(lambda:not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['status']=='Entire log copied.','copy entire current log')
+ command('hide')
+ def focus_log_target():
+  click(200,700)
+  return status()['game_active']
+ wait(focus_log_target,'return to target after copying log')
+ (root/'clipboard-read.txt').unlink(missing_ok=True)
+ def copied_session():
+  subprocess.run(['xdotool','key','--clearmodifiers','F12'],env=env,check=True)
+  p=root/'clipboard-read.txt';text=p.read_text() if p.exists() else ''
+  return text if 'Awakened Crab Trade diagnostics' in text else None
+ full=wait(copied_session,'read full session clipboard')
+ assert 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
+ for expected in ['Version: 0.36.4','CPU:','OS: Windows','ocr probe input shape=','ocr probe tensor shape=','ocr probe output shape=','ocr neural self_test=optimized']:
+  assert expected in full,(expected,full)
+ report['entire_session_log_tab_and_clipboard']=True
+ report['copied_log_bytes']=len(full.encode())
  report.update(capture_settings_persist=True,physical_shortcut=True,ocr_text=review['text'],ocr_status=review['status'],no_clipboard_injection=True,no_automatic_trade=True,cancellation=True,foreign_scope=True,max_status_ms=round(max(checks)*1000),topmost_fixture=True)
  (r/'dist/windows-ocr-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
 finally:

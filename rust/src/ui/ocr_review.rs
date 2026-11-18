@@ -28,10 +28,7 @@ impl Panel {
         diagnostic_text.set_selectable(true);
         diagnostic_box.pack_start(&diagnostic_text, false, false, 0);
         let copy_diagnostic = gtk::Button::with_label("Copier le diagnostic");
-        let copied_text = diagnostic_text.clone();
-        copy_diagnostic.connect_clicked(move |_| {
-            gtk::Clipboard::get(&gtk::gdk::SELECTION_CLIPBOARD).set_text(&copied_text.text());
-        });
+        copy_diagnostic.connect_clicked(super::log_panel::copy_session);
         diagnostic_box.pack_start(&copy_diagnostic, false, false, 0);
         diagnostic_box.show_all();
         diagnostic.add(&diagnostic_box);

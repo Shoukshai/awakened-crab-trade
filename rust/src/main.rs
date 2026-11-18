@@ -11,6 +11,8 @@ mod desktop;
 #[cfg(target_os = "windows")]
 #[path = "desktop/windows/mod.rs"]
 mod desktop;
+#[cfg(any(target_os = "windows", feature = "neural-ocr", test))]
+mod diagnostics;
 mod economy;
 mod edition;
 mod filters;

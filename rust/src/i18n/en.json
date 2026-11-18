@@ -282,5 +282,11 @@
   "La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais.": "The tooltip area is detected automatically. Hold Alt until advanced details appear, then press Ctrl+D. Review the text before searching. English game text is required.",
   "Aucune infobulle reconnue sans ambiguïté. Survolez un objet, gardez Alt enfoncé jusqu’aux détails avancés, puis réessayez Ctrl+D (jeu en anglais).": "No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).",
   "Diagnostic OCR": "OCR diagnostic",
-  "Copier le diagnostic": "Copy diagnostic"
+  "Copier le diagnostic": "Copy diagnostic",
+  "Diagnostic": "Diagnostics",
+  "Actualiser le journal": "Refresh log",
+  "Copier tout le journal": "Copy entire log",
+  "Lecture du journal…": "Reading log...",
+  "Journal complet copié.": "Entire log copied.",
+  "Journal de la session actuelle.": "Current session log."
 }

@@ -95,6 +95,22 @@ The synthetic probe is a rendered "Energy Shield: 149" line in DejaVu Sans,
 in Rust with the bundled native runtime. A deliberately wrong scout region is
 included in the packaged executable's regression tests to verify projection retry.
 
+## 0.36.4 session diagnostics
+
+A native Windows report from a Ryzen 7 X3D machine also failed the embedded
+synthetic line with both optimized and basic sessions. This isolates the failure
+before tooltip recognition, but does not establish a specific CPU/runtime bug.
+A third compatibility probe disables graph optimizations and prepacking and uses
+one compute thread. It is accepted only if the same known line passes.
+
+The session log records CPU brand/features, Windows build, worker floating-point
+controls, ONNX Runtime build information, input tensor checksums and output score
+statistics for each probe. The tensor echo checksum can be compared with the
+preprocessed input checksum. Blank-class and space-class counts distinguish blank
+predictions from zero-filled outputs. No user images or raw tensors are logged.
+Settings > Diagnostics and Copy diagnostic share the entire current session log;
+no logs are uploaded. Real Windows execution still requires the new report.
+
 ## Reproduce
 
 For a Windows ZIP, run the extracted checker from its directory:

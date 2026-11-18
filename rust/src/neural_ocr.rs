@@ -56,8 +56,13 @@ pub struct Reading {
 struct Model {
     session: Session,
     dictionary: Vec<String>,
+    trace_next: bool,
+    threads: usize,
 }
 static MODEL_SESSION: OnceLock<Result<Mutex<Model>, String>> = OnceLock::new();
+pub fn configured_threads() -> Option<usize> {
+    Some(MODEL_SESSION.get()?.as_ref().ok()?.lock().ok()?.threads)
+}
 
 impl Model {
     fn load(root: &Path) -> Result<Self, String> {
@@ -89,12 +94,19 @@ impl Model {
             .with_telemetry(false)
             .commit()
             .map_err(|e| e.to_string())?;
+        eprintln!(
+            "ocr runtime build={} cpu={} math={}",
+            ort::info(),
+            crate::diagnostics::cpu(),
+            crate::diagnostics::math_state()
+        );
         let mut failures = Vec::new();
         for (name, level) in [
             ("optimized", GraphOptimizationLevel::Level3),
             ("basic", GraphOptimizationLevel::Level1),
+            ("compatibility", GraphOptimizationLevel::Disable),
         ] {
-            let mut model = Self::session(&data, level)?;
+            let mut model = Self::session(&data, level, name == "compatibility")?;
             let probe = Image {
                 width: 240,
                 height: 32,
@@ -104,7 +116,8 @@ impl Model {
             eprintln!("ocr neural self_test={name} text={text:?} confidence={confidence:.3}");
             if text == "Energy Shield: 149" && confidence > 0.9 {
                 eprintln!(
-                    "ocr neural model=PP-OCRv5 runtime=ONNX threads=2 graph={name} load_ms={}",
+                    "ocr neural model=PP-OCRv5 runtime=ONNX threads={} graph={name} load_ms={}",
+                    if name == "compatibility" { 1 } else { 2 },
                     started.elapsed().as_millis()
                 );
                 return Ok(model);
@@ -116,12 +129,18 @@ impl Model {
             failures.join("; ")
         ))
     }
-    fn session(data: &[u8], level: GraphOptimizationLevel) -> Result<Self, String> {
+    fn session(
+        data: &[u8],
+        level: GraphOptimizationLevel,
+        compatibility: bool,
+    ) -> Result<Self, String> {
         let session = Session::builder()
             .map_err(|e| e.to_string())?
             .with_optimization_level(level)
             .map_err(|e| e.to_string())?
-            .with_intra_threads(2)
+            .with_intra_threads(if compatibility { 1 } else { 2 })
+            .map_err(|e| e.to_string())?
+            .with_prepacking(!compatibility)
             .map_err(|e| e.to_string())?
             .with_inter_threads(1)
             .map_err(|e| e.to_string())?
@@ -147,6 +166,8 @@ impl Model {
         Ok(Self {
             session,
             dictionary,
+            trace_next: true,
+            threads: if compatibility { 1 } else { 2 },
         })
     }
     fn read(
@@ -177,8 +198,31 @@ impl Model {
                 }
             }
         }
+        if self.trace_next {
+            let min = data.iter().copied().fold(f32::INFINITY, f32::min);
+            let max = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+            let mean = data.iter().map(|&v| v as f64).sum::<f64>() / data.len() as f64;
+            let mut hash = Sha256::new();
+            for value in &data {
+                hash.update(value.to_le_bytes());
+            }
+            eprintln!("ocr probe input shape=1x3x{HEIGHT}x{width} range={min:.6}..{max:.6} mean={mean:.6} sha256={:x}", hash.finalize());
+        }
         let input =
             Tensor::from_array(([1usize, 3, HEIGHT, width], data)).map_err(|e| e.to_string())?;
+        if self.trace_next {
+            let (shape, echoed) = input
+                .try_extract_tensor::<f32>()
+                .map_err(|e| e.to_string())?;
+            let mut hash = Sha256::new();
+            for value in echoed {
+                hash.update(value.to_le_bytes());
+            }
+            eprintln!(
+                "ocr probe tensor shape={shape:?} sha256={:x}",
+                hash.finalize()
+            );
+        }
         let result = self
             .session
             .run(ort::inputs![input])
@@ -188,6 +232,24 @@ impl Model {
             .map_err(|e| e.to_string())?;
         if shape.len() != 3 || shape[0] != 1 || shape[2] as usize != self.dictionary.len() {
             return Err("Unexpected neural OCR output shape.".into());
+        }
+        if self.trace_next {
+            self.trace_next = false;
+            let classes = self.dictionary.len();
+            let ids: Vec<_> = scores
+                .chunks_exact(classes)
+                .map(|row| {
+                    row.iter()
+                        .enumerate()
+                        .max_by(|a, b| a.1.total_cmp(b.1))
+                        .unwrap()
+                        .0
+                })
+                .collect();
+            let min = scores.iter().copied().fold(f32::INFINITY, f32::min);
+            let max = scores.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+            let sum = scores.iter().take(classes).map(|&v| v as f64).sum::<f64>();
+            eprintln!("ocr probe output shape={shape:?} range={min:.6}..{max:.6} first_row_sum={sum:.6} blank_steps={} space_steps={} steps={} argmax={:?}", ids.iter().filter(|&&id| id==0).count(), ids.iter().filter(|&&id| id+1==classes).count(), ids.len(), &ids[..ids.len().min(96)]);
         }
         ctc(scores, self.dictionary.len(), &self.dictionary)
     }

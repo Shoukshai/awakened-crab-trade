@@ -24,6 +24,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  assert result.returncode==0,(case['file'],result.stderr.decode(errors='replace'))
  data=json.loads(result.stdout);(root/('ocr-result-'+case['file']+'.json')).write_text(json.dumps(data,indent=2)+'\n')
  assert 'text="Energy Shield: 149"' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
+ assert 'ocr probe input shape=' in result.stderr.decode(errors='replace') and 'ocr probe output shape=' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
  assert data['engine']=='PP-OCRv5 English (CPU)','Packaged neural runtime/model was not used'
  text=data['text'];item=data['item'];assert item['item_level']==case['expected_ilvl'],'Wrong or invented item level'
  if case['file']=='gloves.png':

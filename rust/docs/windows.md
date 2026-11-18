@@ -1,4 +1,4 @@
-# Windows price checker 0.36.3
+# Windows price checker 0.36.4
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -35,13 +35,20 @@ Preferences: `%APPDATA%\awakened-crab-trade\config.json` (standard) or
 `%APPDATA%\awakened-crab-trade-ocr\config.json` (OCR).
 Cache and `checker.log`: the matching edition directory under `%LOCALAPPDATA%`.
 
+Open Settings > Diagnostics to read the complete current session log. Refresh log
+reloads it; Copy entire log reads a fresh snapshot and copies it in one action.
+File reading happens in a background thread. Older sessions stay in checker.log
+but are excluded from the copied report. The report includes the version, CPU,
+CPU features, Windows build and neural self-test measurements. It stays local.
+The OCR review's Copy diagnostic button copies this same complete report.
+
 Quit the running checker from its notification icon before launching an updated EXE.
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.36.3-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.36.4-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.36.3-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.36.4-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -95,14 +102,16 @@ gear tooltips use visible body dividers to distinguish implicits from explicits;
 readable advanced source labels take precedence.
 
 On first use, the model reads an embedded synthetic test line. If the default
-optimized session fails that test, a basic-optimization session is tested instead.
+optimized session fails that test, basic and compatibility sessions are tested.
+Compatibility disables graph optimizations and prepacking, using one CPU thread.
 A failed self-test is shown as a fallback diagnostic, not successful recognition.
 If scout regions return no text, an independent glyph projection is tried within
 the same time/cancellation limits. Visible rare-tooltip header edges restrict
 capture analysis so neighboring inventory text does not enlarge the reading area.
 
 When the review uses Fallback OCR, expand OCR diagnostic and use Copy diagnostic
-to share the version and reason. Diagnostic text stays separate from item text.
+to share the full current session log, version and reason. Diagnostic text stays
+separate from item text.
 
 The review identifies PP-OCRv5 or Fallback OCR. The log includes the app version,
 model load, per-pass timings and capture/Alt-release timings. Empty neural output

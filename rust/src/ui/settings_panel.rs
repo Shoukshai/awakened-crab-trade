@@ -12,6 +12,8 @@ pub struct Panel {
     pub cancel: gtk::Button,
     pub reset: gtk::Button,
     form: gtk::Notebook,
+    #[cfg(target_os = "windows")]
+    logs: Rc<super::log_panel::Panel>,
     general_scroll: gtk::ScrolledWindow,
     league: gtk::Entry,
     language: gtk::ComboBoxText,
@@ -242,6 +244,19 @@ impl Panel {
             form.append_page(&scroll, Some(&gtk::Label::new(Some("Capture"))));
             (source, client, local_poe)
         };
+        #[cfg(target_os = "windows")]
+        let logs = {
+            let logs = Rc::new(super::log_panel::Panel::new());
+            let page =
+                form.append_page(&logs.container, Some(&gtk::Label::new(Some("Diagnostic"))));
+            let refresh = logs.clone();
+            form.connect_switch_page(move |_, _, i| {
+                if i == page {
+                    refresh.refresh();
+                }
+            });
+            logs
+        };
         container.pack_start(&form, true, true, 0);
         let message = gtk::Label::new(None);
         message.set_line_wrap(true);
@@ -261,6 +276,8 @@ impl Panel {
             cancel,
             reset,
             form,
+            #[cfg(target_os = "windows")]
+            logs,
             general_scroll: scroll,
             league,
             language,
@@ -299,6 +316,8 @@ impl Panel {
             .set_text("Les modifications restent en brouillon jusqu’à Enregistrer.");
         self.busy(false);
         self.form.set_current_page(Some(0));
+        #[cfg(target_os = "windows")]
+        self.logs.refresh();
         self.container.show_all();
     }
     pub fn detected_league(&self, id: &str) {
@@ -493,7 +512,11 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"capture_source":self.capture_diagnostics(window),"theme":{"value":self.theme.active_id().as_deref(),"rect":rect(self.theme.upcast_ref())},"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..self.form.n_pages()).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
+        #[cfg(target_os = "windows")]
+        let logs = self.logs.diagnostics(window);
+        #[cfg(not(target_os = "windows"))]
+        let logs = serde_json::Value::Null;
+        serde_json::json!({"logs":logs,"capture_source":self.capture_diagnostics(window),"theme":{"value":self.theme.active_id().as_deref(),"rect":rect(self.theme.upcast_ref())},"automatic_league":{"value":self.automatic_league.is_active(),"rect":rect(self.automatic_league.upcast_ref())},"visible":self.container.is_mapped(),"capture":self.capture.get(),"record":self.record.iter().map(|b|rect(b.upcast_ref())).collect::<Vec<_>>(),"tabs":(0..self.form.n_pages()).map(|i|self.form.nth_page(Some(i)).and_then(|c|self.form.tab_label(&c)).and_then(|w|rect(&w))).collect::<Vec<_>>(),"page":self.form.current_page(),"message":self.message.text().as_str(),"league":{"value":self.league.text().as_str(),"rect":rect(self.league.upcast_ref())},"scale":{"value":self.scale.value(),"rect":rect(self.scale.upcast_ref())},"range":{"value":self.range.value(),"rect":rect(self.range.upcast_ref())},"language":{"value":self.language.active_id().as_deref(),"rect":rect(self.language.upcast_ref())},"restore_clipboard":{"value":self.restore_clipboard.is_active(),"rect":rect(self.restore_clipboard.upcast_ref())},"apply":rect(self.apply.upcast_ref()),"cancel":rect(self.cancel.upcast_ref()),"reset":rect(self.reset.upcast_ref()),"general_scroll":self.general_scroll.translate_coordinates(window,0,0).map(|(x,y)|serde_json::json!({"x":x,"y":y,"width":self.general_scroll.allocated_width(),"height":self.general_scroll.allocated_height(),"value":self.general_scroll.vadjustment().value(),"upper":self.general_scroll.vadjustment().upper(),"page_size":self.general_scroll.vadjustment().page_size()})),"hotkeys":self.keys.iter().map(|e|serde_json::json!({"value":e.text().as_str(),"rect":rect(e.upcast_ref())})).collect::<Vec<_>>()})
     }
 }
 

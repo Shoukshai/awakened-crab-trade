@@ -27,13 +27,18 @@ pub fn initialize() -> Result<(), String> {
                 .create(true)
                 .open(dir.join("checker.log"))
                 .map_err(|e| e.to_string())?;
+            crate::diagnostics::start(
+                dir.join("checker.log"),
+                file.metadata().map(|m| m.len()).unwrap_or(0),
+            );
             SetStdHandle(STD_ERROR_HANDLE, file.into_raw_handle());
         }
     }
     eprintln!(
-        "app version={} edition={}",
+        "app version={} edition={} pid={}",
         env!("CARGO_PKG_VERSION"),
-        crate::edition::id()
+        crate::edition::id(),
+        std::process::id()
     );
     let root = std::env::current_exe()
         .map_err(|e| e.to_string())?

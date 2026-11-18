@@ -19,6 +19,8 @@ mod icons;
 mod item_filters_panel;
 mod listings_panel;
 mod localization;
+#[cfg(target_os = "windows")]
+mod log_panel;
 mod mercenary_panel;
 mod price_workspace;
 mod roll_slider;
@@ -1685,7 +1687,7 @@ pub fn run() -> Result<(), String> {
         }
         println!(
             "{}",
-            serde_json::json!({"engine":"PP-OCRv5 English / CPU","threads":2,"peak_process_mib":crate::neural_ocr::peak_memory_mib(),"scope":"Cropped image recognition; excludes screen capture and tooltip location","runs":runs})
+            serde_json::json!({"engine":"PP-OCRv5 English / CPU","threads":crate::neural_ocr::configured_threads(),"peak_process_mib":crate::neural_ocr::peak_memory_mib(),"scope":"Cropped image recognition; excludes screen capture and tooltip location","runs":runs})
         );
         return Ok(());
     }
