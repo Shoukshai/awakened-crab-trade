@@ -294,6 +294,7 @@ impl Item {
                     Some("Quiver"),
                     Some("Jewel"),
                     Some("Abyss Jewel"),
+                    Some("Cluster Jewel"),
                 ]
                 .contains(&self.category.as_deref()) =>
             {

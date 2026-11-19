@@ -139,7 +139,11 @@ pub(super) fn stat(observed: &str, matchers: &HashMap<String, Vec<String>>) -> O
                 continue;
             }
             if let Some(value) = render(template, &text) {
-                if super::exact_stat(&value).is_some() && !results.contains(&value) {
+                if super::exact_stat(&value).is_some()
+                    && !results
+                        .iter()
+                        .any(|s: &String| s.eq_ignore_ascii_case(&value))
+                {
                     results.push(value);
                 }
             }

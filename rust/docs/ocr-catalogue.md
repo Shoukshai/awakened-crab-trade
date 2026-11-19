@@ -1,12 +1,12 @@
-# Local item and modifier library - 0.36.6
+# Local item and modifier library - 0.36.7
 
 Both editions prepare a versioned offline catalogue from bundled English item
 and modifier definitions. It includes the curated PoEDB Viscera/Wickerman
 supplement. The cache stores `items.json`, `mods.json` and an `active.json`
 manifest beneath the edition's cache directory:
 
-- Windows: `%LOCALAPPDATA%\awakened-crab-trade[-ocr]\catalog\v1\0.36.6`.
-- Linux: `$XDG_CACHE_HOME/awakened-crab-trade/catalog/v1/0.36.6`, falling back
+- Windows: `%LOCALAPPDATA%\awakened-crab-trade[-ocr]\catalog\v1\0.36.7`.
+- Linux: `$XDG_CACHE_HOME/awakened-crab-trade/catalog/v1/0.36.7`, falling back
   to `~/.cache` when XDG_CACHE_HOME is unset.
 
 Startup prepares and loads these files on a dedicated worker. With automatic
@@ -50,3 +50,9 @@ awakened-crab-trade catalogue
 These commands print the local directory and record counts; the second allows
 a refresh under the same freshness/cooldown policy. The feature uses Rust and
 the existing HTTP stack; no Python runtime or model fine-tuning is introduced.
+
+Visual wraps are reassembled only when the complete nearby text matches a
+modifier. Source headers, properties, separate columns and conflicting readings
+remain boundaries. Numeric rolls and conditions stay attached to the complete
+modifier. Cluster enchantments retain their enchant Trade IDs in basic and
+advanced tooltips; jewel placement instructions are excluded from modifiers.

@@ -1,4 +1,4 @@
-# Windows price checker 0.36.6
+# Windows price checker 0.36.7
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -46,9 +46,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.36.6-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.36.7-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.36.6-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.36.7-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 

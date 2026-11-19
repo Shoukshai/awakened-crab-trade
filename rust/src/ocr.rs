@@ -1,6 +1,7 @@
 //! Conservative conversion of positioned OCR lines to reviewable item text.
 //! Local catalogue word repair never supplies digits or an inferred item level.
 mod lexicon;
+mod wrapping;
 use crate::item::Rarity;
 use regex::Regex;
 use std::{collections::HashMap, sync::OnceLock};
@@ -72,7 +73,9 @@ fn matchers() -> std::sync::Arc<HashMap<String, Vec<String>>> {
                 if let Some(a) = v["matchers"].as_array() {
                     for m in a {
                         if let Some(s) = m["string"].as_str() {
-                            for s in s.lines() {
+                            // Keep the complete matcher as well as its physical
+                            // lines: the tooltip can wrap at a different width.
+                            for s in std::iter::once(s).chain(s.lines()) {
                                 // Some multi-line catalogue matchers contain a
                                 // bare '#'. A detached ilvl is never a modifier.
                                 if !s.chars().any(|c| c.is_ascii_alphabetic()) {
@@ -172,7 +175,10 @@ fn exact_stat(s: &str) -> Option<String> {
         } else {
             result
         };
-        if !results.contains(&result) {
+        if !results
+            .iter()
+            .any(|s: &String| s.eq_ignore_ascii_case(&result))
+        {
             results.push(result);
         }
     }
@@ -247,7 +253,9 @@ fn modifier_header(text: &str) -> Option<(String, String)> {
     {
         return None;
     }
-    let kind = if k.contains("implicit") || eater || exarch {
+    let kind = if k.contains("enchantment") || k.contains("enchantmodifier") {
+        "Enchant"
+    } else if k.contains("implicit") || eater || exarch {
         "Implicit"
     } else if k.contains("crafted") {
         "Crafted"
@@ -559,6 +567,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         !l.text.trim().is_empty() && [l.x, l.y, l.width, l.height].iter().all(|v| v.is_finite())
     });
     lines.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
+    wrapping::repair(&mut lines);
     let (index, entry) = select_item(&lines)?;
     let header = &lines[index];
     let center = header.x + header.width / 2.;
@@ -653,6 +662,9 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         ));
     }
     let mut unknown = Vec::new();
+    let jewel = base.ends_with("Jewel");
+    let cluster =
+        entry.craftable.as_ref().and_then(|c| c.category.as_deref()) == Some("Cluster Jewel");
     let mut last_y = header.y + header.height;
     let mut kind = "explicit".to_string();
     let mut modifier = "Explicit Modifier".to_string();
@@ -663,6 +675,10 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         }
         last_y = line.y + line.height;
         let k = key(&line.text);
+        // The unique name already supplied its base in the item header.
+        if rarity == Rarity::Unique && line.y - header.y < 70. && k == key(&base) {
+            continue;
+        }
         if k.is_empty() || reminder(&line.text) {
             continue;
         }
@@ -674,6 +690,31 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
         }
         if is_requirement(&line.text) || k.starts_with("tier") {
             continue;
+        }
+        if jewel {
+            // These describe socket placement, not searchable modifiers. The
+            // instruction is the tooltip footer, including any wrapped tail.
+            if k.find("placeintoanallocated").is_some_and(|i| i <= 3) {
+                break;
+            }
+            if line
+                .text
+                .split_once(':')
+                .is_some_and(|(label, _)| ["limitedto", "radius"].contains(&key(label).as_str()))
+            {
+                continue;
+            }
+            // Unique flavor text is orange; actual jewel mods are blue. Do
+            // not hide damaged numeric lines or rely on text position alone.
+            if rarity == Rarity::Unique
+                && line.rarity == Some(Rarity::Unique)
+                && line.text.split_whitespace().count() >= 3
+                && !["corrupted", "mirrored", "unidentified"].contains(&k.as_str())
+                && !line.text.chars().any(|c| c.is_ascii_digit())
+                && stat(&line.text).is_none()
+            {
+                continue;
+            }
         }
         if k == "corrupted" || k == "mirrored" || k == "unidentified" {
             text.push_str(match k.as_str() {
@@ -702,7 +743,20 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
             continue;
         }
         if let Some(s) = stat(&line.text) {
-            if let Some(source) = line.source.as_deref().filter(|s| *s != kind) {
+            // Pale cluster enchants can resemble crafted text against the UI.
+            // Color alone must not assign an unsupported crafted Trade ID.
+            if let Some(source) = line.source.as_deref().filter(|source| {
+                *source != kind
+                    && !(cluster
+                        && *source == "crafted"
+                        && crate::modifiers::translation::translate(
+                            &s,
+                            source,
+                            Some("Cluster Jewel"),
+                            false,
+                        )
+                        .is_none())
+            }) {
                 let title = match source {
                     "fractured" => "Fractured Modifier",
                     "crafted" => "Crafted Modifier",
@@ -720,7 +774,22 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
                 text.push_str(&format!("{{ {modifier} }}\n"));
                 written = true;
             }
-            text.push_str(&format!("{s}\n"));
+            // Basic cluster tooltips omit source labels. Only classify a stat
+            // as an enchant when its catalogue translation is unambiguous.
+            let cluster_enchant = (s.starts_with("Adds ") && s.ends_with(" Passive Skills"))
+                || s.starts_with("Added Small Passive Skills grant:")
+                || s.ends_with(" Added Passive Skills are Jewel Sockets");
+            let enchant = cluster
+                && kind == "explicit"
+                && cluster_enchant
+                && crate::modifiers::translation::translate(
+                    &s,
+                    "enchant",
+                    Some("Cluster Jewel"),
+                    false,
+                )
+                .is_some();
+            text.push_str(&format!("{s}{}\n", if enchant { " (enchant)" } else { "" }));
         } else {
             unknown.push(line.text.clone());
         }
@@ -863,7 +932,19 @@ fn reminder(text: &str) -> bool {
         .unwrap_or(text)
         .trim();
     let k = key(text);
+    // Faint dividers can add a stray glyph before a cluster reminder. Match
+    // only these complete, non-numeric game sentences after the parenthesis.
+    let cluster = text.find('(').is_some_and(|i| {
+        i <= 4
+            && [
+                "addedpassiveskillsareneverconsideredtobeinradiusbyotherjewels",
+                "alladdedpassiveskillsaresmallunlessotherwisespecified",
+                "passiveskillsthatarenotnotablemasterieskeystonesorjewelsocketsaresmall",
+            ]
+            .contains(&key(&text[i + 1..]).as_str())
+    });
     text.starts_with('(')
+        || cluster
         || k.contains("ailmentsareignited")
         || k.contains("abyssjewelscanbesocketed")
         || k.contains("coldexposuresubtractsfromcoldresistance")
@@ -938,6 +1019,264 @@ fn restore_defences(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn rows(text: &[&str]) -> Vec<Line> {
+        text.iter()
+            .enumerate()
+            .map(|(i, t)| line(t, i as f64 * 24., None))
+            .collect()
+    }
+    #[test]
+    fn wrapped_unique_jewel_mod_keeps_its_condition_and_observed_roll() {
+        let d = draft(
+            rows(&[
+                "Watcher's Eye",
+                "Prismatic Jewel",
+                "Item Level: 85",
+                "Damaging Ailments you inflict deal Damage 13(10-15)% Faster",
+                "while affected by Malevolence",
+                "6% increased maximum Life",
+            ]),
+            "test".into(),
+        )
+        .unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(item.rarity, Rarity::Unique);
+        assert_eq!(
+            item.modifiers.len(),
+            2,
+            "{} {:?}",
+            d.text,
+            item.unknown_modifiers
+        );
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.value == Some(13.) && m.reference.contains("Malevolence")));
+        assert_eq!(item.item_level, Some(85));
+    }
+    #[test]
+    fn long_jewel_mods_match_both_single_rows_and_several_visual_wraps() {
+        let cases = [
+            vec!["Damaging Ailments you inflict deal Damage 13% Faster while affected by Malevolence"],
+            vec!["Damaging Ailments you inflict", "deal Damage 13% Faster while", "affected by Malevolence"],
+            vec!["Damaging Ailments you", "inflict deal Damage", "13% Faster while", "affected by Malevolence"],
+        ];
+        for case in cases {
+            let mut text = vec![
+                "Watcher's Eye",
+                "Prismatic Jewel",
+                "Limited to: 1",
+                "Radius: Large",
+            ];
+            text.extend(case);
+            text.extend([
+                "Place into an allocated Jewel Socket on the Passive Skill",
+                "Tree. Right click to remove from the Socket.",
+            ]);
+            let d = draft(rows(&text), "test".into()).unwrap();
+            assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+            let item = crate::item::Item::parse(&d.text).unwrap();
+            assert_eq!(
+                item.modifiers.len(),
+                1,
+                "{} {:?}",
+                d.text,
+                item.unknown_modifiers
+            );
+            assert_eq!(item.modifiers[0].value, Some(13.));
+            assert_eq!(item.item_level, None);
+        }
+    }
+    #[test]
+    fn visual_wraps_restore_the_catalogues_multiline_modifier() {
+        let mut lines = rows(&[
+            "With at least 40 Dexterity in Radius, Dual",
+            "Strike has 20% to Critical Strike Multiplier",
+            "while wielding a Dagger",
+        ]);
+        wrapping::repair(&mut lines);
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert_eq!(lines[0].text, "With at least 40 Dexterity in Radius, Dual Strike has 20% to Critical Strike\nMultiplier while wielding a Dagger");
+        let m = crate::modifiers::translation::translate(
+            &lines[0].text,
+            "explicit",
+            Some("Jewel"),
+            false,
+        )
+        .unwrap();
+        assert_eq!(m.value, Some(20.));
+    }
+    #[test]
+    fn basic_cluster_enchants_do_not_become_generic_spell_damage_filters() {
+        let mut lines = rows(&[
+            "Large Cluster Jewel",
+            "Adds 8 Passive Skills",
+            "Added Small Passive Skills grant:",
+            "10% increased Spell Damage",
+            "2 Added Passive Skills are Jewel Sockets",
+            "1 Added Passive Skill is Conjured Wall",
+            "Place into an allocated Large Jewel Socket on the Passive",
+            "Skill Tree. Added Passives do not interact with Jewel",
+            "Radiuses. Right click to remove from the Socket.",
+        ]);
+        // The pale first lines on the reported capture resemble crafted text.
+        for l in &mut lines[1..5] {
+            l.source = Some("crafted".into());
+        }
+        let d = draft(lines, "test".into()).unwrap();
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert!(
+            d.unknown.is_empty() && item.unknown_modifiers.is_empty(),
+            "{} {:?}",
+            d.text,
+            item.unknown_modifiers
+        );
+        assert_eq!(item.modifiers.len(), 4, "{} {:?}", d.text, item.modifiers);
+        assert_eq!(
+            item.modifiers
+                .iter()
+                .filter(|m| m.kind == "enchant")
+                .count(),
+            3
+        );
+        assert!(!item
+            .modifiers
+            .iter()
+            .any(|m| m.reference == "#% increased Spell Damage"));
+    }
+    #[test]
+    fn unique_jewel_metadata_and_colored_flavor_are_not_unknown_mods() {
+        let mut lines = rows(&[
+            "The Light of Meaning",
+            "Prismatic Jewel",
+            "Limited to: 1",
+            "Radius: Large",
+            "Passive Skills in Radius also grant",
+            "6% increased Cold Damage",
+            "To name a thing is to give it power.",
+            "Corrupted",
+            "Place into an allocated Jewel Socket on the Passive Skill",
+            "Tree. Right click to remove from the Socket.",
+        ]);
+        lines[6].rarity = Some(Rarity::Unique);
+        lines[7].rarity = Some(Rarity::Unique);
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(
+            item.modifiers.len(),
+            1,
+            "{} {:?}",
+            d.text,
+            item.unknown_modifiers
+        );
+        assert_eq!(item.modifiers[0].value, Some(6.));
+        assert!(item.corrupted);
+        assert!(item.modifiers[0]
+            .reference
+            .starts_with("Passive Skills in Radius"));
+        let mut uncertain = rows(&["The Light of Meaning", "Prismatic Jewel", "Corupted"]);
+        uncertain[2].rarity = Some(Rarity::Unique);
+        let d = draft(uncertain, "test".into()).unwrap();
+        assert_eq!(d.unknown, ["Corupted"]);
+    }
+    #[test]
+    fn cluster_enchants_and_wrapped_notables_remain_searchable() {
+        let mut lines = rows(&[
+            "Cataclysm Shard",
+            "Large Cluster Jewel",
+            "Item Level: 83",
+            "Enchantment Modifier",
+            "Adds 8 Passive Skills",
+            "Added Small Passive Skills grant:",
+            "10% increased Spell Damage — Unscalable Value",
+            "Enchantment Modifier",
+            "2 Added Passive Skills are Jewel Sockets",
+            "Prefix Modifier \"Notable\" (Tier: 1)",
+            "1 Added Passive Skill is",
+            "Conjured Wall — Unscalable Value",
+            "Suffix Modifier \"of the Seal\" (Tier: 2)",
+            "Added Small Passive Skills also grant:",
+            "+4(4-5)% to Cold Resistance",
+        ]);
+        lines[0].rarity = Some(Rarity::Rare);
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(item.family(), crate::item::Family::Equipment);
+        assert!(
+            item.unknown_modifiers.is_empty(),
+            "{} {:?}",
+            d.text,
+            item.unknown_modifiers
+        );
+        assert_eq!(item.modifiers.len(), 5, "{} {:?}", d.text, item.modifiers);
+        assert_eq!(
+            item.modifiers
+                .iter()
+                .filter(|m| m.kind == "enchant")
+                .count(),
+            3
+        );
+    }
+    #[test]
+    fn reported_shield_cluster_wraps_its_unscalable_label_without_losing_the_enchant() {
+        let mut lines = rows(&[
+            "Large Cluster Jewel", "Item Level: 83", "Enchantment Modifier",
+            "Adds 8 Passive Skills",
+            "(Added Passive Skills are never considered to be in Radius by other Jewels)",
+            "7 (All Added Passive Skills are Small unless otherwise specified)",
+            "Added Small Passive Skills grant: 12% increased Attack Damage while holding a Shield —",
+            "Unscalable Value",
+            "(Passive Skills that are not Notable, Masteries, Keystones, or Jewel Sockets are Small)",
+            "Enchantment Modifier", "2 Added Passive Skills are Jewel Sockets",
+            "OPlace into an allocated Large Jewel Socket on the Passive Skill Tree. Added passives do",
+            "not interact with jewel radiuses. Right click to remove from the Socket.",
+        ]);
+        lines[6].source = Some("crafted".into());
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert!(
+            item.unknown_modifiers.is_empty(),
+            "{} {:?}",
+            d.text,
+            item.unknown_modifiers
+        );
+        assert_eq!(item.modifiers.len(), 3, "{} {:?}", d.text, item.modifiers);
+        assert!(item.modifiers.iter().all(|m| m.kind == "enchant"));
+        let shield = item
+            .modifiers
+            .iter()
+            .find(|m| m.reference.contains("holding a Shield"))
+            .unwrap();
+        assert!(shield.unscalable);
+        assert!(shield
+            .ids
+            .iter()
+            .any(|id| id == "enchant.stat_3948993189|8"));
+    }
+    #[test]
+    fn wrapping_preserves_independent_lines_and_uncertain_or_incomplete_mods() {
+        for tail in [
+            vec!["while affected by", "Unrecognized aura"],
+            vec!["6% increased maximum Life", "while affected by Malevolence"],
+            vec!["Crafted Modifier", "while affected by Malevolence"],
+            vec!["Item Level: 85", "while affected by Malevolence"],
+        ] {
+            let mut lines = rows(&["Damaging Ailments you inflict deal Damage 13% Faster"]);
+            for (i, text) in tail.iter().enumerate() {
+                lines.push(line(text, (i + 1) as f64 * 24., None));
+            }
+            let before: Vec<_> = lines.iter().map(|l| l.text.clone()).collect();
+            wrapping::repair(&mut lines);
+            assert_eq!(
+                lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>(),
+                before
+            );
+        }
+    }
     #[test]
     fn reported_uppercase_rolls_are_valid_without_ocr_spelling_errors() {
         assert_eq!(

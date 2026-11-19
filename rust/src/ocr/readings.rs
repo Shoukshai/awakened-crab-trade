@@ -162,6 +162,8 @@ fn equivalent(a: &str, b: &str) -> bool {
 pub fn merge_stats(lines: &mut Vec<Line>, mut extra: Vec<Line>, pass: u8) {
     repair_properties(lines);
     repair_properties(&mut extra);
+    super::wrapping::repair(lines);
+    super::wrapping::repair(&mut extra);
     for mut line in extra {
         if let Some((kind, header)) = modifier_header(&line.text) {
             let nearby = lines.iter().position(|l| {

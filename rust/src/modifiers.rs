@@ -102,7 +102,9 @@ pub struct UnknownModifier {
     pub kind: String,
 }
 fn kind_from_header(text: &str) -> &'static str {
-    if text.contains("Implicit") {
+    if text.contains("Enchant") {
+        "enchant"
+    } else if text.contains("Implicit") {
         "implicit"
     } else if text.contains("Crafted") {
         "crafted"
