@@ -1,4 +1,4 @@
-# Windows price checker 0.36.4
+# Windows price checker 0.36.5
 
 Native x64 build for PoE 1 via Steam or standalone. The cloud OCR path targets
 Windows 10/11 and is experimental until tested with the real Boosteroid client.
@@ -46,9 +46,9 @@ Quit the running checker from its notification icon before launching an updated 
 
 ## Separate Windows editions
 
-- `awakened-crab-trade-0.36.4-windows-x64-portable.exe`: standard clipboard edition
+- `awakened-crab-trade-0.36.5-windows-x64-portable.exe`: standard clipboard edition
   for local PoE. It does not include the OCR engines or language model.
-- `awakened-crab-trade-ocr-0.36.4-windows-x64-portable.exe`: cloud OCR edition,
+- `awakened-crab-trade-ocr-0.36.5-windows-x64-portable.exe`: cloud OCR edition,
   enabled immediately. Boosteroid.exe is the default client; change the executable
   basename or full path in Settings > Capture if needed.
 
@@ -104,7 +104,12 @@ readable advanced source labels take precedence.
 On first use, the model reads an embedded synthetic test line. If the default
 optimized session fails that test, basic and compatibility sessions are tested.
 Compatibility disables graph optimizations and prepacking, using one CPU thread.
-A failed self-test is shown as a fallback diagnostic, not successful recognition.
+If these sessions fail or the native runtime cannot load, an independent Rust
+engine (tract) reads the same model and must pass the same embedded test. It uses
+one CPU thread and caches at most eight exact-width plans. It receives the same preprocessed
+line tensors as ONNX, without padding that could change recognition. The validated engine is reused until the app exits.
+The review identifies this path as PP-OCRv5 English (Rust CPU). If neither engine
+passes, the existing fallback OCR is used and its reason remains in diagnostics.
 If scout regions return no text, an independent glyph projection is tried within
 the same time/cancellation limits. Visible rare-tooltip header edges restrict
 capture analysis so neighboring inventory text does not enlarge the reading area.
@@ -113,7 +118,7 @@ When the review uses Fallback OCR, expand OCR diagnostic and use Copy diagnostic
 to share the full current session log, version and reason. Diagnostic text stays
 separate from item text.
 
-The review identifies PP-OCRv5 or Fallback OCR. The log includes the app version,
+The review identifies PP-OCRv5, PP-OCRv5 (Rust CPU), or Fallback OCR. The log includes the app version,
 model load, per-pass timings and capture/Alt-release timings. Empty neural output
 is logged explicitly; a successful capture does not prove that neural recognition
 was used. Recognition errors and uncertain values still require review.

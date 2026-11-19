@@ -1,6 +1,6 @@
 # Local Artix/Arch package built from the adjacent, generated source archive.
 pkgname=awakened-crab-trade
-pkgver=0.36.4
+pkgver=0.36.5
 pkgrel=1
 pkgdesc='Native Rust PoE price checker for River and XWayland'
 arch=('x86_64')

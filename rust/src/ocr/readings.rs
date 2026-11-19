@@ -66,7 +66,7 @@ pub fn repair_properties(lines: &mut Vec<Line>) {
     // number fragments on an explicitly labelled requirement baseline.
     let requirements: Vec<_> = lines
         .iter()
-        .filter(|l| key(&l.text).starts_with("requires"))
+        .filter(|l| super::is_requirement(&l.text))
         .cloned()
         .collect();
     lines.retain(|l| {

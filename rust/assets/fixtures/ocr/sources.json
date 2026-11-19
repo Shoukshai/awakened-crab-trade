@@ -105,5 +105,14 @@
     "sha256": "433011fedafa256a98594127f0a9d1010595bfe4abd1933d1321e8942ed34c0d",
     "advanced_tooltip": false,
     "expected_ilvl": null
+  },
+  {
+    "file": "paladin-boots-local.png",
+    "source": "User-provided local PoE Paladin Boots tooltip, 2026-11-19",
+    "original_sha256": "1b63074349baf2eaadc4faeb4b738c48d415bc86cb7ed2ff19112e96edbf7164",
+    "crop_xyxy": null,
+    "sha256": "1b63074349baf2eaadc4faeb4b738c48d415bc86cb7ed2ff19112e96edbf7164",
+    "advanced_tooltip": false,
+    "expected_ilvl": null
   }
 ]

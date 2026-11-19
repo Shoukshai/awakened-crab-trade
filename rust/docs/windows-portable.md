@@ -1,7 +1,7 @@
 # Windows portable EXE
 
-Run `awakened-crab-trade-0.36.4-windows-x64-portable.exe` for local PoE, or
-`awakened-crab-trade-ocr-0.36.4-windows-x64-portable.exe` for cloud OCR. No manual
+Run `awakened-crab-trade-0.36.5-windows-x64-portable.exe` for local PoE, or
+`awakened-crab-trade-ocr-0.36.5-windows-x64-portable.exe` for cloud OCR. No manual
 extraction, installer or administrator privileges are needed.
 
 The OCR EXE also includes PP-OCRv5 and its native CPU runtime. It runs locally

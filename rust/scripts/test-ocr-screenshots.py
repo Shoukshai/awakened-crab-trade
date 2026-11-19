@@ -9,6 +9,8 @@ assert pathlib.Path(env['WINEPREFIX']).parent==root
 lock=(root/'test.lock').open('w');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 app=pathlib.Path(sys.argv[1]).resolve();assert app.is_file()
 wp=lambda p:'Z:'+str(p.resolve()).replace('/','\\')
+rust_backend=os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1'
+expected_engine='PP-OCRv5 English (Rust CPU)' if rust_backend else 'PP-OCRv5 English (CPU)'
 report={'scope':'User-provided basic and advanced tooltips; actual bundled OCR under private Wine, no real-game input. Windows.Media.Ocr and hardware capture still require Windows validation.','cases':[]}
 for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  if sys.argv[2:] and case['file'] not in sys.argv[2:]:continue
@@ -25,7 +27,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  data=json.loads(result.stdout);(root/('ocr-result-'+case['file']+'.json')).write_text(json.dumps(data,indent=2)+'\n')
  assert 'text="Energy Shield: 149"' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
  assert 'ocr probe input shape=' in result.stderr.decode(errors='replace') and 'ocr probe output shape=' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
- assert data['engine']=='PP-OCRv5 English (CPU)','Packaged neural runtime/model was not used'
+ assert data['engine']==expected_engine,'Packaged neural runtime/model was not used'
  text=data['text'];item=data['item'];assert item['item_level']==case['expected_ilvl'],'Wrong or invented item level'
  if case['file']=='gloves.png':
   assert "Assassin's Mitts" in text and 'Regenerate 56.5 Life per second' in text
@@ -68,13 +70,21 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   assert item['base']=='Kinetic Blast' and item['rarity']=='Gem',text
   assert item['gem_level']==21 and item['quality']==20 and item['corrupted'],text
   assert not data['unknown'] and not item['modifiers'],text
+ elif case['file']=='paladin-boots-local.png':
+  assert item['base']=='Paladin Boots' and item['rarity']=='Rare',text
+  assert item['quality']==20 and item['properties']['armour']==516 and item['properties']['energy_shield']==113,text
+  assert not data['unknown'],text
+  mods=item['modifiers'];assert len(mods)==9,text
+  for value in [31,33]:assert any(m['kind']=='implicit' and m['value']==value for m in mods),(value,text)
+  assert any(m['value']==20 and 'Aspect of the Spider' in m['reference'] for m in mods),text
+  for value in [23,74,9,48,25,24]:assert any(m['value']==value and m['kind']!='implicit' for m in mods),(value,text)
  else:raise AssertionError('Uncovered OCR fixture: '+case['file'])
  report['cases'].append({'file':case['file'],'full_frame':True,'elapsed_ms':round((time.monotonic()-start)*1000),'engine':data['engine'],'diagnostics':[line for line in result.stderr.decode(errors='replace').splitlines() if line.startswith('ocr ')],'text':text,'unknown':data['unknown'],'ilvl':item['item_level'],'quality':item['quality'],'gem_level':item['gem_level'],'corrupted':item['corrupted'],'modifiers':item['modifiers']})
 image=r/'assets/fixtures/ocr/boots-stream.png'
 result=subprocess.run([s['wine'],wp(app),'ocr-neural',wp(image),wp(app.parent),'6'],env=env,capture_output=True,timeout=90)
 assert result.returncode==0,result.stderr.decode(errors='replace')
 neural=json.loads(result.stdout)
-assert neural['threads']==2 and 0<neural['peak_process_mib']<1024,neural
+assert neural['threads']==(1 if rust_backend else 2) and 0<neural['peak_process_mib']<1024,neural
 import re
 assert any(re.search(r'\+41\b.*maximum.*energy shield',line['text'],re.I) for line in neural['runs'][0]['lines']),neural
 report['neural_diagnostic']=neural

@@ -6,5 +6,10 @@
   "gtk-layer-shell-sys@0.7.2": {
     "file": "gtk-layer-shell-gir-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/pentamassiv/gtk-layer-shell-gir/9931b887a80bc8a9f59c3dbab96cbf17881758c7/LICENSE.txt"
+  },
+  "nom-language@0.1.0": {
+    "file": "nom-language-0.1.0-LICENSE",
+    "url": "https://raw.githubusercontent.com/rust-bakery/nom/2cec1b3e4c9ccac62c902d60c00de6d1549ccbe1/LICENSE",
+    "sha256": "4dbda04344456f09a7a588140455413a9ac59b6b26a1ef7cdf9c800c012d87f0"
   }
 }

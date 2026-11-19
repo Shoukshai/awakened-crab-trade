@@ -859,7 +859,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
                 neural.extend(anchors);
             }
             refined = neural;
-            engine = "PP-OCRv5 English (CPU)";
+            engine = crate::neural_ocr::engine_label();
             true
         }
         Ok(_) => {

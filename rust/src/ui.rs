@@ -1687,7 +1687,7 @@ pub fn run() -> Result<(), String> {
         }
         println!(
             "{}",
-            serde_json::json!({"engine":"PP-OCRv5 English / CPU","threads":crate::neural_ocr::configured_threads(),"peak_process_mib":crate::neural_ocr::peak_memory_mib(),"scope":"Cropped image recognition; excludes screen capture and tooltip location","runs":runs})
+            serde_json::json!({"engine":crate::neural_ocr::engine_label(),"threads":crate::neural_ocr::configured_threads(),"peak_process_mib":crate::neural_ocr::peak_memory_mib(),"scope":"Cropped image recognition; excludes screen capture and tooltip location","runs":runs})
         );
         return Ok(());
     }

@@ -1,8 +1,10 @@
-# Local OCR - 0.36.0
+# Local OCR - 0.36.5
 
 The OCR edition includes the unmodified English PP-OCRv5 mobile recognizer
 (7,872,351 bytes) and native ONNX Runtime 1.23.2. Rust performs segmentation,
-resizing, CTC decoding and item validation. No Python interpreter, recognition
+resizing, CTC decoding and item validation. An independent tract CPU engine is
+built into the OCR edition if the native runtime fails its known-input test.
+Both engines use the same pinned model. No Python interpreter, recognition
 server or GPU is used. The model is not custom-trained on PoE yet.
 
 ## Hardware target
@@ -110,6 +112,37 @@ preprocessed input checksum. Blank-class and space-class counts distinguish blan
 predictions from zero-filled outputs. No user images or raw tensors are logged.
 Settings > Diagnostics and Copy diagnostic share the entire current session log;
 no logs are uploaded. Real Windows execution still requires the new report.
+
+## 0.36.5 independent Rust engine
+
+The native 0.36.4 report confirms matching input and echoed-tensor SHA256 hashes,
+but all 50 output positions select the blank class with every ONNX configuration.
+The same input passes on the development host and under Wine. This isolates a
+native execution difference; it does not establish a specific CPU/runtime cause.
+The OCR edition now tries tract if ONNX initialization or the known-input test
+fails. This independent Rust engine must recognize the same synthetic line with
+confidence above 0.9 before it is accepted. Missing or altered model files still
+fail validation. Existing fallback OCR remains available if both engines fail.
+
+Tract uses one compute thread and up to eight cached exact-width plans. It reads
+the same preprocessed tensors as ONNX, without padding that changes this model's
+predictions. Plans and weights are reused
+within the process. No extra model, Python process, GPU or server is needed.
+The pinned tract 0.22.1 avoids the Windows wmic cache probe introduced in newer
+versions, which can open a console and cancel capture by stealing focus.
+The log records the transition, self-test and plan compilation timings; the review
+identifies the Rust CPU backend explicitly.
+
+The Rust path prioritizes compatibility over latency. Timings exclude capture,
+tooltip location, Tesseract and the GUI and do not establish minimum hardware.
+Nine full-frame fixtures produce identical modifier kinds, references, values and
+ranges with both engines. A deliberately missing native DLL forces the Rust path;
+this does not reproduce the native Ryzen X3D failure itself.
+
+The Paladin Boots regression retains all nine visible modifier lines, including
+both implicits and Aspect of the Spider, without replacing their numbers. Realm
+text joined to a complete requirement line is ignored as metadata; the required
+level does not become an item level. This screenshot contains no visible ilvl.
 
 ## Reproduce
 

@@ -1,5 +1,5 @@
 //! Local English PP-OCRv5 recognition. No Python, GPU, network or file captures.
-//! One persistent CPU session, two compute threads, bounded line tensors.
+//! One persistent validated CPU engine and bounded line tensors.
 use ort::{
     session::{builder::GraphOptimizationLevel, Session},
     value::Tensor,
@@ -53,8 +53,13 @@ pub struct Reading {
     pub width: usize,
     pub height: usize,
 }
+mod rust_backend;
+enum Backend {
+    Onnx(Session),
+    Rust(Box<rust_backend::Backend>),
+}
 struct Model {
-    session: Session,
+    backend: Backend,
     dictionary: Vec<String>,
     trace_next: bool,
     threads: usize,
@@ -62,6 +67,17 @@ struct Model {
 static MODEL_SESSION: OnceLock<Result<Mutex<Model>, String>> = OnceLock::new();
 pub fn configured_threads() -> Option<usize> {
     Some(MODEL_SESSION.get()?.as_ref().ok()?.lock().ok()?.threads)
+}
+pub fn engine_label() -> &'static str {
+    match MODEL_SESSION
+        .get()
+        .and_then(|s| s.as_ref().ok())
+        .and_then(|m| m.lock().ok())
+        .map(|m| matches!(m.backend, Backend::Rust(_)))
+    {
+        Some(true) => "PP-OCRv5 English (Rust CPU)",
+        _ => "PP-OCRv5 English (CPU)",
+    }
 }
 
 impl Model {
@@ -79,6 +95,40 @@ impl Model {
         if data.len() > 12_000_000 || format!("{:x}", Sha256::digest(&data)) != HASH {
             return Err("Neural OCR model checksum mismatch.".into());
         }
+        match std::panic::catch_unwind(|| Self::load_onnx(root, &data, started))
+            .unwrap_or_else(|_| Err("Native ONNX Runtime could not initialize".into()))
+        {
+            Ok(model) => Ok(model),
+            Err(error) => {
+                eprintln!("ocr backend transition from=ONNX to=tract reason={error}");
+                let (backend, dictionary) = rust_backend::Backend::load(&data)?;
+                let mut model = Self {
+                    backend: Backend::Rust(Box::new(backend)),
+                    dictionary,
+                    trace_next: true,
+                    threads: 1,
+                };
+                let probe = Image {
+                    width: 240,
+                    height: 32,
+                    bgra: include_bytes!("../assets/fixtures/ocr/neural-probe.bgra"),
+                };
+                let (text, confidence) = model.read(&probe, [7, 5, 191, 23], false)?;
+                eprintln!("ocr neural self_test=rust text={text:?} confidence={confidence:.3}");
+                if text != "Energy Shield: 149" || confidence <= 0.9 {
+                    return Err(format!(
+                        "Native OCR failed: {error}; Rust OCR self-test failed: {text:?}"
+                    ));
+                }
+                eprintln!(
+                    "ocr neural model=PP-OCRv5 runtime=tract threads=1 load_ms={}",
+                    started.elapsed().as_millis()
+                );
+                Ok(model)
+            }
+        }
+    }
+    fn load_onnx(root: &Path, data: &[u8], started: Instant) -> Result<Self, String> {
         let library = if cfg!(windows) {
             "onnxruntime.dll"
         } else {
@@ -106,7 +156,7 @@ impl Model {
             ("basic", GraphOptimizationLevel::Level1),
             ("compatibility", GraphOptimizationLevel::Disable),
         ] {
-            let mut model = Self::session(&data, level, name == "compatibility")?;
+            let mut model = Self::session(data, level, name == "compatibility")?;
             let probe = Image {
                 width: 240,
                 height: 32,
@@ -164,7 +214,7 @@ impl Model {
         dictionary.extend(chars.lines().map(str::to_owned));
         dictionary.push(" ".into()); // Paddle's use_space_char
         Ok(Self {
-            session,
+            backend: Backend::Onnx(session),
             dictionary,
             trace_next: true,
             threads: if compatibility { 1 } else { 2 },
@@ -208,28 +258,33 @@ impl Model {
             }
             eprintln!("ocr probe input shape=1x3x{HEIGHT}x{width} range={min:.6}..{max:.6} mean={mean:.6} sha256={:x}", hash.finalize());
         }
-        let input =
-            Tensor::from_array(([1usize, 3, HEIGHT, width], data)).map_err(|e| e.to_string())?;
-        if self.trace_next {
-            let (shape, echoed) = input
-                .try_extract_tensor::<f32>()
-                .map_err(|e| e.to_string())?;
-            let mut hash = Sha256::new();
-            for value in echoed {
-                hash.update(value.to_le_bytes());
+        let (shape, scores) = match &mut self.backend {
+            Backend::Rust(backend) => backend.run(width, data)?,
+            Backend::Onnx(session) => {
+                let input = Tensor::from_array(([1usize, 3, HEIGHT, width], data))
+                    .map_err(|e| e.to_string())?;
+                if self.trace_next {
+                    let (shape, echoed) = input
+                        .try_extract_tensor::<f32>()
+                        .map_err(|e| e.to_string())?;
+                    let mut hash = Sha256::new();
+                    for value in echoed {
+                        hash.update(value.to_le_bytes());
+                    }
+                    eprintln!(
+                        "ocr probe tensor shape={shape:?} sha256={:x}",
+                        hash.finalize()
+                    );
+                }
+                let result = session
+                    .run(ort::inputs![input])
+                    .map_err(|e| e.to_string())?;
+                let (shape, scores) = result[0]
+                    .try_extract_tensor::<f32>()
+                    .map_err(|e| e.to_string())?;
+                (shape.to_vec(), scores.to_vec())
             }
-            eprintln!(
-                "ocr probe tensor shape={shape:?} sha256={:x}",
-                hash.finalize()
-            );
-        }
-        let result = self
-            .session
-            .run(ort::inputs![input])
-            .map_err(|e| e.to_string())?;
-        let (shape, scores) = result[0]
-            .try_extract_tensor::<f32>()
-            .map_err(|e| e.to_string())?;
+        };
         if shape.len() != 3 || shape[0] != 1 || shape[2] as usize != self.dictionary.len() {
             return Err("Unexpected neural OCR output shape.".into());
         }
@@ -251,7 +306,7 @@ impl Model {
             let sum = scores.iter().take(classes).map(|&v| v as f64).sum::<f64>();
             eprintln!("ocr probe output shape={shape:?} range={min:.6}..{max:.6} first_row_sum={sum:.6} blank_steps={} space_steps={} steps={} argmax={:?}", ids.iter().filter(|&&id| id==0).count(), ids.iter().filter(|&&id| id+1==classes).count(), ids.len(), &ids[..ids.len().min(96)]);
         }
-        ctc(scores, self.dictionary.len(), &self.dictionary)
+        ctc(&scores, self.dictionary.len(), &self.dictionary)
     }
 }
 
@@ -387,10 +442,13 @@ pub fn recognize_seeded(
         })
         .as_ref()
         .map_err(Clone::clone)?;
+    eprintln!("ocr neural stage=session_ready");
     let mut model = model
         .lock()
         .map_err(|_| "Neural OCR session unavailable.")?;
+    eprintln!("ocr neural stage=session_locked");
     check()?;
+    eprintln!("ocr neural stage=target_checked");
     let mut boxes = if hints.is_empty() {
         regions(&image, colored)?
     } else {
@@ -401,6 +459,7 @@ pub fn recognize_seeded(
         boxes = regions(&image, colored)?;
     }
     boxes.sort_by_key(|r| r[1]);
+    eprintln!("ocr neural stage=segmented regions={}", boxes.len());
     if boxes.is_empty() {
         return Err("No text lines found by neural segmentation.".into());
     }

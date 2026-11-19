@@ -409,6 +409,20 @@ pub fn neural_seed_lines(lines: &[Line], gem: bool) -> Vec<&Line> {
         })
         .collect()
 }
+fn is_requirement(text: &str) -> bool {
+    if key(text).starts_with("requires") {
+        return true;
+    }
+    static ROW: OnceLock<Regex> = OnceLock::new();
+    let row = ROW.get_or_init(|| Regex::new(r"(?i)requires\s+level\s+\d+(?:\s*\(gem\))?(?:\s*,\s*\d+\s*(?:str|dex|int)(?:\s*\(gem\))?)*\s*$").unwrap());
+    row.find(text).is_some_and(|m| {
+        let prefix = &text[..m.start()];
+        prefix.len() <= 64
+            && !prefix
+                .chars()
+                .any(|c| c.is_ascii_digit() || "%+#".contains(c))
+    })
+}
 pub fn layout_range(lines: &[Line]) -> Option<(f64, f64, f64)> {
     let (i, entry) = select_item(lines).ok()?;
     if entry.namespace == "GEM" {
@@ -417,7 +431,7 @@ pub fn layout_range(lines: &[Line]) -> Option<(f64, f64, f64)> {
     let center = lines[i].x + lines[i].width / 2.;
     let after = lines
         .iter()
-        .filter(|l| key(&l.text).starts_with("requires"))
+        .filter(|l| is_requirement(&l.text))
         .map(|l| l.y + l.height)
         .max_by(f64::total_cmp)?;
     let before = lines
@@ -616,7 +630,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
             written = false;
             continue;
         }
-        if k.starts_with("requires") || k.starts_with("tier") {
+        if is_requirement(&line.text) || k.starts_with("tier") {
             continue;
         }
         if k == "corrupted" || k == "mirrored" || k == "unidentified" {
@@ -997,6 +1011,30 @@ mod tests {
         let d = draft(lines, "test".into()).unwrap();
         assert_eq!(d.unknown, ["Uncertain OCR: 14% to Fire Resistanc"]);
         assert!(d.text.contains("25 to maximum Life"));
+    }
+    #[test]
+    fn requirements_with_a_neighboring_realm_label_are_not_unknown_mods_or_ilvl() {
+        let rows = [
+            "Paladin Boots",
+            "ParisReQuiREs LeVEl 84, 155 StR (geM), 68 DeX (GeM), 98 INT",
+            "9 to maximum Energy Shield",
+            "Grants Level 20 Aspect of the Spider",
+        ];
+        let lines = rows
+            .iter()
+            .enumerate()
+            .map(|(i, s)| line(s, i as f64 * 22., None))
+            .collect();
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{}", d.text);
+        let item = crate::item::Item::parse(&d.text).unwrap();
+        assert_eq!(item.item_level, None);
+        assert!(item.modifiers.iter().any(|m| m.value == Some(9.)));
+        assert!(item
+            .modifiers
+            .iter()
+            .any(|m| m.value == Some(20.) && m.reference.contains("Aspect of the Spider")));
+        assert!(!is_requirement("Grants Level 20 Aspect of the Spider"));
     }
     #[test]
     fn visible_dividers_classify_implicits_without_overriding_source_headers() {

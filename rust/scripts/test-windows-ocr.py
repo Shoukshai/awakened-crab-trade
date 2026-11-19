@@ -79,6 +79,14 @@ def wait(fn,label,seconds=15):
   time.sleep(.05)
  raise RuntimeError(f'Timeout {label}: {last}')
 def click(x,y):subprocess.run(['xdotool','mousemove','--sync',str(int(x)),str(int(y)),'click','1'],env=env,check=True)
+def focus_target(label, app_id="awakened-crab-trade-ocr"):
+ # Wine may finish unmapping GTK after the hide acknowledgement. Retry only
+ # on this guarded fake desktop instead of losing the single focus click.
+ def focused():
+  if command('status',app_id)['game_active']:return True
+  click(200,700)
+  return command('status',app_id)['game_active']
+ wait(focused,label)
 def pointer(x,y):subprocess.run(['xdotool','mousemove','--sync',str(int(x)),str(int(y))],env=env,check=True)
 def control(rect):
  st=status();o=st['origin'];assert st['state']=='Interactive' and rect and rect.get('mapped',True),rect
@@ -128,7 +136,7 @@ try:
   assert normal_command('status')['settings']['theme']=='terminal' and status()['settings']['theme']=='tide'
   (root/'fixture-item.txt').write_text((r/'src/fixtures/driftwood-wand.txt').read_text())
   launch(root/'apt-win32-fixture.exe',['--windowed','--ocr-local'],'local-game');wait(lambda:(root/'fixture.state.json').exists(),'local game')
-  click(200,700);wait(lambda:normal_command('status')['game_active'],'normal scope')
+  focus_target('normal scope','awakened-crab-trade')
   subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
   wait(lambda:normal_command('status')['item'] and normal_command('status')['state']=='Interactive','normal shortcut')
   assert status()['state']=='Hidden' and status()['capture_pending'] is None
@@ -150,28 +158,34 @@ try:
   start=time.monotonic();st=status();checks.append(time.monotonic()-start);time.sleep(.1)
  wait(lambda:(root/'ocr-snapshot.ppm').exists(),'pixels captured while Alt held',15)
  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
- wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','OCR review',30)
+ def first_review_ready():
+  current=status()
+  assert current['state']!='Hidden' or current['game_active'],('OCR lost target focus before review',current['desktop'])
+  return current.get('ocr_review',{}).get('mapped') and current['state']=='Interactive'
+ wait(first_review_ready,'OCR review',30)
+ report['target_focus_retained_during_recognition']=True
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
  if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')=='1':
   assert review['status'].startswith('Fallback OCR'),review
-  assert review['diagnostic_visible'] and 'Version 0.36.4' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
+  assert review['diagnostic_visible'] and 'Version 0.36.5' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
   assert review['copy_diagnostic']['width']>0,review
   shot('ocr-fallback-diagnostic-en.png')
   control(review['copy_diagnostic'])
-  click(200,700);wait(lambda:status()['state']=='Hidden' and status()['game_active'],'return to cloud after copying diagnostic')
+  focus_target('return to cloud after copying diagnostic');wait(lambda:status()['state']=='Hidden','review hidden after copying diagnostic')
   def copied_diagnostic():
    subprocess.run(['xdotool','key','--clearmodifiers','F12'],env=env,check=True)
    p=root/'clipboard-read.txt'
    text=p.read_text() if p.exists() else ''
    return text if 'Awakened Crab Trade diagnostics' in text and 'Neural OCR model:' in text else None
   full=wait(copied_diagnostic,'read full copied diagnostic')
-  assert 'Version: 0.36.4' in full and 'CPU:' in full and 'Complete current session log' in full,full
+  assert 'Version: 0.36.5' in full and 'CPU:' in full and 'Complete current session log' in full,full
   assert 'ocr neural fallback:' in full and 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
   assert json.loads((root/'cloud.state.json').read_text())['copies']==0
   report.update(neural_failure_visible=True,diagnostic_copied=True,diagnostic=review['diagnostic'],no_clipboard_injection=True)
   (r/'dist/windows-ocr-fallback-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
   raise SystemExit(0)
  assert not review['diagnostic_visible'] and not review['diagnostic'],review
+ if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1':assert review['status'].startswith('PP-OCRv5 English (Rust CPU)'),review
  assert 'Item Level: 71' in review['text'],review
  assert 'Regenerate 56.5 Life per second' in review['text'],review
  assert not posts and st['request'] is None
@@ -205,7 +219,7 @@ try:
   image=Image.new('RGB',(1392,866),(30,34,40));draw=ImageDraw.Draw(image);draw.rectangle((max(0,cx-340),top-10,min(1390,cx+340),min(850,top+len(rows)*40+40)),fill=(5,5,5))
   for i,(text,color) in enumerate(rows):draw.text((cx,top+i*38),text,fill=color,font=font if i==0 else small,anchor='mt')
   for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp']:image.save(root/name)
-  family_env['APT_FIXTURE_ITEM']=case;command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused '+case)
+  family_env['APT_FIXTURE_ITEM']=case;command('hide');focus_target('cloud focused '+case)
   (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
   subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');wait(lambda:(root/'ocr-snapshot.ppm').exists(),'auto snapshot '+case,15);subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
   wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','automatic '+case,35)
@@ -215,7 +229,7 @@ try:
   print('automatic',case,'passed',flush=True)
  report['automatic_families']=[expected for _,expected,_,_,_ in auto_cases]
  # Exhausting every method must be bounded and keep the review action disabled.
- command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused for blank capture')
+ command('hide');focus_target('cloud focused for blank capture')
  (root/'capture-all-blank').touch();(root/'ocr-snapshot.ppm').unlink(missing_ok=True)
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');time.sleep(.2)
  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
@@ -226,7 +240,7 @@ try:
  assert not (root/'ocr-snapshot.ppm').exists() and not posts
  (root/'capture-all-blank').unlink();report['all_blank_reports_each_backend']=True
  # A second request is cancelled by Escape/hide before it may reopen the panel.
- command('hide');click(200,700);wait(lambda:status()['game_active'],'cloud focused again')
+ command('hide');focus_target('cloud focused again')
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.2);command('locked-copy');time.sleep(.15);command('hide');subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
  time.sleep(2);assert status()['state']=='Hidden','cancelled OCR reopened the panel'
  # A foreign executable must not be accepted just because its title resembles a client.
@@ -255,8 +269,8 @@ try:
   assert [k['value'] for k in status()['preferences']['hotkeys']]==[k['value'] for k in cloud_keys]
   control(status()['preferences']['cancel'])
   shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr.bmp');shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr-advanced.bmp')
-  (root/'hide-cloud').touch();time.sleep(.2);command('hide');click(200,700)
-  wait(lambda:status()['game_active'] and normal_command('status')['game_active'],'local game selected by both editions')
+  (root/'hide-cloud').touch();time.sleep(.2);command('hide');focus_target('local game selected')
+  wait(lambda:normal_command('status')['game_active'],'local game selected by standard edition')
   normal_before=normal_command('status')['generation'];copies_before=json.loads((root/'fixture.state.json').read_text())['copies']
   (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
   subprocess.run(['xdotool','keydown','Alt_L','keydown','Control_L','key','o','keyup','Control_L'],env=env,check=True)
@@ -283,7 +297,7 @@ try:
  control(status()['preferences']['tabs'][-1])
  wait(lambda:status()['preferences']['logs']['mapped'] and not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['bytes']>0,'session log view')
  log_info=status()['preferences']['logs']
- assert 'Version: 0.36.4' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
+ assert 'Version: 0.36.5' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
  shot('session-log-en.png')
  control(log_info['copy'])
  wait(lambda:not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['status']=='Entire log copied.','copy entire current log')
@@ -299,7 +313,8 @@ try:
   return text if 'Awakened Crab Trade diagnostics' in text else None
  full=wait(copied_session,'read full session clipboard')
  assert 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
- for expected in ['Version: 0.36.4','CPU:','OS: Windows','ocr probe input shape=','ocr probe tensor shape=','ocr probe output shape=','ocr neural self_test=optimized']:
+ expected_backend='ocr neural self_test=rust' if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1' else 'ocr neural self_test=optimized'
+ for expected in ['Version: 0.36.5','CPU:','OS: Windows','ocr probe input shape=','ocr probe output shape=',expected_backend]:
   assert expected in full,(expected,full)
  report['entire_session_log_tab_and_clipboard']=True
  report['copied_log_bytes']=len(full.encode())

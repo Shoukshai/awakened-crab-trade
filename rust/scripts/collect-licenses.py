@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Bundle exact registry license files for the host's locked dependency graph.
 
-Includes build/test dependencies. Two published GTK binding crates omit their
-workspace MIT text; pinned upstream copies live in packaging/license-supplements.
+Includes build/test dependencies. Published crates that omit workspace license
+texts use pinned upstream copies in packaging/license-supplements.
 No network access or credential lookup is performed by this script.
 """
 import hashlib
