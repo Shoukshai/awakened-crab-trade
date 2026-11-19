@@ -5,6 +5,7 @@
 mod appearance;
 mod calculated;
 mod capture;
+mod catalog;
 mod compat;
 #[cfg(target_os = "linux")]
 mod desktop;

@@ -207,13 +207,13 @@ struct Unique {
     #[serde(rename = "fixedStats")]
     fixed_stats: Option<Vec<String>>,
 }
-fn catalogue() -> &'static Vec<CatalogueEntry> {
-    static ITEMS: OnceLock<Vec<CatalogueEntry>> = OnceLock::new();
-    ITEMS.get_or_init(|| {
-        include_str!("data/base-items.ndjson")
-            .lines()
-            .chain(include_str!("data/current-items.ndjson").lines())
-            .map(|s| serde_json::from_str(s).expect("upstream catalogue entry"))
+fn catalogue() -> std::sync::Arc<Vec<CatalogueEntry>> {
+    static ITEMS: crate::catalog::Index<Vec<CatalogueEntry>> = crate::catalog::Index::new();
+    ITEMS.get(|snapshot| {
+        snapshot
+            .items
+            .iter()
+            .filter_map(|v| serde_json::from_value(v.clone()).ok())
             .collect()
     })
 }
@@ -304,6 +304,7 @@ impl Item {
     }
 
     pub fn parse(text: &str) -> Result<Self, String> {
+        let catalogue = catalogue();
         if text.len() > 65536 {
             return Err("Item text exceeds 64 KiB".into());
         }
@@ -376,7 +377,7 @@ impl Item {
         }
         // Longest catalogue match avoids suffix/prefix ambiguity for magic items.
         if rarity == Rarity::Magic {
-            base = catalogue()
+            base = catalogue
                 .iter()
                 .filter(|v| v.namespace == "ITEM" && v.craftable.is_some())
                 .map(|v| v.name.as_str())
@@ -413,7 +414,7 @@ impl Item {
             _ => "ITEM",
         };
         let identity = if namespace == "UNIQUE" { &name } else { &base };
-        let info = catalogue().iter().find(|v| {
+        let info = catalogue.iter().find(|v| {
             v.namespace == namespace
                 && v.name == *identity
                 && (namespace != "UNIQUE"
@@ -442,7 +443,7 @@ impl Item {
                     .or_else(|| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
             })
             .or_else(|| {
-                catalogue()
+                catalogue
                     .iter()
                     .find(|v| v.namespace == "ITEM" && v.name == base)
                     .and_then(|v| v.craftable.as_ref().and_then(|c| c.category.as_deref()))
@@ -463,7 +464,7 @@ impl Item {
                     .unwrap_or(0)
             })
             .unwrap_or(0);
-        let armour_base = catalogue()
+        let armour_base = catalogue
             .iter()
             .find(|v| v.namespace == "ITEM" && v.name == base)
             .map(|v| v.armour.clone())
@@ -503,7 +504,7 @@ impl Item {
                         lines
                             .iter()
                             .find(|line| {
-                                catalogue()
+                                catalogue
                                     .iter()
                                     .any(|v| v.namespace == "AREA" && v.name == **line)
                             })
@@ -515,7 +516,7 @@ impl Item {
         area.special = map_area
             .as_ref()
             .and_then(|name| {
-                catalogue()
+                catalogue
                     .iter()
                     .find(|v| v.namespace == "AREA" && v.name == *name)
             })
@@ -525,7 +526,7 @@ impl Item {
         area.trade_disc = map_area
             .as_ref()
             .and_then(|name| {
-                catalogue()
+                catalogue
                     .iter()
                     .find(|v| v.namespace == "AREA" && v.name == *name)
             })
@@ -559,7 +560,7 @@ impl Item {
                 if section.lines().count() != 1 {
                     continue;
                 }
-                if let Some(gem) = catalogue()
+                if let Some(gem) = catalogue
                     .iter()
                     .find(|v| v.namespace == "GEM" && v.name == section)
                 {
@@ -753,7 +754,8 @@ mod tests {
     }
     #[test]
     fn every_current_viscera_base_has_a_slot_and_resolves() {
-        let entries: Vec<_> = catalogue()
+        let catalogue = catalogue();
+        let entries: Vec<_> = catalogue
             .iter()
             .filter(|e| e.category.as_deref() == Some("Viscera"))
             .collect();

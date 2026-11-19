@@ -1,5 +1,6 @@
 //! Conservative conversion of positioned OCR lines to reviewable item text.
-//! No fuzzy name/stat replacement and no inferred item level.
+//! Local catalogue word repair never supplies digits or an inferred item level.
+mod lexicon;
 use crate::item::Rarity;
 use regex::Regex;
 use std::{collections::HashMap, sync::OnceLock};
@@ -48,35 +49,39 @@ fn stat_key(s: &str) -> String {
         .collect()
 }
 /// Recover canonical capitalization/spacing only when the entire stat matches.
-fn stat(s: &str) -> Option<String> {
-    static MATCHERS: OnceLock<HashMap<String, Vec<String>>> = OnceLock::new();
-    let matchers = MATCHERS.get_or_init(|| {
+fn matchers() -> std::sync::Arc<HashMap<String, Vec<String>>> {
+    static MATCHERS: crate::catalog::Index<HashMap<String, Vec<String>>> =
+        crate::catalog::Index::new();
+    MATCHERS.get(|snapshot| {
         let mut out: HashMap<String, Vec<String>> = HashMap::new();
-        for line in include_str!("data/base-stats.ndjson")
-            .lines()
-            .chain(include_str!("data/current-stats.ndjson").lines())
-        {
-            let v: serde_json::Value = serde_json::from_str(line).unwrap();
-            // Trade pseudo filters include the eldritch source headers. They
-            // are metadata, not additional physical lines on the item.
-            if v["trade"]["ids"]
-                .as_object()
-                .is_some_and(|ids| !ids.is_empty() && ids.keys().all(|kind| kind == "pseudo"))
+        for row in &snapshot.stats {
+            for v in row
+                .get("stats")
+                .and_then(serde_json::Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or(std::slice::from_ref(row))
             {
-                continue;
-            }
-            if let Some(a) = v["matchers"].as_array() {
-                for m in a {
-                    if let Some(s) = m["string"].as_str() {
-                        for s in s.lines() {
-                            // Some multi-line catalogue matchers contain a
-                            // bare '#'. A detached ilvl is never a modifier.
-                            if !s.chars().any(|c| c.is_ascii_alphabetic()) {
-                                continue;
-                            }
-                            let list = out.entry(stat_key(s)).or_default();
-                            if !list.iter().any(|v| v == s) {
-                                list.push(s.into());
+                // Trade pseudo filters include the eldritch source headers. They
+                // are metadata, not additional physical lines on the item.
+                if v["trade"]["ids"]
+                    .as_object()
+                    .is_some_and(|ids| !ids.is_empty() && ids.keys().all(|kind| kind == "pseudo"))
+                {
+                    continue;
+                }
+                if let Some(a) = v["matchers"].as_array() {
+                    for m in a {
+                        if let Some(s) = m["string"].as_str() {
+                            for s in s.lines() {
+                                // Some multi-line catalogue matchers contain a
+                                // bare '#'. A detached ilvl is never a modifier.
+                                if !s.chars().any(|c| c.is_ascii_alphabetic()) {
+                                    continue;
+                                }
+                                let list = out.entry(stat_key(s)).or_default();
+                                if !list.iter().any(|v| v == s) {
+                                    list.push(s.into());
+                                }
                             }
                         }
                     }
@@ -84,7 +89,13 @@ fn stat(s: &str) -> Option<String> {
             }
         }
         out
-    });
+    })
+}
+fn stat(s: &str) -> Option<String> {
+    exact_stat(s).or_else(|| lexicon::stat(s, &matchers()))
+}
+fn exact_stat(s: &str) -> Option<String> {
+    let matchers = matchers();
     let original = s.replace('−', "-").replace('’', "'");
     static UNSCALABLE: OnceLock<Regex> = OnceLock::new();
     let unscalable =
@@ -267,7 +278,7 @@ fn modifier_header(text: &str) -> Option<(String, String)> {
     }
     Some((kind.to_ascii_lowercase(), header))
 }
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 struct Identity {
     name: String,
     namespace: String,
@@ -280,23 +291,23 @@ struct Identity {
     #[serde(default)]
     category: Option<String>,
 }
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 struct Category {
     category: Option<String>,
 }
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 struct Unique {
     base: Option<String>,
 }
-fn identities() -> &'static HashMap<String, Vec<Identity>> {
-    static ITEMS: OnceLock<HashMap<String, Vec<Identity>>> = OnceLock::new();
-    ITEMS.get_or_init(|| {
+fn identities() -> std::sync::Arc<HashMap<String, Vec<Identity>>> {
+    static ITEMS: crate::catalog::Index<HashMap<String, Vec<Identity>>> =
+        crate::catalog::Index::new();
+    ITEMS.get(|snapshot| {
         let mut out: HashMap<String, Vec<Identity>> = HashMap::new();
-        for line in include_str!("data/base-items.ndjson")
-            .lines()
-            .chain(include_str!("data/current-items.ndjson").lines())
-        {
-            let mut entry: Identity = serde_json::from_str(line).unwrap();
+        for row in &snapshot.items {
+            let Ok(mut entry) = serde_json::from_value::<Identity>(row.clone()) else {
+                continue;
+            };
             if entry.namespace == "AREA" {
                 entry.name.push_str(" Map");
                 entry.namespace = "MAP".into();
@@ -306,26 +317,57 @@ fn identities() -> &'static HashMap<String, Vec<Identity>> {
         out
     })
 }
-fn identity(line: &Line) -> Option<&'static Identity> {
+fn identity(line: &Line) -> Option<Identity> {
     let k = key(&line.text);
-    identities().get(&k).and_then(|v| v.first()).or_else(|| {
-        identities()
-            .iter()
-            .filter(|(name, v)| {
-                let magic = line.rarity == Some(Rarity::Magic)
-                    && !line.text.chars().any(|c| c.is_ascii_digit())
-                    && v[0].craftable.is_some()
-                    && v[0].namespace == "ITEM";
-                name.len() >= 8
-                    && k.find(name.as_str()).is_some_and(|start| {
-                        magic || (start <= 2 && k.len() - start - name.len() <= 3)
+    let items = identities();
+    items
+        .get(&k)
+        .and_then(|v| v.first())
+        .or_else(|| {
+            items
+                .iter()
+                .filter(|(name, v)| {
+                    let magic = line.rarity == Some(Rarity::Magic)
+                        && !line.text.chars().any(|c| c.is_ascii_digit())
+                        && v[0].craftable.is_some()
+                        && v[0].namespace == "ITEM";
+                    name.len() >= 8
+                        && k.find(name.as_str()).is_some_and(|start| {
+                            magic || (start <= 2 && k.len() - start - name.len() <= 3)
+                        })
+                })
+                .max_by_key(|(name, _)| name.len())
+                .and_then(|(_, v)| v.first())
+        })
+        .cloned()
+        .or_else(|| {
+            let name = lexicon::name(
+                &line.text,
+                items
+                    .iter()
+                    .filter(|(_, entries)| {
+                        entries.iter().any(|e| match line.rarity {
+                            Some(Rarity::Gem) => e.namespace == "GEM",
+                            Some(Rarity::Rare | Rarity::Magic | Rarity::Normal) => {
+                                e.namespace == "ITEM" || e.namespace == "MAP"
+                            }
+                            Some(Rarity::Unique) => {
+                                e.namespace == "UNIQUE" || e.namespace == "ITEM"
+                            }
+                            _ => true,
+                        })
                     })
-            })
-            .max_by_key(|(name, _)| name.len())
-            .and_then(|(_, v)| v.first())
-    })
+                    .map(|(_, entries)| entries[0].name.as_str()),
+            )?;
+            let entry = items.get(&name)?.first()?.clone();
+            eprintln!(
+                "ocr catalogue item observed={:?} matched={:?}",
+                line.text, entry.name
+            );
+            Some(entry)
+        })
 }
-fn select_item(lines: &[Line]) -> Result<(usize, &'static Identity), String> {
+fn select_item(lines: &[Line]) -> Result<(usize, Identity), String> {
     let candidates: Vec<_> = lines
         .iter()
         .enumerate()
@@ -359,13 +401,13 @@ fn select_item(lines: &[Line]) -> Result<(usize, &'static Identity), String> {
                     score += 1;
                 }
             }
-            (*i, *e, score)
+            (*i, e.clone(), score)
         })
         .collect();
     ranked.sort_by_key(|(_, _, score)| std::cmp::Reverse(*score));
     if let Some((i, e, score)) = ranked.first() {
         if ranked.len() == 1 || (*score > 0 && *score > ranked[1].2) {
-            return Ok((*i, *e));
+            return Ok((*i, e.clone()));
         }
     }
     Err("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).".into())
@@ -1165,7 +1207,7 @@ mod tests {
         assert!(i.corrupted);
     }
     #[test]
-    fn correcting_an_ocr_line_recovers_the_stat_without_guessing_its_spelling() {
+    fn a_unique_dictionary_wording_recovers_a_stray_glyph_without_changing_the_roll() {
         let d = draft(
             vec![
                 line("Varnished Coat", 0., Some(Rarity::Rare)),
@@ -1174,13 +1216,42 @@ mod tests {
             "test".into(),
         )
         .unwrap();
-        let bad = crate::item::Item::parse(&d.text).unwrap();
-        assert!(bad.modifiers.is_empty());
-        assert_eq!(d.unknown.len(), 1);
-        let corrected = d.text.replace("SHIELD G", "SHIELD");
-        let text = normalize_review(&corrected).unwrap();
-        let fixed = crate::item::Item::parse(&text).unwrap();
+        assert!(d.unknown.is_empty());
+        let fixed = crate::item::Item::parse(&d.text).unwrap();
         assert_eq!(fixed.modifiers.len(), 1);
+        assert_eq!(fixed.modifiers[0].value, Some(123.));
+    }
+    #[test]
+    fn local_dictionary_repairs_names_and_words_but_not_missing_or_conflicting_numbers() {
+        let d = draft(
+            vec![
+                line("Warlock Bots", 0., Some(Rarity::Rare)),
+                line("+25(24-29)% to Lightnlng Resistance", 30., None),
+            ],
+            "test".into(),
+        )
+        .unwrap();
+        assert!(d.text.contains("Warlock Boots"), "{}", d.text);
+        assert!(
+            d.text.contains("+25(24-29)% to Lightning Resistance"),
+            "{}",
+            d.text
+        );
+        assert!(!d.text.contains("Item Level:"));
+        assert_eq!(
+            stat("+41(39-49) to maximun Energy ShieId").as_deref(),
+            Some("+41(39-49) to maximum Energy Shield")
+        );
+        assert!(stat("+491(39-49) to maximun Energy ShieId").is_none());
+        assert!(stat("+25% to Resistance").is_none());
+        assert!(stat("0 NCREASED MOVEMENT SPEED").is_none());
+        assert_eq!(
+            stat("Non-Channelling Skills have −7(-7–-6) to Total Mana Cosl").as_deref(),
+            Some("Non-Channelling Skills have -7(-7--6) to Total Mana Cost")
+        );
+        let text =
+            normalize_review("123% INCREASED EVASION AND ENERGY SHIELD GARBLED_WORDS").unwrap();
+        assert!(text.contains("GARBLED_WORDS"));
     }
     #[test]
     fn all_tooltip_families_resolve_without_coordinates() {

@@ -775,6 +775,11 @@ impl Ui {
                     old.theme != settings.theme && before == after
                 };
                 crate::i18n::set_language(settings.language);
+                if self.settings.borrow().automatic_catalog_updates
+                    != settings.automatic_catalog_updates
+                {
+                    crate::catalog::start_background(settings.automatic_catalog_updates);
+                }
                 localization::refresh(&self.window);
                 #[cfg(target_os = "windows")]
                 crate::desktop::native::set_capture(&settings.capture);
@@ -1615,6 +1620,13 @@ impl Ui {
 #[allow(deprecated)] // GTK3's matching glib 0.18 channel; wakes the main loop without polling.
 pub fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "catalogue") {
+        println!(
+            "{}",
+            crate::catalog::prepare(!args.iter().any(|a| a == "--offline"))?
+        );
+        return Ok(());
+    }
     #[cfg(feature = "neural-ocr")]
     if args.first().is_some_and(|a| a == "ocr-neural") {
         use gtk::gdk_pixbuf::Pixbuf;
@@ -1826,7 +1838,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "--help" || a == "help") {
-        println!("awakened-crab-trade [daemon|check|copy|locked-check|locked-copy|settings|interact|hide|quit|status|league NAME|inspect FILE|lookup FILE [LEAGUE]]\nCtrl+D: price check. Ctrl+Alt+D: interactive price check after first paint.");
+        println!("awakened-crab-trade [daemon|check|copy|locked-check|locked-copy|settings|interact|hide|quit|status|league NAME|inspect FILE|lookup FILE [LEAGUE]|catalogue [--offline]]\nCtrl+D: price check. Ctrl+Alt+D: interactive price check after first paint.");
         return Ok(());
     }
     if args.first().is_some_and(|a| a == "status") {
@@ -1871,6 +1883,7 @@ pub fn run() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let first_launch = !crate::settings::path().exists();
     let settings = Settings::load()?;
+    crate::catalog::start_background(settings.automatic_catalog_updates);
     #[cfg(target_os = "windows")]
     crate::desktop::native::set_capture(&settings.capture);
     crate::i18n::set_language(settings.language);

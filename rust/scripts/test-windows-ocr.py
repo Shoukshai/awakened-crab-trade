@@ -167,7 +167,7 @@ try:
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
  if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')=='1':
   assert review['status'].startswith('Fallback OCR'),review
-  assert review['diagnostic_visible'] and 'Version 0.36.5' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
+  assert review['diagnostic_visible'] and 'Version 0.36.6' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
   assert review['copy_diagnostic']['width']>0,review
   shot('ocr-fallback-diagnostic-en.png')
   control(review['copy_diagnostic'])
@@ -178,7 +178,7 @@ try:
    text=p.read_text() if p.exists() else ''
    return text if 'Awakened Crab Trade diagnostics' in text and 'Neural OCR model:' in text else None
   full=wait(copied_diagnostic,'read full copied diagnostic')
-  assert 'Version: 0.36.5' in full and 'CPU:' in full and 'Complete current session log' in full,full
+  assert 'Version: 0.36.6' in full and 'CPU:' in full and 'Complete current session log' in full,full
   assert 'ocr neural fallback:' in full and 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
   assert json.loads((root/'cloud.state.json').read_text())['copies']==0
   report.update(neural_failure_visible=True,diagnostic_copied=True,diagnostic=review['diagnostic'],no_clipboard_injection=True)
@@ -297,7 +297,7 @@ try:
  control(status()['preferences']['tabs'][-1])
  wait(lambda:status()['preferences']['logs']['mapped'] and not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['bytes']>0,'session log view')
  log_info=status()['preferences']['logs']
- assert 'Version: 0.36.5' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
+ assert 'Version: 0.36.6' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
  shot('session-log-en.png')
  control(log_info['copy'])
  wait(lambda:not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['status']=='Entire log copied.','copy entire current log')
@@ -314,7 +314,7 @@ try:
  full=wait(copied_session,'read full session clipboard')
  assert 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
  expected_backend='ocr neural self_test=rust' if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1' else 'ocr neural self_test=optimized'
- for expected in ['Version: 0.36.5','CPU:','OS: Windows','ocr probe input shape=','ocr probe output shape=',expected_backend]:
+ for expected in ['Version: 0.36.6','CPU:','OS: Windows','ocr probe input shape=','ocr probe output shape=',expected_backend]:
   assert expected in full,(expected,full)
  report['entire_session_log_tab_and_clipboard']=True
  report['copied_log_bytes']=len(full.encode())

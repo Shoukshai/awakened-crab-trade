@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    #[serde(default = "catalog_updates_default")]
+    pub automatic_catalog_updates: bool,
     pub capture: crate::capture::Settings,
     pub theme: crate::appearance::Theme,
     #[serde(default = "crate::i18n::Language::legacy_default")]
@@ -24,9 +26,13 @@ pub struct Settings {
 fn is_true(value: &bool) -> bool {
     *value
 }
+fn catalog_updates_default() -> bool {
+    true
+}
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            automatic_catalog_updates: true,
             capture: crate::capture::Settings::default(),
             theme: crate::appearance::Theme::default(),
             language: crate::i18n::Language::En,

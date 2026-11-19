@@ -168,7 +168,7 @@ pub fn retype(m: &Modifier, kind: &str, category: Option<&str>) -> Option<Modifi
     out.ids = ids.ids;
     Some(out)
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct Resolver {
     strat: String,
     #[serde(default)]
@@ -176,7 +176,7 @@ struct Resolver {
     #[serde(default)]
     kind: Vec<String>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(untagged)]
 enum Record {
     Group { resolve: Resolver, stats: Vec<Stat> },
@@ -387,12 +387,14 @@ struct Supplement {
     index: HashMap<String, Vec<usize>>,
     max_lines: usize,
 }
-fn supplement() -> &'static Supplement {
-    static DATA: OnceLock<Supplement> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let records: Vec<Record> = include_str!("../data/current-stats.ndjson")
-            .lines()
-            .map(|s| serde_json::from_str(s).expect("current official stat"))
+fn supplement() -> std::sync::Arc<Supplement> {
+    static DATA: crate::catalog::Index<Supplement> = crate::catalog::Index::new();
+    DATA.get(|snapshot| {
+        let records: Vec<Record> = snapshot
+            .stats
+            .iter()
+            .skip(include_str!("../data/base-stats.ndjson").lines().count())
+            .filter_map(|v| serde_json::from_value(v.clone()).ok())
             .collect();
         let mut index: HashMap<String, Vec<usize>> = HashMap::new();
         let mut max_lines = 1;
@@ -411,7 +413,7 @@ fn supplement() -> &'static Supplement {
         }
     })
 }
-fn lookup_kind(text: &str, kind: Option<&str>) -> Option<&'static Record> {
+fn lookup_kind(text: &str, kind: Option<&str>) -> Option<Record> {
     if let Some(record) = lookup_legacy(text) {
         if kind.is_none_or(|kind| {
             record
@@ -419,7 +421,7 @@ fn lookup_kind(text: &str, kind: Option<&str>) -> Option<&'static Record> {
                 .iter()
                 .any(|s| s.trade.ids.contains_key(kind))
         }) {
-            return Some(record);
+            return Some(record.clone());
         }
     }
     let data = supplement();
@@ -428,8 +430,9 @@ fn lookup_kind(text: &str, kind: Option<&str>) -> Option<&'static Record> {
         .iter()
         .map(|i| &data.records[*i])
         .find(|r| kind.is_none_or(|k| r.stats().iter().any(|s| s.trade.ids.contains_key(k))))
+        .cloned()
 }
-fn lookup(text: &str) -> Option<&'static Record> {
+fn lookup(text: &str) -> Option<Record> {
     lookup_kind(text, None)
 }
 fn lookup_legacy(text: &str) -> Option<&'static Record> {
@@ -689,7 +692,7 @@ pub fn translate(
             continue;
         };
         let Some(stat) = resolve(
-            record,
+            &record,
             &candidate,
             kind,
             category,

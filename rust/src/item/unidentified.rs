@@ -39,7 +39,8 @@ impl Item {
         if !self.needs_unique_identity() {
             return Err("Cet objet n’attend pas de choix d’identité unique.".into());
         }
-        let entry = catalogue()
+        let catalogue = catalogue();
+        let entry = catalogue
             .iter()
             .find(|e| {
                 e.namespace == "UNIQUE"

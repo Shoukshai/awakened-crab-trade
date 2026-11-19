@@ -56,7 +56,8 @@ pub(super) fn parse(raw: &str) -> Result<Option<Parsed>, String> {
         }
         for line in &lines {
             if let Some(name) = line.strip_prefix("Build: ") {
-                let entry = super::catalogue()
+                let catalogue = super::catalogue();
+                let entry = catalogue
                     .iter()
                     .find(|e| e.namespace == "MERCENARY_BUILD" && e.name == name)
                     .ok_or("Unknown Mercenary Build.")?;

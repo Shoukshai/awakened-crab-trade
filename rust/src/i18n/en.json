@@ -288,5 +288,6 @@
   "Copier tout le journal": "Copy entire log",
   "Lecture du journal…": "Reading log...",
   "Journal complet copié.": "Entire log copied.",
-  "Journal de la session actuelle.": "Current session log."
+  "Journal de la session actuelle.": "Current session log.",
+  "Mettre à jour automatiquement les catalogues d’objets et de mods": "Update item and modifier catalogues automatically"
 }

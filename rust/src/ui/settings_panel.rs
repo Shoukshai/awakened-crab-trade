@@ -25,6 +25,7 @@ pub struct Panel {
     #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     local_poe: gtk::CheckButton,
     automatic_league: gtk::CheckButton,
+    automatic_catalog_updates: gtk::CheckButton,
     online: gtk::CheckButton,
     scale: gtk::SpinButton,
     range: gtk::SpinButton,
@@ -136,10 +137,20 @@ impl Panel {
         let merchant = gtk::CheckButton::with_label("Offres disponibles auprès des marchands");
         let collapse =
             gtk::CheckButton::with_label("Regrouper les offres par compte via le service Trade");
+        let automatic_catalog_updates = gtk::CheckButton::with_label(
+            "Mettre à jour automatiquement les catalogues d’objets et de mods",
+        );
         let stock = gtk::CheckButton::with_label("Activer le filtre du stock de la pile copiée");
-        for (index, w) in [&online, &merchant, &collapse, &stock, &restore_clipboard]
-            .into_iter()
-            .enumerate()
+        for (index, w) in [
+            &online,
+            &merchant,
+            &collapse,
+            &stock,
+            &restore_clipboard,
+            &automatic_catalog_updates,
+        ]
+        .into_iter()
+        .enumerate()
         {
             general.attach(w, 0, 6 + index as i32, 2, 1);
         }
@@ -289,6 +300,7 @@ impl Panel {
             #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
             local_poe,
             automatic_league,
+            automatic_catalog_updates,
             online,
             scale,
             range,
@@ -340,6 +352,8 @@ impl Panel {
         self.theme.set_active_id(Some(s.theme.id()));
         self.league.set_text(&s.league);
         self.automatic_league.set_active(s.automatic_league);
+        self.automatic_catalog_updates
+            .set_active(s.automatic_catalog_updates);
         self.league.set_sensitive(!s.automatic_league);
         self.online.set_active(s.filters.online);
         self.scale.set_value(s.scale);
@@ -386,6 +400,7 @@ impl Panel {
             .ok_or("Style inconnu.")?;
         s.league = self.league.text().trim().into();
         s.automatic_league = self.automatic_league.is_active();
+        s.automatic_catalog_updates = self.automatic_catalog_updates.is_active();
         s.filters.online = self.online.is_active();
         s.scale = self.scale.value();
         s.search_range = self.range.value();
