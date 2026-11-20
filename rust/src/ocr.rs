@@ -473,6 +473,43 @@ fn is_requirement(text: &str) -> bool {
                 .any(|c| c.is_ascii_digit() || "%+#".contains(c))
     })
 }
+/// Merchant prices are a separate footer, never searchable item modifiers.
+/// Require a standalone Cost label followed by a nearby currency row in this
+/// tooltip column. Do not filter words such as Gold or Cost inside real mods,
+/// currency item headers, or the mana cost of a gem.
+fn merchant_cutoff(lines: &[Line], header: &Line) -> Option<f64> {
+    let center = header.x + header.width / 2.;
+    lines
+        .iter()
+        .filter(|label| {
+            key(&label.text) == "cost"
+                && label.y >= header.y + header.height
+                && (label.x + label.width / 2. - center).abs() < (header.width * 0.4).max(42.)
+        })
+        .filter(|label| {
+            let height = label.height.max(8.);
+            lines.iter().any(|row| {
+                let text = key(&row.text);
+                // Icons may split the amount and currency into separate OCR
+                // boxes. The explicit Cost label also makes a bare name safe.
+                let currency = text.trim_start_matches(|c: char| c.is_ascii_digit() || c == 'x');
+                [
+                    "gold",
+                    "chaosorb",
+                    "divineorb",
+                    "exaltedorb",
+                    "mirrorofkalandra",
+                ]
+                .contains(&currency)
+                    && row.y >= label.y + height * 0.5
+                    && row.y <= label.y + height * 5.
+                    && (row.x + row.width / 2. - label.x - label.width / 2.).abs()
+                        <= (height * 3.).max(60.)
+            })
+        })
+        .map(|label| label.y)
+        .min_by(f64::total_cmp)
+}
 pub fn layout_range(lines: &[Line]) -> Option<(f64, f64, f64)> {
     let (i, entry) = select_item(lines).ok()?;
     if entry.namespace == "GEM" {
@@ -532,6 +569,7 @@ pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
     sorted.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
     let (i, _) = select_item(&sorted)?;
     let h = &sorted[i];
+    let merchant = merchant_cutoff(&sorted, h);
     let center = h.x + h.width / 2.;
     let mut x = h.x;
     let mut right = h.x + h.width;
@@ -542,6 +580,9 @@ pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
         .skip(i + 1)
         .filter(|l| (l.x + l.width / 2. - center).abs() < 90.)
     {
+        if merchant.is_some_and(|y| line.y + line.height / 2. >= y) {
+            break;
+        }
         if line.y - bottom > 95. {
             break;
         }
@@ -553,7 +594,7 @@ pub fn tooltip_bounds(lines: &[Line]) -> Result<[f64; 4], String> {
         (x - 18.).max(0.),
         top,
         (right - x + 36.).max(220.),
-        bottom - top + 20.,
+        merchant.map_or(bottom + 20., |y| (bottom + 20.).min(y)) - top,
     ])
 }
 pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
@@ -570,6 +611,7 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     wrapping::repair(&mut lines);
     let (index, entry) = select_item(&lines)?;
     let header = &lines[index];
+    let merchant = merchant_cutoff(&lines, header);
     let center = header.x + header.width / 2.;
     let in_column = |l: &Line| (l.x + l.width / 2. - center).abs() < (header.width * 0.4).max(42.);
     let previous = lines[..index]
@@ -670,6 +712,9 @@ pub fn draft(mut lines: Vec<Line>, engine: String) -> Result<Draft, String> {
     let mut modifier = "Explicit Modifier".to_string();
     let mut written = false;
     for line in lines.iter().skip(index + 1).filter(|l| in_column(l)) {
+        if merchant.is_some_and(|y| line.y + line.height / 2. >= y) {
+            break;
+        }
         if line.y - last_y > 95. && rarity != Rarity::Gem {
             break;
         }
@@ -1024,6 +1069,100 @@ mod tests {
             .enumerate()
             .map(|(i, t)| line(t, i as f64 * 24., None))
             .collect()
+    }
+    #[test]
+    fn merchant_footer_is_excluded_from_draft_and_tooltip_bounds() {
+        for price in ["44x Divine Orb", "200x Chaos Orb", "5,760 Gold"] {
+            let lines = rows(&[
+                "Driftwood Wand",
+                "Item Level: 71",
+                "8% increased Spell Damage",
+                "Cost:",
+                price,
+                "5,760 Gold",
+                // Even a plausible mod from UI below the footer is excluded.
+                "99% increased Spell Damage",
+            ]);
+            let bounds = tooltip_bounds(&lines).unwrap();
+            assert!(bounds[1] + bounds[3] <= lines[3].y, "{bounds:?}");
+            let d = draft(lines, "test".into()).unwrap();
+            assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+            let item = crate::item::Item::parse(&d.text).unwrap();
+            assert_eq!(item.item_level, Some(71));
+            assert_eq!(item.modifiers.len(), 1, "{}", d.text);
+            assert_eq!(item.modifiers[0].value, Some(8.));
+        }
+    }
+    #[test]
+    fn merchant_footer_handles_split_icons_amounts_and_missing_colon() {
+        let mut lines = rows(&[
+            "Driftwood Wand",
+            "8% increased Spell Damage",
+            "COST",
+            "Divine Orb",
+            "GOLD",
+        ]);
+        // Currency names are offset right because the amount and icon have
+        // their own OCR boxes, as in the merchant captures.
+        lines[3].x += 48.;
+        lines[4].x += 58.;
+        let mut amount = line("44x", lines[3].y, None);
+        amount.x = 820.;
+        amount.width = 45.;
+        lines.push(amount);
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        assert!(!d.text.contains("COST") && !d.text.contains("44"));
+    }
+    #[test]
+    fn merchant_filter_keeps_gem_costs_currency_headers_and_gold_mods() {
+        for text in [
+            vec![
+                "Kinetic Blast",
+                "Cost:",
+                "9 Mana",
+                "Quality: +20%",
+                "Level: 21 (Max)",
+            ],
+            vec![
+                "Driftwood Wand",
+                "10% increased Quantity of Gold Dropped",
+                "Cost: 9 Mana",
+                "8% increased Spell Damage",
+            ],
+            vec!["Divine Orb", "Stack Size: 1/20"],
+        ] {
+            let lines = rows(&text);
+            assert!(merchant_cutoff(&lines, &lines[0]).is_none());
+            let d = draft(lines, "test".into()).unwrap();
+            if text[0] == "Kinetic Blast" {
+                let item = crate::item::Item::parse(&d.text).unwrap();
+                assert_eq!(item.gem_level, Some(21));
+                assert_eq!(item.quality, Some(20));
+            } else if text[0] == "Driftwood Wand" {
+                // Recognized or uncertain, a real Gold line remains visible.
+                assert!(d.text.to_ascii_lowercase().contains("gold"));
+                assert!(d.text.contains("8% increased Spell Damage"));
+            } else {
+                assert!(d.text.contains("Divine Orb"));
+            }
+        }
+    }
+    #[test]
+    fn merchant_footer_in_another_column_does_not_truncate_the_item() {
+        let mut lines = rows(&[
+            "Driftwood Wand",
+            "Cost:",
+            "44x Divine Orb",
+            "8% increased Spell Damage",
+        ]);
+        for l in &mut lines[1..3] {
+            l.x -= 500.;
+        }
+        assert!(merchant_cutoff(&lines, &lines[0]).is_none());
+        let d = draft(lines, "test".into()).unwrap();
+        assert!(d.unknown.is_empty(), "{} {:?}", d.text, d.unknown);
+        assert!(d.text.contains("8% increased Spell Damage"));
     }
     #[test]
     fn wrapped_unique_jewel_mod_keeps_its_condition_and_observed_roll() {
