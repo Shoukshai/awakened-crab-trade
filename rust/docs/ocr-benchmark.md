@@ -167,3 +167,22 @@ rust/target/release/awakened-crab-trade ocr-neural rust/assets/fixtures/ocr/boot
 
 Python and 7-Zip are build helpers only. The shipped EXEs contain no Python
 modules. [Pinned model/runtime sources](https://github.com/Shoukshai/awakened-crab-trade/blob/main/rust/packaging/windows/neural-ocr.json).
+
+## Private fine-tuned test builds (0.36.8)
+
+A private PoE fine-tune can replace the recognizer in a test package. The normal
+build still downloads the pinned upstream model. Custom builds require both
+`CRAB_OCR_MODEL_SHA256` and `CRAB_OCR_MODEL_BYTES` at compile time. The loader
+checks the exact size and SHA256 before either CPU backend can use the model.
+Package with `package-windows.py --ocr --ocr-model MODEL.onnx
+--ocr-model-license LICENSE`, then `package-windows-portable.py --ocr`.
+
+The review identifies these builds as "Crab OCR fine-tuned". The session log and
+package license manifest record the model identity. A synthetic uppercase
+"ITEM LEVEL: 84" probe must decode exactly with confidence above 0.9 before the
+engine is accepted. This probe contains no user screenshot or training crop.
+Screenshots, annotations and checkpoints stay outside the repository. The
+portable test executable includes only the inference model and its license.
+
+Private evaluation results measure individual cropped lines, not complete items
+or end-to-end capture reliability. Real Windows testing remains necessary.

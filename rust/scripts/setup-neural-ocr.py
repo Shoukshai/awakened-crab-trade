@@ -12,6 +12,8 @@ import zipfile
 root = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--platform', choices=['windows', 'linux'], default='windows')
+parser.add_argument('--model-license', type=pathlib.Path, help='License shipped with a custom model')
+parser.add_argument('--model', type=pathlib.Path, help='Private fine-tuned model; never downloaded or uploaded')
 options = parser.parse_args()
 lock = json.loads((root / 'packaging/windows/neural-ocr.json').read_text())
 cache = root / 'dist/neural-downloads'
@@ -42,7 +44,23 @@ def fetch(record):
 
 model = output / 'share/ocr' / lock['model']['file']
 model.parent.mkdir(parents=True, exist_ok=True)
-shutil.copyfile(fetch(lock['model']), model)
+if options.model:
+    if not options.model_license or not options.model_license.is_file():
+        raise SystemExit('--model requires --model-license')
+    shutil.copyfile(options.model_license, licenses / 'PaddleOCR-LICENSE')
+    data = options.model.read_bytes()
+    if not 0 < len(data) <= 12_000_000:
+        raise SystemExit('Invalid custom OCR model size')
+    model.write_bytes(data)
+    (licenses / 'custom-model.json').write_text(json.dumps({
+        'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data),
+        'base': 'PaddleOCR en_PP-OCRv5_mobile_rec', 'license': 'Apache-2.0',
+        'variant': 'Private PoE fine-tune; training data not included',
+    }, indent=2) + '\n')
+else:
+    shutil.copyfile(fetch(lock['model']), model)
+    (licenses / 'custom-model.json').unlink(missing_ok=True)
+    (licenses / 'PaddleOCR-LICENSE').unlink(missing_ok=True)
 shutil.copyfile(fetch(lock['model_license']), licenses / 'RapidOCR-LICENSE')
 runtime = lock['runtime'][options.platform]
 with zipfile.ZipFile(fetch(runtime)) as archive:

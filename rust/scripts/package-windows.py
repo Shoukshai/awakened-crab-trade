@@ -3,7 +3,11 @@
 import hashlib, json, pathlib, re, shutil, subprocess, tomllib, zipfile, argparse
 
 root = pathlib.Path(__file__).resolve().parents[1]
-parser=argparse.ArgumentParser();parser.add_argument('--ocr',action='store_true');options=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--ocr',action='store_true');parser.add_argument('--ocr-model',type=pathlib.Path);parser.add_argument('--ocr-model-license',type=pathlib.Path);options=parser.parse_args()
+if options.ocr_model and not options.ocr_model_license:
+    parser.error('--ocr-model requires --ocr-model-license')
+if options.ocr_model and not options.ocr:
+    parser.error('--ocr-model requires --ocr')
 app_id='awakened-crab-trade-ocr' if options.ocr else 'awakened-crab-trade'
 version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
 tools = root / 'dist/windows-tools'
@@ -18,11 +22,16 @@ exe = target / 'x86_64-pc-windows-gnullvm/release/awakened-crab-trade.exe'
 ocr_product = ('Awakened Crab Trade OCR' + '\0').encode('utf-16le')
 if (ocr_product in exe.read_bytes()) != options.ocr:
     raise SystemExit('Wrong executable edition: rebuild the requested target before packaging')
+if options.ocr:
+    expected_hash = (hashlib.sha256(options.ocr_model.read_bytes()).hexdigest() if options.ocr_model
+                     else json.loads((root / 'packaging/windows/neural-ocr.json').read_text())['model']['sha256'])
+    if expected_hash.encode('ascii') not in exe.read_bytes():
+        raise SystemExit('OCR model does not match the compiled executable: rebuild with the matching model SHA256 and size')
 (output/'edition.json').write_text(json.dumps({'edition':app_id,'capture':'ocr' if options.ocr else 'clipboard'})+'\n')
 shutil.copy2(exe, output / exe.name)
 neural = root / 'dist/neural-runtime-windows'
 if options.ocr:
-    subprocess.run(['python3', str(root / 'scripts/setup-neural-ocr.py')], check=True)
+    subprocess.run(['python3', str(root / 'scripts/setup-neural-ocr.py'), *(['--model', str(options.ocr_model), '--model-license', str(options.ocr_model_license)] if options.ocr_model else [])], check=True)
     for dll in neural.glob('*.dll'):
         shutil.copy2(dll, output / dll.name)
     shutil.copytree(neural / 'share/ocr', output / 'share/ocr')

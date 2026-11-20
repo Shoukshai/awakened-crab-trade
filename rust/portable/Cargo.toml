@@ -1,6 +1,6 @@
 [package]
 name = "awakened-crab-trade-portable"
-version = "0.36.7"
+version = "0.36.8"
 edition = "2021"
 license = "MIT"
 

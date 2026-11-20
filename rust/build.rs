@@ -1,4 +1,23 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=CRAB_OCR_MODEL_SHA256");
+    println!("cargo:rerun-if-env-changed=CRAB_OCR_MODEL_BYTES");
+    if let Ok(hash) = std::env::var("CRAB_OCR_MODEL_SHA256") {
+        assert!(
+            hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
+            "Invalid OCR model SHA256"
+        );
+        let size = std::env::var("CRAB_OCR_MODEL_BYTES")
+            .expect("Custom OCR model requires CRAB_OCR_MODEL_BYTES");
+        let bytes: u64 = size.parse().expect("Invalid OCR model size");
+        assert!(bytes > 0 && bytes <= 12_000_000, "Invalid OCR model size");
+        println!("cargo:rustc-env=CRAB_OCR_MODEL_SHA256={hash}");
+        println!("cargo:rustc-env=CRAB_OCR_MODEL_BYTES={size}");
+    } else {
+        assert!(
+            std::env::var_os("CRAB_OCR_MODEL_BYTES").is_none(),
+            "Custom OCR size requires SHA256"
+        );
+    }
     println!("cargo:rerun-if-changed=packaging/windows/app.rc");
     println!("cargo:rerun-if-changed=packaging/windows/app.manifest");
     println!("cargo:rerun-if-changed=assets/branding/app.ico");

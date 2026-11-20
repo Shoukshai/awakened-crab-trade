@@ -34,7 +34,20 @@ pub fn peak_memory_mib() -> Option<f64> {
             .then_some(memory.PeakWorkingSetSize as f64 / 1048576.)
     }
 }
-const HASH: &str = "c3461add59bb4323ecba96a492ab75e06dda42467c9e3d0c18db5d1d21924be8";
+const HASH: &str = match option_env!("CRAB_OCR_MODEL_SHA256") {
+    Some(hash) => hash,
+    None => "c3461add59bb4323ecba96a492ab75e06dda42467c9e3d0c18db5d1d21924be8",
+};
+const PROBE_TEXT: &str = if option_env!("CRAB_OCR_MODEL_SHA256").is_some() {
+    "ITEM LEVEL: 84"
+} else {
+    "Energy Shield: 149"
+};
+const PROBE: &[u8] = if option_env!("CRAB_OCR_MODEL_SHA256").is_some() {
+    include_bytes!("../assets/fixtures/ocr/crab-probe.bgra")
+} else {
+    include_bytes!("../assets/fixtures/ocr/neural-probe.bgra")
+};
 const HEIGHT: usize = 48;
 const MAX_WIDTH: usize = 2048;
 const MAX_LINES: usize = 96;
@@ -75,7 +88,11 @@ pub fn engine_label() -> &'static str {
         .and_then(|m| m.lock().ok())
         .map(|m| matches!(m.backend, Backend::Rust(_)))
     {
+        Some(true) if option_env!("CRAB_OCR_MODEL_SHA256").is_some() => {
+            "Crab OCR fine-tuned (Rust CPU)"
+        }
         Some(true) => "PP-OCRv5 English (Rust CPU)",
+        _ if option_env!("CRAB_OCR_MODEL_SHA256").is_some() => "Crab OCR fine-tuned (CPU)",
         _ => "PP-OCRv5 English (CPU)",
     }
 }
@@ -84,10 +101,14 @@ impl Model {
     fn load(root: &Path) -> Result<Self, String> {
         let started = Instant::now();
         let path = root.join("share/ocr").join(MODEL);
+        let expected_size: u64 = option_env!("CRAB_OCR_MODEL_BYTES")
+            .unwrap_or("7872351")
+            .parse()
+            .map_err(|_| "Invalid compiled OCR model size")?;
         if std::fs::metadata(&path)
             .map_err(|e| format!("Neural OCR model: {e}"))?
             .len()
-            != 7_872_351
+            != expected_size
         {
             return Err("Neural OCR model size mismatch.".into());
         }
@@ -95,6 +116,11 @@ impl Model {
         if data.len() > 12_000_000 || format!("{:x}", Sha256::digest(&data)) != HASH {
             return Err("Neural OCR model checksum mismatch.".into());
         }
+        eprintln!(
+            "ocr model identity sha256={HASH} bytes={} custom={}",
+            data.len(),
+            option_env!("CRAB_OCR_MODEL_SHA256").is_some()
+        );
         match std::panic::catch_unwind(|| Self::load_onnx(root, &data, started))
             .unwrap_or_else(|_| Err("Native ONNX Runtime could not initialize".into()))
         {
@@ -111,11 +137,11 @@ impl Model {
                 let probe = Image {
                     width: 240,
                     height: 32,
-                    bgra: include_bytes!("../assets/fixtures/ocr/neural-probe.bgra"),
+                    bgra: PROBE,
                 };
                 let (text, confidence) = model.read(&probe, [7, 5, 191, 23], false)?;
                 eprintln!("ocr neural self_test=rust text={text:?} confidence={confidence:.3}");
-                if text != "Energy Shield: 149" || confidence <= 0.9 {
+                if text != PROBE_TEXT || confidence <= 0.9 {
                     return Err(format!(
                         "Native OCR failed: {error}; Rust OCR self-test failed: {text:?}"
                     ));
@@ -160,11 +186,11 @@ impl Model {
             let probe = Image {
                 width: 240,
                 height: 32,
-                bgra: include_bytes!("../assets/fixtures/ocr/neural-probe.bgra"),
+                bgra: PROBE,
             };
             let (text, confidence) = model.read(&probe, [7, 5, 191, 23], false)?;
             eprintln!("ocr neural self_test={name} text={text:?} confidence={confidence:.3}");
-            if text == "Energy Shield: 149" && confidence > 0.9 {
+            if text == PROBE_TEXT && confidence > 0.9 {
                 eprintln!(
                     "ocr neural model=PP-OCRv5 runtime=ONNX threads={} graph={name} load_ms={}",
                     if name == "compatibility" { 1 } else { 2 },

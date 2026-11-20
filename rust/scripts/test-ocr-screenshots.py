@@ -11,6 +11,10 @@ app=pathlib.Path(sys.argv[1]).resolve();assert app.is_file()
 wp=lambda p:'Z:'+str(p.resolve()).replace('/','\\')
 rust_backend=os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1'
 expected_engine='PP-OCRv5 English (Rust CPU)' if rust_backend else 'PP-OCRv5 English (CPU)'
+custom_model=(app.parent/'licenses/neural-ocr/custom-model.json').is_file()
+if custom_model:
+ expected_engine='Crab OCR fine-tuned (Rust CPU)' if rust_backend else 'Crab OCR fine-tuned (CPU)'
+probe_text='ITEM LEVEL: 84' if custom_model else 'Energy Shield: 149'
 report={'scope':'User-provided basic and advanced tooltips; actual bundled OCR under private Wine, no real-game input. Windows.Media.Ocr and hardware capture still require Windows validation.','cases':[]}
 for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  if sys.argv[2:] and case['file'] not in sys.argv[2:]:continue
@@ -25,7 +29,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
  start=time.monotonic();result=subprocess.run([s['wine'],wp(app),'ocr-image',wp(image)],env=env,capture_output=True,timeout=90)
  assert result.returncode==0,(case['file'],result.stderr.decode(errors='replace'))
  data=json.loads(result.stdout);(root/('ocr-result-'+case['file']+'.json')).write_text(json.dumps(data,indent=2)+'\n')
- assert 'text="Energy Shield: 149"' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
+ assert f'text="{probe_text}"' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
  assert 'ocr probe input shape=' in result.stderr.decode(errors='replace') and 'ocr probe output shape=' in result.stderr.decode(errors='replace'),result.stderr.decode(errors='replace')
  assert data['engine']==expected_engine,'Packaged neural runtime/model was not used'
  text=data['text'];item=data['item'];assert item['item_level']==case['expected_ilvl'],'Wrong or invented item level'
