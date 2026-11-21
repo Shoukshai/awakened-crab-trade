@@ -73,20 +73,27 @@ enum Flag {
 }
 struct NumberRow {
     kind: Number,
+    group: gtk::Box,
     enabled: gtk::ToggleButton,
     min: gtk::SpinButton,
     value_entry: Option<gtk::Entry>,
+    classic_value: Option<gtk::Entry>,
     exact: Option<gtk::CheckButton>,
     max_enabled: Option<gtk::CheckButton>,
     max: Option<gtk::SpinButton>,
 }
 pub struct Panel {
     pub container: gtk::Box,
+    pub classic_name: gtk::ToggleButton,
+    pub classic_corruption: gtk::Button,
+    exact_name: RefCell<String>,
+    relaxed_name: RefCell<String>,
     summary: gtk::Label,
-    expander: gtk::Expander,
+    pub expander: gtk::Expander,
     fields: gtk::Box,
     quick: gtk::Box,
     classic_chips: gtk::FlowBox,
+    classic_advanced: gtk::Box,
     quick_order: RefCell<Vec<gtk::Widget>>,
     theme: Cell<crate::appearance::Theme>,
     model: RefCell<Option<Plan>>,
@@ -142,14 +149,31 @@ impl Panel {
         container.pack_start(&classic_chips, false, false, 0);
         container.pack_start(&summary, false, false, 0);
         container.pack_start(&quick, false, false, 0);
+        let classic_advanced = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        classic_advanced.set_no_show_all(true);
+        container.pack_start(&classic_advanced, false, false, 0);
         container.pack_start(&expander, false, false, 0);
-        Rc::new(Self {
+        let classic_name = gtk::ToggleButton::new();
+        classic_name.style_context().add_class("classic-name");
+        classic_name.set_hexpand(true);
+        classic_name.set_halign(gtk::Align::Fill);
+        let classic_corruption = gtk::Button::new();
+        classic_corruption
+            .style_context()
+            .add_class("classic-corruption");
+        classic_corruption.set_no_show_all(true);
+        let panel = Rc::new(Self {
             container,
+            classic_name,
+            classic_corruption,
+            exact_name: RefCell::new(String::new()),
+            relaxed_name: RefCell::new(String::new()),
             summary,
             expander,
             fields,
             quick,
             classic_chips,
+            classic_advanced,
             quick_order: RefCell::new(vec![]),
             theme: Cell::new(crate::appearance::Theme::Tide),
             model: RefCell::new(None),
@@ -167,12 +191,115 @@ impl Panel {
             updating: Cell::new(false),
             last_snapshot: RefCell::new(None),
             send: Rc::new(send),
-        })
+        });
+        let weak = Rc::downgrade(&panel);
+        panel.classic_name.connect_toggled(move |button| {
+            if let Some(p) = weak.upgrade() {
+                if !p.updating.get() {
+                    if let Some(scope) = p.scope.borrow().as_ref() {
+                        scope.set_active(button.is_active());
+                    }
+                }
+            }
+        });
+        let weak = Rc::downgrade(&panel);
+        panel.classic_corruption.connect_clicked(move |_| {
+            if let Some(p) = weak.upgrade() {
+                if let Some(combo) = p.corruption.borrow().as_ref() {
+                    let next = match combo.active_id().as_deref() {
+                        Some("false") => "true",
+                        Some("true") => "all",
+                        _ => "false",
+                    };
+                    combo.set_active_id(Some(next));
+                }
+            }
+        });
+        let weak = Rc::downgrade(&panel);
+        panel.expander.connect_expanded_notify(move |expander| {
+            if let Some(p) = weak.upgrade() {
+                if p.theme.get() == crate::appearance::Theme::Awakened {
+                    p.classic_advanced.set_no_show_all(!expander.is_expanded());
+                    p.classic_advanced.set_visible(expander.is_expanded());
+                }
+            }
+        });
+        panel
+    }
+    fn refresh_classic_identity(&self) {
+        let was_updating = self.updating.replace(true);
+        let exact = self.scope.borrow().as_ref().is_some_and(|s| s.is_active());
+        let adjustable = self
+            .model
+            .borrow()
+            .as_ref()
+            .is_some_and(|p| p.search_relaxed.is_some());
+        self.classic_name.set_active(exact);
+        self.classic_name.set_sensitive(adjustable);
+        let name = self
+            .model
+            .borrow()
+            .as_ref()
+            .and_then(|p| {
+                let search = if exact {
+                    &p.search_exact
+                } else {
+                    p.search_relaxed.as_ref().unwrap_or(&p.search_exact)
+                };
+                search
+                    .name
+                    .clone()
+                    .or_else(|| search.base_type.clone())
+                    .or_else(|| search.base_type_trade.clone())
+            })
+            .unwrap_or_else(|| {
+                if exact || !adjustable {
+                    self.exact_name.borrow().clone()
+                } else {
+                    format!(
+                        "{}: {}",
+                        crate::i18n::tr("Catégorie"),
+                        self.relaxed_name.borrow()
+                    )
+                }
+            });
+        self.classic_name.set_label(&name);
+        if let Some(label) = self
+            .classic_name
+            .child()
+            .and_then(|w| w.downcast::<gtk::Label>().ok())
+        {
+            label.set_xalign(0.);
+            label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            label.set_max_width_chars(36);
+        }
+        let id = self
+            .corruption
+            .borrow()
+            .as_ref()
+            .and_then(|c| c.active_id());
+        self.classic_corruption.set_visible(id.is_some());
+        self.classic_corruption
+            .style_context()
+            .remove_class("corrupted");
+        let text = match id.as_deref() {
+            Some("false") => "Non corrompu",
+            Some("true") => {
+                self.classic_corruption
+                    .style_context()
+                    .add_class("corrupted");
+                "Corrompu"
+            }
+            _ => "Corruption : tous",
+        };
+        self.classic_corruption.set_label(&crate::i18n::tr(text));
+        self.updating.set(was_updating);
     }
     fn changed(&self) {
         if self.updating.get() {
             return;
         }
+        self.refresh_classic_identity();
         self.update_scope();
         self.update_trade();
         self.update_summary();
@@ -202,12 +329,47 @@ impl Panel {
     pub fn set_theme(&self, theme: crate::appearance::Theme) {
         self.theme.set(theme);
         let classic = theme == crate::appearance::Theme::Awakened;
+        if let Some(parent) = self
+            .expander
+            .parent()
+            .and_then(|p| p.downcast::<gtk::Container>().ok())
+        {
+            parent.remove(&self.expander);
+        }
+        if let Some(parent) = self
+            .fields
+            .parent()
+            .and_then(|p| p.downcast::<gtk::Container>().ok())
+        {
+            parent.remove(&self.fields);
+        }
+        if classic {
+            self.classic_advanced
+                .pack_start(&self.fields, false, false, 0);
+        } else {
+            self.expander.add(&self.fields);
+        }
+        self.classic_advanced
+            .set_no_show_all(!classic || !self.expander.is_expanded());
+        self.classic_advanced
+            .set_visible(classic && self.expander.is_expanded());
+        self.quick.set_no_show_all(classic);
+        self.quick.set_visible(!classic);
         for widget in self.quick_order.borrow().iter() {
             if let Some(parent) = widget
                 .parent()
                 .and_then(|p| p.downcast::<gtk::Container>().ok())
             {
                 parent.remove(widget);
+            }
+            if classic
+                && self
+                    .scope
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|s| s.upcast_ref::<gtk::Widget>() == widget)
+            {
+                continue;
             }
             if classic && widget.style_context().has_class("quick-choice") {
                 self.fields.pack_start(widget, false, false, 0);
@@ -217,6 +379,11 @@ impl Panel {
             } else {
                 self.quick.pack_start(widget, false, false, 0);
             }
+        }
+        if classic {
+            self.classic_chips.insert(&self.expander, -1);
+        } else {
+            self.container.pack_start(&self.expander, false, false, 0);
         }
         for child in self.classic_chips.children() {
             if child
@@ -230,6 +397,45 @@ impl Panel {
             child.show_all();
         }
         self.classic_chips.set_visible(classic);
+        for row in self.numbers.borrow().iter() {
+            row.group.set_spacing(if classic { 0 } else { 8 });
+            row.group.style_context().add_class("number-chip");
+            row.min.set_width_chars(if classic { 2 } else { 4 });
+            if let Some(flat) = &row.classic_value {
+                let invalid = flat.text().parse::<u32>().is_err();
+                let show_flat = classic || invalid;
+                flat.set_no_show_all(!show_flat);
+                flat.set_visible(show_flat);
+                row.min.set_no_show_all(show_flat);
+                row.min.set_visible(!show_flat);
+            }
+            if let Some(entry) = &row.value_entry {
+                entry.set_width_chars(if classic { 2 } else { 5 });
+            }
+            if let Some(exact) = &row.exact {
+                exact.set_label(if classic { "=" } else { "Exact" });
+                exact.set_tooltip_text(Some(&crate::i18n::tr("Exact")));
+            }
+        }
+        self.refresh_classic_identity();
+    }
+    pub fn fit_classic_chips(&self, width: i32) {
+        let children: Vec<_> = self
+            .classic_chips
+            .children()
+            .into_iter()
+            .filter(|c| c.is_visible())
+            .collect();
+        let needed = children.iter().map(|c| c.preferred_width().1).sum::<i32>()
+            + self.classic_chips.column_spacing() as i32 * children.len().saturating_sub(1) as i32;
+        let columns = if !children.is_empty() && needed <= width {
+            children.len() as u32
+        } else {
+            1
+        };
+        if self.classic_chips.min_children_per_line() != columns {
+            self.classic_chips.set_min_children_per_line(columns);
+        }
     }
     pub fn commit(&self) {
         for row in self.numbers.borrow().iter() {
@@ -243,7 +449,7 @@ impl Panel {
         let rect = |w: &gtk::Widget| {
             w.translate_coordinates(window,0,0).map(|(x,y)| serde_json::json!({"x":x,"y":y,"width":w.allocated_width(),"height":w.allocated_height(),"mapped":w.is_mapped()}))
         };
-        serde_json::json!({"corruption":self.corruption.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"rarity":self.rarity.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"base":self.scope.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(b.upcast_ref()),"label":b.label().map(|s|s.to_string()),"active":b.is_active(),"sensitive":b.is_sensitive()})),"numbers":self.numbers.borrow().iter().map(|r|serde_json::json!({"name":format!("{:?}",r.kind),"rect":rect(r.enabled.upcast_ref()),"active":r.enabled.is_active(),"value":r.value_entry.as_ref().map(|e|e.text().to_string()),"field":r.value_entry.as_ref().and_then(|e|rect(e.upcast_ref())).or_else(||rect(r.min.upcast_ref())),"field_sensitive":r.value_entry.as_ref().map(|e|e.is_sensitive())})).collect::<Vec<_>>()})
+        serde_json::json!({"options":{"rect":rect(self.expander.upcast_ref()),"expanded":self.expander.is_expanded(),"fields_mapped":self.fields.is_mapped()},"corruption":self.corruption.borrow().as_ref().map(|c|serde_json::json!({"rect":rect(if self.theme.get()==crate::appearance::Theme::Awakened{self.classic_corruption.upcast_ref()}else{c.upcast_ref()}),"active":c.active_id().as_deref()!=Some("all")})),"rarity":self.rarity.borrow().as_ref().map(|c|serde_json::json!({"id":c.active_id().as_deref(),"rect":rect(c.upcast_ref()),"active":c.active_id().as_deref()!=Some("all")})),"base":self.scope.borrow().as_ref().map(|b|serde_json::json!({"rect":rect(if self.theme.get()==crate::appearance::Theme::Awakened{self.classic_name.upcast_ref()}else{b.upcast_ref()}),"label":if self.theme.get()==crate::appearance::Theme::Awakened{self.classic_name.label().map(|s|s.to_string())}else{b.label().map(|s|s.to_string())},"active":b.is_active(),"sensitive":b.is_sensitive()})),"numbers":self.numbers.borrow().iter().map(|r|serde_json::json!({"name":format!("{:?}",r.kind),"group":rect(r.group.upcast_ref()),"rect":rect(r.enabled.upcast_ref()),"active":r.enabled.is_active(),"value":r.value_entry.as_ref().or_else(||r.classic_value.as_ref().filter(|e|e.upcast_ref::<gtk::Widget>().is_visible())).map(|e|e.text().to_string()),"field":r.value_entry.as_ref().or_else(||r.classic_value.as_ref().filter(|e|e.upcast_ref::<gtk::Widget>().is_visible())).and_then(|e|rect(e.upcast_ref())).or_else(||rect(r.min.upcast_ref())),"field_sensitive":r.value_entry.as_ref().or_else(||r.classic_value.as_ref().filter(|e|e.upcast_ref::<gtk::Widget>().is_visible())).map(|e|e.is_sensitive())})).collect::<Vec<_>>()})
     }
     fn quick_choice(&self, text: &str, choice: &gtk::ComboBoxText) {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -271,6 +477,15 @@ impl Panel {
     }
     pub fn clear(&self, message: &str) {
         self.updating.set(true);
+        // FlowBox removes/destroys its wrapper children on reset. Keep this
+        // persistent expander alive by detaching it before removing the wrappers.
+        if let Some(parent) = self
+            .expander
+            .parent()
+            .and_then(|p| p.downcast::<gtk::Container>().ok())
+        {
+            parent.remove(&self.expander);
+        }
         self.quick_order.borrow_mut().clear();
         for child in self.classic_chips.children() {
             self.classic_chips.remove(&child);
@@ -311,6 +526,23 @@ impl Panel {
         self.merchant_allowed.set(merchant_allowed);
         self.bulk_only.set(bulk_only);
         self.model.replace(Some(plan.clone()));
+        self.exact_name.replace(
+            if matches!(
+                item.family(),
+                crate::item::Family::Unique | crate::item::Family::Gem
+            ) {
+                if item.name.is_empty() {
+                    item.base.clone()
+                } else {
+                    item.name.clone()
+                }
+            } else if item.base.is_empty() {
+                item.name.clone()
+            } else {
+                item.base.clone()
+            },
+        );
+        self.relaxed_name.replace(item.class.clone());
         let scope = gtk::ToggleButton::with_label(if item.base.is_empty() {
             &item.name
         } else {
@@ -419,6 +651,10 @@ impl Panel {
                 continue;
             };
             let group = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            group.style_context().add_class("number-chip");
+            if !n.disabled {
+                group.style_context().add_class("active");
+            }
             let enabled = gtk::ToggleButton::with_label(if matches!(kind, Number::ItemLevel) {
                 "ilvl"
             } else {
@@ -456,6 +692,51 @@ impl Panel {
                 row.pack_start(&min, false, false, 0);
                 None
             };
+            let classic_value = if value_entry.is_none() {
+                let entry = gtk::Entry::new();
+                entry.style_context().add_class("classic-number-value");
+                entry.set_width_chars(2);
+                entry.set_max_width_chars(n.value.to_string().len().clamp(2, 8) as i32);
+                entry.set_alignment(0.5);
+                entry.set_text(&n.value.to_string());
+                entry.set_input_purpose(gtk::InputPurpose::Digits);
+                entry.set_sensitive(!n.disabled);
+                entry.set_tooltip_text(Some(&crate::i18n::tr(kind.label())));
+                entry.set_no_show_all(true);
+                let field = entry.downgrade();
+                enabled.connect_toggled(move |b| {
+                    if let Some(e) = field.upgrade() {
+                        e.set_sensitive(b.is_active());
+                    }
+                });
+                let field = entry.downgrade();
+                min.connect_value_changed(move |spin| {
+                    if let Some(entry) = field.upgrade().filter(|e| !e.has_focus()) {
+                        entry.set_text(&(spin.value().round() as u32).to_string());
+                    }
+                });
+                let spin = min.downgrade();
+                let weak = Rc::downgrade(self);
+                entry.connect_changed(move |entry| {
+                    let width = entry.text().len().clamp(2, 8) as i32;
+                    entry.set_width_chars(width);
+                    entry.set_max_width_chars(width);
+                    if let Some(spin) = spin.upgrade() {
+                        if let Ok(value) = entry.text().parse::<u32>() {
+                            if spin.value() != value as f64 {
+                                spin.set_value(value as f64);
+                            }
+                        }
+                    }
+                    if let Some(p) = weak.upgrade() {
+                        p.changed();
+                    }
+                });
+                row.pack_start(&entry, false, false, 0);
+                Some(entry)
+            } else {
+                None
+            };
             let (max_enabled, max) = if matches!(kind, Number::AreaLevel) {
                 let check = gtk::CheckButton::with_label("Max");
                 check.set_active(n.max.is_some());
@@ -482,6 +763,16 @@ impl Panel {
                     }
                 });
             }
+            let group_weak = group.downgrade();
+            enabled.connect_toggled(move |button| {
+                if let Some(group) = group_weak.upgrade() {
+                    if button.is_active() {
+                        group.style_context().add_class("active");
+                    } else {
+                        group.style_context().remove_class("active");
+                    }
+                }
+            });
             self.wire_toggle(&enabled);
             {
                 let weak = Rc::downgrade(self);
@@ -525,9 +816,11 @@ impl Panel {
             };
             self.numbers.borrow_mut().push(NumberRow {
                 kind,
+                group,
                 enabled,
                 min,
                 value_entry,
+                classic_value,
                 exact,
                 max_enabled,
                 max,
@@ -705,14 +998,18 @@ impl Panel {
         for row in self.numbers.borrow().iter() {
             if let Some(f) = row.kind.get_mut(&mut p) {
                 f.disabled = !row.enabled.is_active();
-                f.value = if let Some(entry) = &row.value_entry {
+                f.value = if let Some(entry) = row.value_entry.as_ref().or_else(|| {
+                    row.classic_value
+                        .as_ref()
+                        .filter(|e| e.upcast_ref::<gtk::Widget>().is_visible())
+                }) {
                     if f.disabled {
                         entry.text().parse::<u32>().unwrap_or(f.value)
                     } else {
                         entry
                             .text()
                             .parse::<u32>()
-                            .map_err(|_| "ilvl minimum invalide.".to_string())?
+                            .map_err(|_| "Valeur minimum invalide.".to_string())?
                     }
                 } else {
                     row.min.value().round() as u32

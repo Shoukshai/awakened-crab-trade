@@ -104,8 +104,8 @@ pub fn new(
             let w = (area.allocated_width() as f64 - 12.).max(1.);
             let h = area.allocated_height() as f64;
             let classic = area.style_context().has_class("classic-slider");
-            let bar_y = if classic { (h - 4.) / 2. } else { 4. };
-            let bar_height = if classic { 4. } else { h - 8. };
+            let bar_y = if classic { 2. } else { 4. };
+            let bar_height = if classic { h - 4. } else { h - 8. };
             let low = read(&min).ok().flatten();
             let high = read(&max).ok().flatten();
             let range = (selected.is_active() && (low.is_some() || high.is_some()))
@@ -116,7 +116,9 @@ pub fn new(
                     )
                 })
                 .filter(|(l, r)| l <= r);
-            if range.is_some() {
+            if classic {
+                super::cairo_color(cr, area, "act_line");
+            } else if range.is_some() {
                 super::cairo_color(cr, area, "act_accent");
             } else {
                 super::cairo_color(cr, area, "act_track");
@@ -124,7 +126,7 @@ pub fn new(
             cr.rectangle(6., bar_y, w, bar_height);
             let _ = cr.fill();
             if let Some((l, r)) = range {
-                super::cairo_color(cr, area, "act_track");
+                super::cairo_color(cr, area, if classic { "act_accent" } else { "act_track" });
                 cr.rectangle(6. + l * w, bar_y, ((r - l) * w).max(1.), bar_height);
                 let _ = cr.fill();
             }
@@ -142,7 +144,22 @@ pub fn new(
                 cr.line_to(x, h - 4.);
                 let _ = cr.stroke();
             }
-            if !classic {
+            if classic {
+                cr.set_font_size(11.);
+                for (value, fraction, x) in [(bounds.min, 0., 10.), (bounds.max, 1., w - 12.)] {
+                    super::cairo_color(
+                        cr,
+                        area,
+                        if range.is_some_and(|(l, r)| fraction >= l && fraction <= r) {
+                            "act_on_accent"
+                        } else {
+                            "act_muted"
+                        },
+                    );
+                    cr.move_to(x, h / 2. + 4.);
+                    let _ = cr.show_text(&super::economy_panel::format_amount(value));
+                }
+            } else {
                 cr.set_font_size(11.);
                 let accent_at =
                     |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);

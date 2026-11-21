@@ -11,13 +11,30 @@ struct OfferRow {
     widget: gtk::EventBox,
     body: gtk::Box,
     identity: gtk::Box,
+    classic_cells: gtk::Box,
+    classic_price: String,
+    normal_price: String,
     price: gtk::Label,
     tooltip: Option<String>,
     popover: Option<gtk::Popover>,
 }
+#[derive(Clone, Copy, Default)]
+struct Columns {
+    gem: bool,
+    quality: bool,
+    ilvl: bool,
+}
+fn column(text: &str, width: i32, class: &str) -> gtk::Label {
+    let l = label(text, class);
+    l.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    l.set_size_request(width, -1);
+    l.set_max_width_chars(if width > 0 { 8 } else { 20 });
+    l
+}
 pub struct Panel {
     pub container: gtk::Grid,
     rows: RefCell<Vec<OfferRow>>,
+    classic_header: gtk::Box,
     tooltip_queries: Rc<Cell<u64>>,
 }
 fn label(text: &str, class: &str) -> gtk::Label {
@@ -135,6 +152,12 @@ impl Panel {
         Self {
             container,
             rows: RefCell::new(Vec::new()),
+            classic_header: {
+                let header = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                header.style_context().add_class("trade-heading");
+                header.set_no_show_all(true);
+                header
+            },
             tooltip_queries: Rc::new(Cell::new(0)),
         }
     }
@@ -151,8 +174,57 @@ impl Panel {
         self.rows.borrow_mut().clear();
         self.container.hide();
     }
-    pub fn show(&self, prices: &Prices, family: Option<crate::item::Family>) {
+    pub fn show(
+        &self,
+        prices: &Prices,
+        family: Option<crate::item::Family>,
+        plan: Option<&crate::item_filters::Plan>,
+    ) {
         self.clear();
+        let cols = Columns {
+            gem: family == Some(crate::item::Family::Gem),
+            quality: family == Some(crate::item::Family::Gem)
+                || plan.is_some_and(|p| p.quality.is_some()),
+            ilvl: plan.is_some_and(|p| p.item_level.is_some()),
+        };
+        for child in self.classic_header.children() {
+            self.classic_header.remove(&child);
+        }
+        self.classic_header.pack_start(
+            &column(&crate::i18n::tr("Prix"), 88, "heading-price"),
+            false,
+            false,
+            0,
+        );
+        if cols.ilvl {
+            self.classic_header
+                .pack_start(&column("ilvl", 56, "heading-ilvl"), false, false, 0);
+        }
+        if cols.gem {
+            self.classic_header.pack_start(
+                &column(&crate::i18n::tr("Niveau"), 72, "heading-level"),
+                false,
+                false,
+                0,
+            );
+        }
+        if cols.quality {
+            self.classic_header.pack_start(
+                &column(&crate::i18n::tr("Qualité"), 72, "heading-quality"),
+                false,
+                false,
+                0,
+            );
+        }
+        self.classic_header.pack_start(
+            &column(&crate::i18n::tr("Mise en vente"), -1, "heading-listed"),
+            true,
+            true,
+            0,
+        );
+        for child in self.classic_header.children() {
+            child.show_all();
+        }
         for (index, listing) in prices.listings.iter().enumerate() {
             let widget = gtk::EventBox::new();
             widget.set_hexpand(true);
@@ -230,6 +302,7 @@ impl Panel {
                         format!("{} j", elapsed / 86400)
                     })
                 });
+            let listed = age.clone().unwrap_or_else(|| "—".into());
             let seller = label(
                 &age.map(|age| format!("{} · {age}", listing.seller))
                     .unwrap_or_else(|| listing.seller.clone()),
@@ -240,6 +313,50 @@ impl Panel {
             identity.pack_start(&name, false, false, 0);
             identity.pack_start(&seller, false, false, 0);
             body.pack_start(&identity, true, true, 0);
+            let classic_cells = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            classic_cells.set_hexpand(true);
+            classic_cells.set_no_show_all(true);
+            let item = listing.item.as_ref();
+            let number =
+                |value: Option<u64>| value.map(|n| n.to_string()).unwrap_or_else(|| "—".into());
+            if cols.ilvl {
+                classic_cells.pack_start(
+                    &column(&number(item.and_then(|i| i.item_level)), 56, "offer-ilvl"),
+                    false,
+                    false,
+                    0,
+                );
+            }
+            if cols.gem {
+                classic_cells.pack_start(
+                    &column(&number(item.and_then(|i| i.gem_level)), 72, "offer-level"),
+                    false,
+                    false,
+                    0,
+                );
+            }
+            if cols.quality {
+                classic_cells.pack_start(
+                    &column(
+                        &item
+                            .and_then(|i| i.quality)
+                            .map(|n| format!("+{n}%"))
+                            .unwrap_or_else(|| "—".into()),
+                        72,
+                        "offer-quality",
+                    ),
+                    false,
+                    false,
+                    0,
+                );
+            }
+            classic_cells.pack_start(
+                &column(&crate::i18n::tr(&listed), -1, "offer-listed"),
+                true,
+                true,
+                0,
+            );
+            body.pack_start(&classic_cells, true, true, 0);
             let price = price_text(listing);
             let value = label(&price, "price");
             value.set_xalign(1.);
@@ -330,11 +447,18 @@ impl Panel {
                 popover
             });
             widget.add(&body);
-            self.container.attach(&widget, 0, index as i32, 1, 1);
+            self.container.attach(&widget, 0, index as i32 + 1, 1, 1);
             self.rows.borrow_mut().push(OfferRow {
                 widget,
                 body,
                 identity,
+                classic_cells,
+                classic_price: format!(
+                    "{} {}",
+                    super::economy_panel::format_amount(listing.amount),
+                    listing.currency
+                ),
+                normal_price: price.clone(),
                 price: value,
                 tooltip: text,
                 popover,
@@ -347,6 +471,15 @@ impl Panel {
     }
     pub fn set_theme(&self, theme: crate::appearance::Theme) {
         use crate::appearance::Theme;
+        let classic = theme == Theme::Awakened;
+        self.container.set_row_spacing(if classic { 0 } else { 4 });
+        if self.classic_header.parent().is_some() {
+            self.container.remove(&self.classic_header);
+        }
+        if classic && !self.rows.borrow().is_empty() {
+            self.container.attach(&self.classic_header, 0, 0, 1, 1);
+            self.classic_header.show();
+        }
         for row in self.rows.borrow().iter() {
             if let Some(p) = &row.popover {
                 p.hide();
@@ -357,21 +490,39 @@ impl Panel {
             } else {
                 gtk::Orientation::Horizontal
             });
-            let classic = theme == Theme::Awakened;
+            row.identity.set_no_show_all(classic);
+            row.identity.set_visible(!classic);
+            for child in row.classic_cells.children() {
+                child.show_all();
+            }
+            row.classic_cells.set_visible(classic);
+            row.price.set_text(if classic {
+                &row.classic_price
+            } else {
+                &row.normal_price
+            });
+            row.body.set_margin_start(if classic { 8 } else { 0 });
+            row.body.set_margin_end(if classic { 8 } else { 0 });
             row.identity.set_orientation(if classic {
                 gtk::Orientation::Horizontal
             } else {
                 gtk::Orientation::Vertical
             });
             row.identity.set_spacing(if classic { 12 } else { 4 });
-            row.body.set_spacing(if vertical { 4 } else { 12 });
-            row.body.set_border_width(
-                if matches!(theme, Theme::Compact | Theme::Terminal | Theme::Awakened) {
-                    4
-                } else {
-                    8
-                },
-            );
+            row.body.set_spacing(if classic {
+                0
+            } else if vertical {
+                4
+            } else {
+                12
+            });
+            row.body.set_border_width(if classic {
+                0
+            } else if matches!(theme, Theme::Compact | Theme::Terminal) {
+                4
+            } else {
+                8
+            });
             row.body.reorder_child(
                 &row.price,
                 if matches!(theme, Theme::Merchant | Theme::Split | Theme::Awakened) {
@@ -387,7 +538,10 @@ impl Panel {
                     1.
                 },
             );
-            row.price.set_width_chars(if vertical {
+            row.price
+                .set_size_request(if classic { 88 } else { -1 }, -1);
+            row.price.set_max_width_chars(if classic { 10 } else { -1 });
+            row.price.set_width_chars(if classic || vertical {
                 1
             } else if theme == Theme::Merchant {
                 8
@@ -402,7 +556,14 @@ impl Panel {
         let tooltip_visible = rows
             .iter()
             .any(|r| r.popover.as_ref().is_some_and(|p| p.is_mapped()));
-        serde_json::json!({"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":rect(&r.widget,window),"detail_rect":r.popover.as_ref().filter(|p|p.is_mapped()).and_then(|p|rect(p,window)),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref().map(crate::i18n::tr)}else{None}})).collect::<Vec<_>>()})
+        let cells = |body: &gtk::Box| {
+            body.children()
+                .into_iter()
+                .filter_map(|w| w.downcast::<gtk::Label>().ok())
+                .map(|l| serde_json::json!({"text":l.text().as_str(),"rect":rect(&l,window)}))
+                .collect::<Vec<_>>()
+        };
+        serde_json::json!({"classic_table":{"visible":self.classic_header.is_mapped(),"headings":cells(&self.classic_header)},"visible":self.container.is_visible(),"rows":rows.len(),"mapped_rows":rows.iter().filter(|r|r.widget.is_mapped()).count(),"tooltip_queries":self.tooltip_queries.get(),"tooltip_visible":tooltip_visible,"offers":rows.iter().enumerate().map(|(i,r)|serde_json::json!({"rect":rect(&r.widget,window),"detail_rect":r.popover.as_ref().filter(|p|p.is_mapped()).and_then(|p|rect(p,window)),"classic_cells":cells(&r.classic_cells),"price_rect":rect(&r.price,window),"has_item_details":r.tooltip.is_some(),"tooltip":if i==0{r.tooltip.as_deref().map(crate::i18n::tr)}else{None}})).collect::<Vec<_>>()})
     }
 }
 fn content_height(scroll: &gtk::ScrolledWindow) -> i32 {

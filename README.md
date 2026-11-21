@@ -5,13 +5,13 @@
 A native Path of Exile 1 price checker for Linux and Windows, inspired by
 Awakened PoE Trade.
 
-**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.36.7)**
+**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.36.10)**
 
 - Select item modifiers and adjust integer Min/Max filters.
 - Search Trade offers and hover over a result to see its full mods and price.
 - Check poe.ninja prices for currency, gems, uniques, maps and Viscera.
 - Use a full-height overlay beside the inventory, with automatic league selection.
-- Ten live-switchable styles, including light themes, tabs and a split view.
+- Eleven live-switchable styles, including light themes, tabs and a split view.
 - Separate standard and cloud OCR executables, with automatic tooltip detection.
 
 ## Screenshots

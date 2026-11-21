@@ -109,9 +109,12 @@ struct Ui {
     ocr_review: ocr_review::Panel,
     title: gtk::Label,
     classic_item_bar: gtk::Box,
+    price_content: gtk::Box,
     text: gtk::Label,
     search_button: gtk::Button,
     settings_button: gtk::Button,
+    browser_button: gtk::Button,
+    result_toolbar: gtk::Box,
     listings: listings_panel::Panel,
     league: gtk::Entry,
     league_label: gtk::Label,
@@ -435,7 +438,7 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
-        value["appearance"] = serde_json::json!({"active":self.appearance.get().id(),"saved":self.settings.borrow().theme.id(),"workspace":self.workspace.diagnostics(&self.window),"item_title":{"text":self.title.text().as_str(),"mapped":self.title.is_mapped()}});
+        value["appearance"] = serde_json::json!({"active":self.appearance.get().id(),"saved":self.settings.borrow().theme.id(),"workspace":self.workspace.diagnostics(&self.window),"item_title":{"text":if self.appearance.get()==crate::appearance::Theme::Awakened{self.item_filters.classic_name.label().unwrap_or_default().to_string()}else{self.title.text().to_string()},"mapped":if self.appearance.get()==crate::appearance::Theme::Awakened{self.item_filters.classic_name.is_mapped()}else{self.title.is_mapped()}}});
         value["language"] = serde_json::json!(crate::i18n::language().id());
         value["search_label"] = serde_json::json!(self
             .search_button
@@ -543,6 +546,7 @@ impl Ui {
             self.backdrop.show();
         }
         self.window.show_all();
+        self.fit_filter_scrolling();
         #[cfg(target_os = "windows")]
         windows_shell::raise(&self.window);
         #[cfg(target_os = "windows")]
@@ -560,6 +564,7 @@ impl Ui {
         self.sync_generation();
         self.result.replace(None);
         self.listings.clear();
+        self.workspace.invalidate();
         self.request.replace(None);
         self.url.replace(None);
         self.economy_result.replace(None);
@@ -590,6 +595,47 @@ impl Ui {
             self.command("interact");
         }
     }
+    fn fit_filter_scrolling(&self) {
+        if self.appearance.get() != crate::appearance::Theme::Awakened {
+            self.mod_scroll.set_height_request(-1);
+            self.mod_scroll
+                .set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+            return;
+        }
+        let short = (!self.mod_expander.is_visible() || !self.mod_expander.is_expanded())
+            && !self.item_filters.expander.is_expanded();
+        self.mod_scroll.set_policy(
+            gtk::PolicyType::Never,
+            if short {
+                gtk::PolicyType::Never
+            } else {
+                gtk::PolicyType::Automatic
+            },
+        );
+        let width =
+            (self.window.width_request() - self.stack.margin_start() - self.stack.margin_end())
+                .max(1);
+        self.item_filters.fit_classic_chips(width);
+        self.mod_scroll.set_propagate_natural_height(!short);
+        if short {
+            // ScrolledWindow otherwise asks FlowBox for its unconstrained height,
+            // reserving one row per chip even when they fit on a single line.
+            let width =
+                (self.window.width_request() - self.stack.margin_start() - self.stack.margin_end())
+                    .max(1);
+            let content = self
+                .mod_scroll
+                .child()
+                .and_then(|w| w.downcast::<gtk::Viewport>().ok())
+                .and_then(|v| v.child());
+            let height = content
+                .map(|c| c.preferred_height_for_width(width).1)
+                .unwrap_or(0);
+            self.mod_scroll.set_height_request(height.max(1));
+        } else {
+            self.mod_scroll.set_height_request(-1);
+        }
+    }
     fn apply_appearance(&self, theme: crate::appearance::Theme) -> Result<(), String> {
         let scale = self.settings.borrow().scale;
         set_style(&self.window, &self.css, scale, theme)?;
@@ -608,6 +654,8 @@ impl Ui {
         self.stack.set_margin_top(if classic { 16 } else { 0 });
         self.stack.set_margin_bottom(if classic { 16 } else { 0 });
         self.classic_item_bar.set_visible(classic);
+        self.mod_expander.set_label_fill(!classic);
+        self.price_content.set_spacing(if classic { 4 } else { 12 });
         for widget in &self.header_widgets {
             if let Some(parent) = widget
                 .parent()
@@ -627,8 +675,7 @@ impl Ui {
             });
         self.league_label.set_xalign(if classic { 0.5 } else { 0. });
         if classic {
-            self.classic_item_bar.pack_start(&self.title, true, true, 0);
-            for index in [0, 2, 3, 4, 5] {
+            for index in [0, 2, 4, 5] {
                 self.header
                     .pack_start(&self.header_widgets[index], index == 2, index == 2, 0);
             }
@@ -650,6 +697,25 @@ impl Ui {
         }
         self.header.show_all();
         self.title.show();
+        {
+            let widget = self.browser_button.upcast_ref::<gtk::Widget>();
+            if let Some(parent) = widget
+                .parent()
+                .and_then(|p| p.downcast::<gtk::Container>().ok())
+            {
+                parent.remove(widget);
+            }
+        }
+        if classic {
+            self.result_toolbar
+                .pack_start(&self.online, false, false, 0);
+            self.result_toolbar
+                .pack_end(&self.browser_button, false, false, 0);
+        } else {
+            self.actions.pack_start(&self.browser_button, true, true, 0);
+        }
+        self.online.show();
+        self.browser_button.show();
         self.workspace.apply(theme, scale);
         for (index, action) in self.actions.children().iter().enumerate() {
             self.actions.set_child_packing(
@@ -667,6 +733,7 @@ impl Ui {
         self.item_filters.set_theme(theme);
         self.listings.set_theme(theme);
         self.summary.set_theme(theme);
+        self.fit_filter_scrolling();
         for row in self.stat_rows.borrow().iter() {
             row.set_theme(theme);
         }
@@ -963,6 +1030,7 @@ impl Ui {
         }
         self.result.replace(None);
         self.listings.clear();
+        self.workspace.invalidate();
         self.request.replace(None);
         self.url.replace(None);
         self.economy_result.replace(None);
@@ -1177,8 +1245,15 @@ impl Ui {
             );
         }
         self.mod_scroll.vadjustment().set_value(0.);
-        self.mod_scroll
-            .set_min_content_height(if candidates.len() > 2 { 240 } else { 100 });
+        self.mod_scroll.set_min_content_height(
+            if self.appearance.get() == crate::appearance::Theme::Awakened {
+                0
+            } else if candidates.len() > 2 {
+                240
+            } else {
+                100
+            },
+        );
         self.mod_expander.set_label(Some(&format!(
             "Stats · {}",
             candidates.iter().filter(|c| !c.disabled).count()
@@ -1194,6 +1269,7 @@ impl Ui {
             ));
         self.mod_expander.set_no_show_all(!show_stats);
         self.mod_expander.set_visible(show_stats);
+        self.fit_filter_scrolling();
         self.preset
             .set_visible(crate::presets::available(item).len() > 1);
     }
@@ -1222,6 +1298,7 @@ impl Ui {
             Err(error) => self.item_filters.clear(&error),
         }
         self.item_filters.container.show();
+        self.fit_filter_scrolling();
     }
     fn filters_changed(&self, observed_generation: u64, origin: &str) {
         if self.updating_settings.get() {
@@ -1231,12 +1308,14 @@ impl Ui {
         if self.view.get() != View::Price || !self.window.is_visible() {
             return;
         }
+        self.fit_filter_scrolling();
         if !self.state.borrow_mut().edited(observed_generation) {
             return;
         }
         self.sync_generation();
         self.request.replace(None);
         self.listings.clear();
+        self.workspace.invalidate();
         self.url.replace(None);
         if origin == "league" {
             self.economy_result.replace(None);
@@ -1274,6 +1353,7 @@ impl Ui {
         self.sync_generation();
         self.request.replace(None);
         self.listings.clear();
+        self.workspace.invalidate();
         self.url.replace(None);
         self.build_stat_rows(&item);
         self.reset_item_filters(&item);
@@ -1316,9 +1396,11 @@ impl Ui {
         self.sync_generation();
         let generation = self.state.borrow().generation;
         self.listings.clear();
+        self.workspace.invalidate();
         self.url.replace(None);
         self.request.replace(None);
         self.listings.clear();
+        self.workspace.invalidate();
         self.economy_panel.reset();
         self.economy_panel.container.hide();
         self.economy_panel.show(&Ok(Report::default()));
@@ -1596,8 +1678,12 @@ impl Ui {
                 self.result.replace(Some((generation, result.clone())));
                 match result {
                     Ok(p) => {
-                        self.listings
-                            .show(&p, self.item.borrow().as_ref().map(|i| i.family()));
+                        let plan = self.item_filters.read().ok();
+                        self.listings.show(
+                            &p,
+                            self.item.borrow().as_ref().map(|i| i.family()),
+                            plan.as_ref(),
+                        );
                         self.listings.set_theme(self.appearance.get());
                         self.workspace.searched();
                         self.text.set_text(&format!(
@@ -1997,7 +2083,10 @@ pub fn run() -> Result<(), String> {
     scroll.set_propagate_natural_height(true);
     let listings = listings_panel::Panel::new();
     let result_box = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    result_box.pack_start(&text, false, false, 0);
+    let result_toolbar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    result_toolbar.style_context().add_class("result-toolbar");
+    result_toolbar.pack_start(&text, false, false, 0);
+    result_box.pack_start(&result_toolbar, false, false, 0);
     result_box.pack_start(&listings.container, false, false, 0);
     scroll.add(&result_box);
     let league = gtk::Entry::new();
@@ -2056,6 +2145,7 @@ pub fn run() -> Result<(), String> {
     mod_scroll.add(&filter_content);
     let mod_expander = gtk::Expander::new(Some("Stats"));
     mod_expander.style_context().add_class("filter-section");
+    mod_expander.style_context().add_class("stats-section");
     mod_expander.set_label_fill(true);
     mod_box.set_margin_top(8);
     mod_expander.add(&mod_box);
@@ -2103,6 +2193,9 @@ pub fn run() -> Result<(), String> {
         .style_context()
         .add_class("classic-item-bar");
     classic_item_bar.set_no_show_all(true);
+    classic_item_bar.pack_start(&item_filters.classic_name, true, true, 0);
+    classic_item_bar.pack_end(&item_filters.classic_corruption, false, false, 0);
+    item_filters.classic_name.show();
     price_content.pack_start(&classic_item_bar, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     let summary = summary_panel::Panel::new();
@@ -2310,9 +2403,12 @@ pub fn run() -> Result<(), String> {
         ocr_review,
         title,
         classic_item_bar,
+        price_content,
         text,
         search_button: search.clone(),
         settings_button: preferences_open.clone(),
+        browser_button: browser.clone(),
+        result_toolbar,
         listings,
         league,
         league_label,
@@ -2381,6 +2477,15 @@ pub fn run() -> Result<(), String> {
         });
     }
     ui.apply_appearance(initial_theme)?;
+    for expander in [&ui.mod_expander, &ui.item_filters.expander] {
+        let weak = Rc::downgrade(&ui);
+        expander.connect_expanded_notify(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.fit_filter_scrolling();
+            }
+        });
+    }
+
     {
         let events = sender.clone();
         ui.preferences.connect_theme_preview(move |theme| {

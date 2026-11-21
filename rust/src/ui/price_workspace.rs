@@ -15,6 +15,7 @@ pub struct Workspace {
     scale: Rc<Cell<f64>>,
     currency: Cell<bool>,
     applied: Cell<bool>,
+    has_results: Cell<bool>,
 }
 fn detach(widget: &impl IsA<gtk::Widget>) {
     if let Some(parent) = widget
@@ -77,6 +78,7 @@ impl Workspace {
             scale,
             currency: Cell::new(false),
             applied: Cell::new(false),
+            has_results: Cell::new(false),
         }
     }
     pub fn apply(&self, theme: Theme, scale: f64) {
@@ -111,7 +113,13 @@ impl Workspace {
         self.filters.set_vexpand(expanded);
         self.filters.set_propagate_natural_height(!expanded);
         self.filters
-            .set_min_content_height(if expanded { 100 } else { 160 });
+            .set_min_content_height(if theme == Theme::Awakened {
+                0
+            } else if expanded {
+                100
+            } else {
+                160
+            });
         self.offers.set_min_content_height(140);
         self.offers
             .set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
@@ -152,6 +160,9 @@ impl Workspace {
                 self.container.pack_start(&self.actions, false, false, 0);
             }
         }
+        let hide_search = theme == Theme::Awakened && self.has_results.get();
+        self.actions.set_no_show_all(hide_search);
+        self.actions.set_visible(!hide_search);
         self.container.show_all();
         for marker in &self.markers {
             marker.set_visible(theme == Theme::Blueprint);
@@ -163,10 +174,21 @@ impl Workspace {
         self.container.set_no_show_all(currency);
         self.container.set_visible(!currency);
     }
+    pub fn invalidate(&self) {
+        self.has_results.set(false);
+        self.actions.set_no_show_all(false);
+        self.actions.show();
+    }
     pub fn copied(&self) {
+        self.invalidate();
         self.notebook.set_current_page(Some(0));
     }
     pub fn searched(&self) {
+        self.has_results.set(true);
+        if self.theme.get() == Theme::Awakened {
+            self.actions.set_no_show_all(true);
+            self.actions.hide();
+        }
         if self.theme.get() == Theme::Focus {
             self.notebook.set_current_page(Some(1));
         }

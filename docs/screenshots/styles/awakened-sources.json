@@ -1,14 +1,35 @@
 {
-  "version": "0.36.9",
+  "version": "0.36.10",
   "language": "en",
   "platform": "Linux, native GTK",
-  "scope": "Actual native panel, synthetic item and market offers. No live prices or real game input.",
+  "scope": "Actual native panel, synthetic items and market offers. No live prices or real game input.",
   "theme": "awakened",
-  "file": "awakened.png",
-  "size": [
-    460,
-    1600
+  "binary_sha256": "7b2d88d19580f7cdda7e79edef03c5658141ed2e9e8853ba54c923d77c7c3187",
+  "files": [
+    {
+      "file": "awakened.png",
+      "size": [
+        460,
+        1600
+      ],
+      "sha256": "16d1dbdec81da1fc37065e72fc8b83815ebf2f3a2fda6b6f30c17536518b174d"
+    },
+    {
+      "file": "awakened-gem.png",
+      "size": [
+        460,
+        1600
+      ],
+      "sha256": "c583f3fab582f6f27955bac4e6bf4c68a896ad814a79f680c19b499709fc6ba5"
+    },
+    {
+      "file": "awakened-hover.png",
+      "size": [
+        460,
+        1600
+      ],
+      "sha256": "ec7083f87f08b0692823c6cf0f4fc87e51b7d36b44ba14c1e766b82920db5efa"
+    }
   ],
-  "sha256": "c3320cdeec23d8095f2d33d5995e84d7b1509931415231096ca1b42471547937",
-  "binary_sha256": "332dfaf47ce6aaab7756ec2ed0bfa90480006df6481a95df3ae096d2a0047322"
+  "reference_commit": "2498730beecc1a46d39214ac437ffbe9f5f542d8"
 }

@@ -192,8 +192,48 @@ try:
         if os.environ.get('APT_FIXTURE_THEME')=='awakened' and family in ['wand','influence']:
             assert not s0['summary']['mapped'],s0['summary']
         else:
-            assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
+            if os.environ.get('APT_FIXTURE_THEME')=='awakened':
+                assert s0['summary']['mapped'] and 40<=s0['summary']['height']<=90,s0['summary']
+            else:
+                assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
         assert not posts,'copy must not automatically query Trade with a legacy automatic_search=true profile'
+        if family=='gem' and os.environ.get('APT_FIXTURE_THEME')=='awakened':
+            level=lambda:next(r for r in status()['item_filter_controls']['numbers'] if r['name']=='GemLevel')
+            time.sleep(.15) # Let the asynchronous quote finish reallocating the compact controls.
+            click(level()['field']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','19'],env=env,check=True)
+            wait_for(lambda:status()['item_filters']['gemLevel']['value']==19,'compact gem value changes the actual filter')
+            assert not posts
+            click(level()['field']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','19.2'],env=env,check=True)
+            click(status()['search_button']);time.sleep(.15)
+            assert not posts and not status()['request'],'fractional compact values must not become a search'
+            click(level()['field']);subprocess.run(['wtype','-M','ctrl','-k','a','-m','ctrl','--','20'],env=env,check=True)
+            wait_for(lambda:status()['item_filters']['gemLevel']['value']==20,'restore compact gem value')
+            report['compact_numeric_fields_validate_and_do_not_auto_search']=True
+            for cycle in range(2):
+                command('hide');focus_game();time.sleep(.31)
+                subprocess.run(['xdotool','key','--clearmodifiers','ctrl+alt+d'],env=env,check=True)
+                wait_for(lambda:state(state='Interactive',rendered=True,visible=True) and status()['family']=='Gem','repeat Classic capture')
+                assert status()['appearance']['item_title']['mapped'] and not posts
+            report['classic_options_survive_repeated_captures']=True
+
+        if family=='wand' and os.environ.get('APT_FIXTURE_THEME')=='awakened':
+            original=status()['item_filters']
+            click(status()['item_filter_controls']['base']['rect'])
+            wait_for(lambda:status()['item_filter_controls']['base']['active'],'Classic name selects the base')
+            click(status()['item_filter_controls']['base']['rect'])
+            wait_for(lambda:status()['item_filters']==original,'Classic name restores relaxed search')
+            for _ in range(3):click(status()['item_filter_controls']['corruption']['rect'])
+            wait_for(lambda:status()['item_filters']==original,'Classic corruption cycles preserve the actual model')
+            click(status()['item_filter_controls']['options']['rect'])
+            wait_for(lambda:status()['item_filter_controls']['options']['fields_mapped'],'Classic advanced options open')
+            previous=status()['item_filter_controls']['rarity']['id']
+            choose_combo(status()['item_filter_controls']['rarity']['rect'],4)
+            assert state(state='Interactive') and not posts
+            choose_combo(status()['item_filter_controls']['rarity']['rect'],['all','nonunique','normal','magic','rare','unique','uniquefoil'].index(previous))
+            wait_for(lambda:status()['item_filters']==original,'advanced dropdown restores its value')
+            click(status()['item_filter_controls']['options']['rect'])
+            wait_for(lambda:not status()['item_filter_controls']['options']['fields_mapped'],'Classic advanced options collapse')
+            report['classic_name_corruption_and_owned_dropdown_work']=True
         if family=='wand':
             row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
             assert row['bounds']=={'min':8.0,'max':12.0,'roll':8.0},row
@@ -232,6 +272,8 @@ try:
             cyan=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
             accent={'tide':(104,217,231),'relic':(226,161,122),'terminal':(122,200,227),'frost':(8,111,133),'split':(123,187,234),'focus':(147,175,255),'blueprint':(129,182,237),'editorial':(228,172,135),'compact':(100,214,225),'merchant':(157,79,43),'awakened':(203,213,224)}[os.environ.get('APT_FIXTURE_THEME','tide')]
             track=(184,194,201) if os.environ.get('APT_FIXTURE_THEME') in ['frost','merchant'] else (38,43,51)
+            if os.environ.get('APT_FIXTURE_THEME')=='awakened':
+                accent=(74,85,104);track=(203,213,224)
             assert all(abs(a-b)<=2 for a,b in zip(cyan,accent)) and all(abs(a-b)<=2 for a,b in zip(gray,track)),(gray,cyan,accent,track)
             report['slider_integer_thresholds_and_cyan_gray_colors']={'gray':gray,'cyan':cyan}
             for field,text in [(row['min'],'9'),(row['max'],'40')]:
@@ -244,6 +286,20 @@ try:
             if os.environ.get('APT_PANEL_SCREENSHOT'):capture_panel(os.environ['APT_PANEL_SCREENSHOT'])
         else:
             click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'family Trade results')
+            if os.environ.get('APT_FIXTURE_THEME')=='awakened':
+                table=status()['listings']['classic_table'];assert table['visible'],table
+                headers=[c['text'] for c in table['headings']]
+                assert headers[0]==ui_text('Prix','Price') and headers[-1]==ui_text('Mise en vente','Listed'),headers
+                if family=='gem':assert headers==[ui_text('Prix','Price'),ui_text('Niveau','Level'),ui_text('Qualité','Quality'),ui_text('Mise en vente','Listed')],headers
+                row=status()['listings']['offers'][0]
+                assert abs(row['price_rect']['x']-table['headings'][0]['rect']['x'])<=1,(row,table)
+                for head,cell in zip(table['headings'][1:],row['classic_cells']):
+                    assert abs(head['rect']['x']-cell['rect']['x'])<=1,(head,cell)
+                report['classic_table_headings_and_columns_align']=True
+                s=status();report['classic_geometry']={'workspace':s['appearance']['workspace'],'scroll':s['mod_scroll'],'numbers':s['item_filter_controls']['numbers'],'table':s['listings']['classic_table']}
+                assert not s['search_actions_visible'],'Classic completed results should replace the Search row'
+
+
             wait_for(lambda:status()['listings']['mapped_rows']==2,'family offers allocated')
             q=status()['request']['query'];misc=q.get('filters',{}).get('misc_filters',{}).get('filters',{})
             if family=='wand':

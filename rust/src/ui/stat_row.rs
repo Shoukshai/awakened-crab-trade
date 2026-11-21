@@ -5,6 +5,9 @@ use gtk::{atk::prelude::*, prelude::*};
 pub struct StatRow {
     pub container: gtk::EventBox,
     body: gtk::Box,
+    label: gtk::Label,
+    normal_text: String,
+    classic_text: String,
     caption: gtk::Box,
     top: gtk::Box,
     controls: gtk::Box,
@@ -38,6 +41,30 @@ impl StatRow {
         } else {
             modifier.text.clone()
         };
+        let classic_text =
+            if !modifier.option && candidate.display_reference.matches('#').count() == 1 {
+                candidate
+                    .display_value
+                    .map(|v| {
+                        let n = super::economy_panel::format_amount(v);
+                        let rendered = if n.starts_with('-') {
+                            candidate
+                                .display_reference
+                                .replacen("+#", &n, 1)
+                                .replacen('#', &n, 1)
+                        } else {
+                            candidate.display_reference.replacen('#', &n, 1)
+                        };
+                        if candidate.exclude {
+                            format!("Exclure : {rendered}")
+                        } else {
+                            rendered
+                        }
+                    })
+                    .unwrap_or_else(|| text.clone())
+            } else {
+                text.clone()
+            };
         let label = gtk::Label::new(Some(&text));
         label.set_ellipsize(gtk::pango::EllipsizeMode::End);
         label.set_max_width_chars(32);
@@ -272,6 +299,9 @@ impl StatRow {
         Self {
             container,
             body,
+            label,
+            normal_text: text,
+            classic_text,
             caption,
             top,
             controls,
@@ -320,6 +350,11 @@ impl StatRow {
     }
     pub fn set_theme(&self, theme: crate::appearance::Theme) {
         let classic = theme == crate::appearance::Theme::Awakened;
+        self.label.set_text(if classic {
+            &self.classic_text
+        } else {
+            &self.normal_text
+        });
         if let Some(parent) = self
             .inputs
             .parent()
@@ -343,7 +378,7 @@ impl StatRow {
             }
             slider.set_size_request(
                 if classic { 200 } else { 96 },
-                if classic { 16 } else { 30 },
+                if classic { 20 } else { 30 },
             );
             slider.set_hexpand(!classic);
             self.controls.set_child_packing(
@@ -360,7 +395,8 @@ impl StatRow {
         }
         self.check.style_context().add_class("mod-selection");
         for entry in [&self.min, &self.max] {
-            entry.set_width_chars(if classic { 4 } else { 5 });
+            entry.set_width_chars(if classic { 1 } else { 5 });
+            entry.set_size_request(if classic { 48 } else { -1 }, -1);
             entry.set_max_width_chars(if classic { 4 } else { 7 });
         }
         self.container.queue_draw();
