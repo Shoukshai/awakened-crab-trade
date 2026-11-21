@@ -2245,6 +2245,24 @@ pub fn run() -> Result<(), String> {
         let current = current.clone();
         let active = game_active.clone();
         std::thread::spawn(move || {
+            #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+            {
+                let started = Instant::now();
+                let ready = std::env::current_exe()
+                    .map_err(|e| e.to_string())
+                    .and_then(|exe| {
+                        crate::neural_ocr::warm_up(
+                            exe.parent().ok_or("OCR runtime directory unavailable")?,
+                        )
+                    });
+                match ready {
+                    Ok(()) => eprintln!(
+                        "ocr warmup=ready elapsed_ms={}",
+                        started.elapsed().as_millis()
+                    ),
+                    Err(error) => eprintln!("ocr warmup=unavailable reason={error}"),
+                }
+            }
             while let Ok(job) = captures.recv() {
                 if current.load(Ordering::Acquire) != job.generation {
                     continue;

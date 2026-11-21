@@ -132,8 +132,16 @@ impl Image {
     /// and sales-history text out of the expensive fallback pass. Leave enough
     /// width for advanced modifier descriptions, which exceed the base name.
     fn rare_hint(&self) -> Option<Self> {
+        self.rare_hint_with(false)
+    }
+    fn rare_hint_with(&self, framed: bool) -> Option<Self> {
         let mut bands: Vec<(usize, usize, usize, usize, usize)> = Vec::new();
-        for y in 0..(self.height / 2).min(600) {
+        let scan_height = if framed {
+            self.height
+        } else {
+            (self.height / 2).min(600)
+        };
+        for y in 0..scan_height {
             let mut start = 0;
             let mut last = 0;
             let mut count = 0;
@@ -161,7 +169,12 @@ impl Image {
                 let b = self.pixels[i] as u32;
                 let g = self.pixels[i + 1] as u32;
                 let r = self.pixels[i + 2] as u32;
-                if r > 185 && g > 185 && b < 170 && r * 10 < g * 13 {
+                let gold = if framed {
+                    r > 140 && g > 135 && b * 100 < g * 85 && r * 10 < g * 13
+                } else {
+                    r > 185 && g > 185 && b < 170 && r * 10 < g * 13
+                };
+                if gold {
                     if count > 0 && x - last > 48 {
                         finish(start, last, count, &mut bands);
                         count = 0;
@@ -175,13 +188,26 @@ impl Image {
             }
             finish(start, last, count, &mut bands);
         }
-        let b = bands
-            .iter()
-            .filter(|b| b.1 - b.0 >= 16)
-            .max_by_key(|b| b.4)?;
-        let (left, right) = self
-            .header_edges(b)
-            .unwrap_or((b.2.saturating_sub(300), (b.3 + 300).min(self.width)));
+        let b = if framed {
+            // Repeated merchant/NPC labels can form a tall gold column. Only a
+            // short title band with an actual continuous frame is a tooltip.
+            bands
+                .iter()
+                .filter(|b| (16..=90).contains(&(b.1 - b.0)))
+                .filter(|b| self.header_edges(b).is_some())
+                .max_by_key(|b| b.4)?
+        } else {
+            bands
+                .iter()
+                .filter(|b| b.1 - b.0 >= 16)
+                .max_by_key(|b| b.4)?
+        };
+        let edges = self.header_edges(b);
+        let (left, right) = if framed {
+            edges?
+        } else {
+            edges.unwrap_or((b.2.saturating_sub(300), (b.3 + 300).min(self.width)))
+        };
         let top = b.0.saturating_sub(22);
         let mut bottom = (top + 1000).min(self.height);
         let mut streak = 0;
@@ -766,7 +792,119 @@ fn fallback_pass(
     );
     Ok(lines)
 }
+struct NeuralTooltip {
+    focused: Image,
+    lines: Vec<Line>,
+    colored: Vec<Line>,
+}
+// Preserve the complete framed tooltip, including dim source labels and footer.
+// Uncertain neural readings leave the original independent pipeline in charge.
+fn neural_tooltip(
+    image: &Image,
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<Option<NeuralTooltip>, String> {
+    let Some(focused) = image.rare_hint_with(true) else {
+        return Ok(None);
+    };
+    let lines = match neural_pass(&focused, false, &[], false, check) {
+        Ok(lines) if crate::ocr::tooltip_bounds(&lines).is_ok() => lines,
+        _ => {
+            check()?;
+            return Ok(None);
+        }
+    };
+    let colored = match neural_pass(&focused, true, &lines, false, check) {
+        Ok(lines) => lines,
+        Err(_) => {
+            check()?;
+            return Ok(None);
+        }
+    };
+    Ok(Some(NeuralTooltip {
+        focused,
+        lines,
+        colored,
+    }))
+}
+fn neural_draft(focused: &Image, original: &[Line], colored: &[Line]) -> Result<Draft, String> {
+    let mut lines = original.to_vec();
+    crate::ocr::repair_properties(&mut lines);
+    crate::ocr::merge_stats(&mut lines, colored.to_vec(), 1);
+    crate::ocr::verify_defence_conflicts(&mut lines);
+    if let Some((center, after, before)) = crate::ocr::layout_range(original) {
+        let rules = focused.body_rules(center, after, before);
+        crate::ocr::apply_implicit_section(&mut lines, &rules, center);
+    }
+    crate::ocr::draft(lines, crate::neural_ocr::engine_label().into())
+}
 pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Result<Draft, String> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let started = Instant::now();
+    check()?;
+    // Both jobs belong to the same bounded capture worker. The existing path
+    // starts immediately, so uncertain frames do not pay for a serial retry.
+    // Only this thread checks HWND/COM state; the neural job observes cancellation.
+    let stopped = AtomicBool::new(false);
+    let (result, path) = std::thread::scope(|scope| {
+        let worker = scope.spawn(|| {
+            let job_check = || {
+                if stopped.load(Ordering::Acquire) {
+                    Err("OCR job superseded.".into())
+                } else {
+                    Ok(())
+                }
+            };
+            let fast: Result<Option<Draft>, String> = (|| {
+                let Some(prepared) = neural_tooltip(image, &job_check)? else {
+                    return Ok(None);
+                };
+                let draft = neural_draft(&prepared.focused, &prepared.lines, &prepared.colored)?;
+                job_check()?;
+                if draft.unknown.is_empty() {
+                    Ok(Some(draft))
+                } else {
+                    Ok(None)
+                }
+            })();
+            match fast {
+                Ok(Some(draft)) if !stopped.swap(true, Ordering::AcqRel) => Some(draft),
+                Ok(_) => None,
+                Err(error) => {
+                    eprintln!("ocr fast_path=unavailable reason={error}");
+                    None
+                }
+            }
+        });
+        let reference = recognize_reference(image, &|| {
+            check()?;
+            if stopped.load(Ordering::Acquire) {
+                Err("OCR verification superseded by a complete neural reading.".into())
+            } else {
+                Ok(())
+            }
+        });
+        stopped.store(true, Ordering::Release);
+        let fast = worker.join().unwrap_or_else(|_| {
+            eprintln!("ocr fast_path=unavailable reason=worker_failed");
+            None
+        });
+        if let Some(draft) = fast {
+            (Ok(draft), "neural")
+        } else {
+            (reference, "verified")
+        }
+    });
+    check()?;
+    eprintln!(
+        "ocr completed path={path} total_ms={}",
+        started.elapsed().as_millis()
+    );
+    result
+}
+fn recognize_reference(
+    image: &Image,
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<Draft, String> {
     let started = Instant::now();
     check()?;
     let rough = image.rare_hint();
@@ -803,7 +941,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         let r = crate::ocr::tooltip_bounds(&lines)?;
         located = Some((lines, engine, r));
     }
-    let (lines,mut engine,r)=located.ok_or("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).")?;
+    let (lines,engine,r)=located.ok_or("No unambiguous item tooltip found. Hover the item, keep Alt held until its details appear, then try Ctrl+D again (English game text).")?;
     let x = r[0].min((source.width - 1) as f64);
     let y = r[1].min((source.height - 1) as f64);
     let region = [
@@ -839,21 +977,33 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         fallback(&focused, check)
     };
     check()?;
-    let mut refined = refined.unwrap_or_else(|_| translated());
+    reconstruct(
+        &focused,
+        refined.unwrap_or_else(|_| translated()),
+        translated(),
+        engine,
+        started,
+        check,
+    )
+}
+fn reconstruct(
+    focused: &Image,
+    mut refined: Vec<Line>,
+    located: Vec<Line>,
+    mut engine: &str,
+    started: Instant,
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<Draft, String> {
     crate::ocr::repair_properties(&mut refined);
     let seed = refined.clone();
     let gem = crate::ocr::is_gem_tooltip(&refined);
     // The small model reads the isolated tooltip, not the whole desktop.
     // Scout text remains independent evidence for obscured glyphs/properties.
     let mut neural_failure = None;
-    let neural = match neural_pass(&focused, false, &seed, gem, check) {
+    let neural = match neural_pass(focused, false, &seed, gem, check) {
         Ok(mut neural) if !neural.is_empty() => {
             crate::ocr::merge_stats(&mut neural, refined.clone(), 3);
-            let mut anchors = crate::ocr::anchors(&lines);
-            for anchor in &mut anchors {
-                anchor.x -= x;
-                anchor.y -= y;
-            }
+            let anchors = crate::ocr::anchors(&located);
             if let Some(base) = anchors.last() {
                 neural.retain(|l| l.y > base.y + base.height);
                 neural.extend(anchors);
@@ -875,11 +1025,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         }
     };
     if crate::ocr::tooltip_bounds(&refined).is_err() {
-        let mut anchors = crate::ocr::anchors(&lines);
-        for anchor in &mut anchors {
-            anchor.x -= x;
-            anchor.y -= y;
-        }
+        let mut anchors = crate::ocr::anchors(&located);
         if let Some(base) = anchors.last().cloned() {
             let title = refined
                 .iter()
@@ -906,7 +1052,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     match if gem {
         Ok(Vec::new())
     } else if neural {
-        neural_pass(&focused, true, &seed, false, check)
+        neural_pass(focused, true, &seed, false, check)
     } else {
         fallback(&focused.colored(), check)
     } {
@@ -922,9 +1068,11 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
         }
         // A separate enlarged grayscale reading recovers faded source labels,
         // gold socket lines and split properties, and can break a value tie.
-        match fallback_pass(&focused, check, false, 3) {
-            Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 2),
-            Err(_) => check()?,
+        if crate::ocr::needs_retry(&refined) {
+            match fallback_pass(focused, check, false, 3) {
+                Ok(extra) => crate::ocr::merge_stats(&mut refined, extra, 2),
+                Err(_) => check()?,
+            }
         }
     }
     check()?;
@@ -946,7 +1094,7 @@ pub fn recognize(image: &Image, check: &impl Fn() -> Result<(), String>) -> Resu
     .or_else(|error| {
         eprintln!("ocr neural item fallback: {error}");
         neural_failure = Some(format!("Item reconstruction failed: {error}"));
-        crate::ocr::draft(lines, "Fallback OCR".into())
+        crate::ocr::draft(located, "Fallback OCR".into())
     });
     if let Ok(draft) = &mut result {
         draft.diagnostic =

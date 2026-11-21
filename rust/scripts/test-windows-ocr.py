@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Exercise real OCR pixels, Alt capture, cancellation and a topmost cloud fixture."""
 from PIL import Image
-import os,pathlib,json,subprocess,time,socket,http.server,threading,sys,hashlib,fcntl
+import os,pathlib,json,subprocess,time,socket,http.server,threading,sys,hashlib,fcntl,tomllib
 from trade_fixture import make_handler
 r=pathlib.Path(__file__).resolve().parent.parent
+expected_version=tomllib.loads((r/'Cargo.toml').read_text())['package']['version']
 s=json.loads((r/'dist/windows-sandbox.json').read_text());root=pathlib.Path(s['root'])
 assert root.name.startswith('apt-windows-desktop-') and (root/'fixture.guard').is_file()
 test_lock=(root/'test.lock').open('w');fcntl.flock(test_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -53,6 +54,7 @@ server=http.server.ThreadingHTTPServer(('127.0.0.1',0),make_handler(r,family_env
 env['APT_RS_TEST_TRADE_BASE']=env['APT_RS_TEST_ECONOMY_BASE']=f'http://127.0.0.1:{server.server_address[1]}'
 processes=[];logs=[];report={'windowing':'Independent Win32 windows with Wine managing placement on private XWayland; windowed fake game','os_keyboard_layout':'Private Wine prefix with pinned ReactOS US layout DLL; absent from production ZIP','scope':'Windows binary on private Wine desktop, fake PoE process, synthetic offers and public-market fixtures. No real game input or real market prices.'};success=False
 app=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else r/'dist/windows-dev/awakened-crab-trade.exe').resolve()
+engine_prefix='Crab OCR fine-tuned' if (app.parent/'licenses/neural-ocr/custom-model.json').is_file() else 'PP-OCRv5 English'
 def launch(exe,args,name):
  log=(root/(name+'.log')).open('w');logs.append(log)
  command=[s['wine'],wp(exe),*args]
@@ -122,6 +124,9 @@ try:
  for path in log_paths:
   path.parent.mkdir(parents=True,exist_ok=True);path.write_text('APT OLD SESSION MUST NOT BE COPIED\n')
  launch(app,['daemon'],'ocr-checker');wait(lambda:endpoint(),'OCR control socket',45)
+ if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')!='1':
+  wait(lambda:any('ocr warmup=ready' in p.read_text(errors='replace') for p in [root/'cache/awakened-crab-trade-ocr/checker.log',*list((root/'prefix/drive_c/users').glob('*/AppData/Local/awakened-crab-trade-ocr/checker.log'))] if p.exists()),'background model warmup',45)
+  report['background_model_warmup']=True
  if len(sys.argv)>2:
   normal=pathlib.Path(sys.argv[2]).resolve()
   data=json.dumps({'league':'Covens','automatic_league':False,'language':'en','theme':'terminal','capture':{'mode':'ocr','executable':'apt-cloud-fixture.exe'}})
@@ -167,7 +172,7 @@ try:
  st=status();assert st['native_above_target'],'overlay behind topmost cloud client';review=st['ocr_review'];assert review['apply']['enabled'],review
  if os.environ.get('APT_FIXTURE_EXPECT_FALLBACK')=='1':
   assert review['status'].startswith('Fallback OCR'),review
-  assert review['diagnostic_visible'] and 'Version 0.36.7' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
+  assert review['diagnostic_visible'] and f'Version {expected_version}' in review['diagnostic'] and 'Neural OCR model:' in review['diagnostic'],review
   assert review['copy_diagnostic']['width']>0,review
   shot('ocr-fallback-diagnostic-en.png')
   control(review['copy_diagnostic'])
@@ -178,14 +183,14 @@ try:
    text=p.read_text() if p.exists() else ''
    return text if 'Awakened Crab Trade diagnostics' in text and 'Neural OCR model:' in text else None
   full=wait(copied_diagnostic,'read full copied diagnostic')
-  assert 'Version: 0.36.7' in full and 'CPU:' in full and 'Complete current session log' in full,full
+  assert f'Version: {expected_version}' in full and 'CPU:' in full and 'Complete current session log' in full,full
   assert 'ocr neural fallback:' in full and 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
   assert json.loads((root/'cloud.state.json').read_text())['copies']==0
   report.update(neural_failure_visible=True,diagnostic_copied=True,diagnostic=review['diagnostic'],no_clipboard_injection=True)
   (r/'dist/windows-ocr-fallback-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True);success=True
   raise SystemExit(0)
  assert not review['diagnostic_visible'] and not review['diagnostic'],review
- if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1':assert review['status'].startswith('PP-OCRv5 English (Rust CPU)'),review
+ if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1':assert review['status'].startswith(engine_prefix+' (Rust CPU)'),review
  assert 'Item Level: 71' in review['text'],review
  assert 'Regenerate 56.5 Life per second' in review['text'],review
  assert not posts and st['request'] is None
@@ -277,7 +282,7 @@ try:
   wait(lambda:(root/'ocr-snapshot.ppm').exists(),'local OCR physical shortcut capture',15)
   subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
   wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','local OCR review',35)
-  local_review=status()['ocr_review'];assert local_review['apply']['enabled'] and 'PP-OCRv5' in local_review['status'],local_review
+  local_review=status()['ocr_review'];assert local_review['apply']['enabled'] and engine_prefix in local_review['status'],local_review
   assert "Assassin's Mitts" in local_review['text'] and 'Item Level: 71' in local_review['text'],local_review
   assert json.loads((root/'fixture.state.json').read_text())['copies']==copies_before,'Local OCR injected copy'
   assert normal_command('status')['state']=='Hidden' and normal_command('status')['generation']==normal_before,'Local OCR triggered standard hotkeys'
@@ -297,7 +302,7 @@ try:
  control(status()['preferences']['tabs'][-1])
  wait(lambda:status()['preferences']['logs']['mapped'] and not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['bytes']>0,'session log view')
  log_info=status()['preferences']['logs']
- assert 'Version: 0.36.7' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
+ assert f'Version: {expected_version}' in log_info['prefix'] and 'CPU:' in log_info['prefix'],log_info
  shot('session-log-en.png')
  control(log_info['copy'])
  wait(lambda:not status()['preferences']['logs']['busy'] and status()['preferences']['logs']['status']=='Entire log copied.','copy entire current log')
@@ -314,7 +319,7 @@ try:
  full=wait(copied_session,'read full session clipboard')
  assert 'APT OLD SESSION MUST NOT BE COPIED' not in full,full
  expected_backend='ocr neural self_test=rust' if os.environ.get('APT_FIXTURE_EXPECT_RUST')=='1' else 'ocr neural self_test=optimized'
- for expected in ['Version: 0.36.7','CPU:','OS: Windows','ocr probe input shape=','ocr probe output shape=',expected_backend]:
+ for expected in [f'Version: {expected_version}','CPU:','OS: Windows','ocr probe input shape=','ocr probe output shape=',expected_backend]:
   assert expected in full,(expected,full)
  report['entire_session_log_tab_and_clipboard']=True
  report['copied_log_bytes']=len(full.encode())

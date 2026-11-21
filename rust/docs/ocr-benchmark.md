@@ -186,3 +186,35 @@ portable test executable includes only the inference model and its license.
 
 Private evaluation results measure individual cropped lines, not complete items
 or end-to-end capture reliability. Real Windows testing remains necessary.
+
+
+## 0.36.11 latency pass
+
+The OCR daemon validates and loads the existing trained model on its capture
+worker at startup. GTK does not wait for that initialization. Recognition remains
+local; the weights, profiles and shortcuts are unchanged.
+
+A framed rare tooltip can be reconstructed directly from the original and
+color-isolated neural readings. This job runs alongside the existing verification
+pipeline. A complete reconstruction cancels the unnecessary verification child;
+uncertain readings leave the original pipeline in charge. Both jobs finish or
+cancel before another capture can run. Changing the target still cancels the
+result. Dim red Corrupted footers are included in projection.
+
+This primarily helps clear rare tooltips. Advanced, heavily compressed or other
+item families can still require the slower verification path. It is not a promise
+of subsecond recognition on every item, or a measured speedup on the reported
+Ryzen X3D and i3/1050 Ti Windows machines.
+
+Private Wine checks on a Ryzen 9 7945HX compare the same complete desktop frames,
+with no manually supplied tooltip coordinates. Measured recognition time excludes
+process launch, screen capture and GUI display. The clear gloves and body-armour
+examples drop from about 17.1/13.1 seconds to 1.4/1.3 seconds. Other cases retain
+the verification path; they show much smaller gains. These timings are development
+measurements under Wine, not Windows hardware requirements.
+
+The nine pixel fixtures retain their expected modifiers, ranges, flags and item
+levels. The body-armour example also corrects an old Evasion reading of 11606 to
+the visible 1606. CPU usage from two brief OCR jobs and real Boosteroid latency
+still need native Windows testing. Settings > Diagnostics records the winning
+path, total recognition time and background warmup result; nothing is uploaded.

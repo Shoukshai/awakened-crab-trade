@@ -78,6 +78,20 @@ struct Model {
     threads: usize,
 }
 static MODEL_SESSION: OnceLock<Result<Mutex<Model>, String>> = OnceLock::new();
+fn session(root: &Path) -> Result<&'static Mutex<Model>, String> {
+    MODEL_SESSION
+        .get_or_init(|| {
+            std::panic::catch_unwind(|| Model::load(root))
+                .unwrap_or_else(|_| Err("Neural OCR runtime could not be loaded.".into()))
+                .map(Mutex::new)
+        })
+        .as_ref()
+        .map_err(Clone::clone)
+}
+#[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+pub fn warm_up(root: &Path) -> Result<(), String> {
+    session(root).map(|_| ())
+}
 pub fn configured_threads() -> Option<usize> {
     Some(MODEL_SESSION.get()?.as_ref().ok()?.lock().ok()?.threads)
 }
@@ -351,12 +365,20 @@ fn glyph(image: &Image<'_>, x: usize, y: usize, colored: bool) -> bool {
     let blue = b > 100 && b - r > 18 && b - g > 12;
     let neutral = r.min(g).min(b) > 95 && r.max(g).max(b) - r.min(g).min(b) < 40;
     let gold = r > 185 && g > 165 && b < 155 && r - g < 40;
-    let red = r > 150 && r > g * 2 && r > b * 2;
+    let red = r > 85 && r > g * 2 && r > b * 2;
     if !blue && (colored || (!neutral && !gold && !red)) {
         return false;
     }
     let v = brightness(image, x, y, colored);
-    if v < if colored { 105 } else { 100 } {
+    // Corrupted can be dim red in a compressed stream. Keep its real glyph
+    // edges even when fewer than six pixels reach the neutral text threshold.
+    if v < if colored {
+        105
+    } else if red {
+        85
+    } else {
+        100
+    } {
         return false;
     }
     // Ignore flat bright panels/frames; retain glyphs with a nearby dark edge.
@@ -460,14 +482,7 @@ pub fn recognize_seeded(
         return Err("Invalid neural OCR image.".into());
     }
     let started = Instant::now();
-    let model = MODEL_SESSION
-        .get_or_init(|| {
-            std::panic::catch_unwind(|| Model::load(root))
-                .unwrap_or_else(|_| Err("Neural OCR runtime could not be loaded.".into()))
-                .map(Mutex::new)
-        })
-        .as_ref()
-        .map_err(Clone::clone)?;
+    let model = session(root)?;
     eprintln!("ocr neural stage=session_ready");
     let mut model = model
         .lock()
@@ -612,6 +627,38 @@ fn hinted_regions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn projection_keeps_dim_corruption_in_the_stream_fixture() {
+        let p = gtk::gdk_pixbuf::Pixbuf::from_file(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fixtures/ocr/body-armour.png"),
+        )
+        .unwrap();
+        let bytes = p.read_pixel_bytes();
+        let mut pixels = Vec::new();
+        for y in 0..p.height() as usize {
+            for x in 0..p.width() as usize {
+                let i = y * p.rowstride() as usize + x * p.n_channels() as usize;
+                pixels.extend_from_slice(&[bytes[i + 2], bytes[i + 1], bytes[i], 255]);
+            }
+        }
+        let image = Image {
+            width: p.width() as usize,
+            height: p.height() as usize,
+            bgra: &pixels,
+        };
+        let rows = regions(&image, false).unwrap();
+        assert!(
+            rows.iter().any(|r| r[1] <= 324 && r[1] + r[3] >= 328),
+            "Missing dim Corrupted row: {rows:?}"
+        );
+        assert!(
+            !regions(&image, true)
+                .unwrap()
+                .iter()
+                .any(|r| r[1] <= 324 && r[1] + r[3] >= 328),
+            "Corruption must not become a blue modifier"
+        );
+    }
     #[test]
     fn scout_hints_retain_lines_on_a_flat_background_and_clip_outside_boxes() {
         let pixels = vec![200u8; 100 * 80 * 4];

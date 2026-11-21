@@ -38,6 +38,7 @@ for case in json.loads((r/'assets/fixtures/ocr/sources.json').read_text()):
   assert len(item['modifiers'])>=7,text
  elif case['file']=='body-armour.png':
   assert 'Varnished Coat' in text and 'Corrupted' in text and '32% to Chaos Resistance' in text
+  if custom_model:assert item['properties']['evasion']==1606,text
   assert len(item['modifiers'])>=5,text
  elif case['file']=='advanced-armour.png':
   assert item['base']=='Necrotic Armour' and item['rarity']=='Rare',text
