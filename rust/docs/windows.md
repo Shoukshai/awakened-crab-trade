@@ -9,7 +9,7 @@ and subfolders beside it.
 Settings open on first launch. The notification icon opens Settings or quits.
 Launching the EXE again opens Settings in the existing instance. Select English
 or French and Save to change the language without restarting. The Style selector
-previews ten native themes; Save keeps the style and Cancel restores it.
+previews eleven native themes; Save keeps the style and Cancel restores it.
 Style changes preserve the current filters and displayed offers. Existing profiles
 are imported automatically; game item and mod names remain in English.
 

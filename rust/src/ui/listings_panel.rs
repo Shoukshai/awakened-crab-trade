@@ -357,27 +357,36 @@ impl Panel {
             } else {
                 gtk::Orientation::Horizontal
             });
+            let classic = theme == Theme::Awakened;
+            row.identity.set_orientation(if classic {
+                gtk::Orientation::Horizontal
+            } else {
+                gtk::Orientation::Vertical
+            });
+            row.identity.set_spacing(if classic { 12 } else { 4 });
             row.body.set_spacing(if vertical { 4 } else { 12 });
-            row.body
-                .set_border_width(if matches!(theme, Theme::Compact | Theme::Terminal) {
+            row.body.set_border_width(
+                if matches!(theme, Theme::Compact | Theme::Terminal | Theme::Awakened) {
                     4
                 } else {
                     8
-                });
+                },
+            );
             row.body.reorder_child(
                 &row.price,
-                if matches!(theme, Theme::Merchant | Theme::Split) {
+                if matches!(theme, Theme::Merchant | Theme::Split | Theme::Awakened) {
                     0
                 } else {
                     1
                 },
             );
-            row.price
-                .set_xalign(if matches!(theme, Theme::Merchant | Theme::Split) {
+            row.price.set_xalign(
+                if matches!(theme, Theme::Merchant | Theme::Split | Theme::Awakened) {
                     0.
                 } else {
                     1.
-                });
+                },
+            );
             row.price.set_width_chars(if vertical {
                 1
             } else if theme == Theme::Merchant {

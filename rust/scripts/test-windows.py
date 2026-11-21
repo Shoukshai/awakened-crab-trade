@@ -97,18 +97,18 @@ try:
  subprocess.run(['grim',str(root/'before-veil.png')],env=env,check=True)
  baseline=Image.open(root/'before-veil.png').convert('RGB').getpixel((200,500));report['before_veil_pixel']=baseline
  print('fake game active',flush=True)
- if os.environ.get('APT_WINDOWS_THEME_CYCLE'):
+ if os.environ.get('APT_WINDOWS_THEME_CYCLE') or os.environ.get('APT_THEME_CYCLE'):
   command('locked-copy');wait(lambda:status()['item'] and status()['state']=='Interactive' and status()['rendered'],'initial theme-cycle copy')
   control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'initial theme-cycle offers')
   initial=status();request=initial['request'];generation=initial['generation'];post_count=len(posts)
   expected=[(r['id'],r['selected'],r['min_value'],r['max_value']) for r in initial['stat_controls']]
-  themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant']
+  themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant','awakened']
   def preview_theme(theme):
    control(status()['settings_button']);wait(lambda:status()['view']=='Settings' and status()['preferences']['theme']['rect']['mapped'],'theme settings')
    control(status()['preferences']['theme']['rect']);wait(lambda:status()['owned_popup'],'theme dropdown')
    subprocess.run(['xdotool','key','--clearmodifiers','Home',*(['Down']*themes.index(theme)),'Return'],env=env,check=True)
    wait(lambda:not status()['owned_popup'] and status()['appearance']['active']==theme,'live '+theme)
-   target={'split':640,'editorial':540,'merchant':540,'compact':400}.get(theme,480)
+   target={'split':640,'editorial':540,'merchant':540,'compact':400,'awakened':460}.get(theme,480)
    wait(lambda:status()['width']==target and status()['native_rect']==status()['panel_bounds'],'settled theme width '+theme)
    time.sleep(.12)
   preview_theme('frost');assert status()['appearance']['saved']=='tide'
@@ -120,7 +120,7 @@ try:
    wait(lambda:status()['view']=='Price' and status()['state']=='Interactive' and not status()['preferences_pending'] and status()['appearance']['saved']==theme,'save '+theme)
    wait(lambda:status()['listings']['mapped_rows']==2,'offers preserved after '+theme)
    st=status();assert st['request']==request and st['generation']==generation
-   assert st['width']=={'split':640,'editorial':540,'merchant':540,'compact':400}.get(theme,480)
+   assert st['width']=={'split':640,'editorial':540,'merchant':540,'compact':400,'awakened':460}.get(theme,480)
    assert [(r['id'],r['selected'],r['min_value'],r['max_value']) for r in st['stat_controls']]==expected
    layout=st['appearance']['workspace']
    if theme=='split':assert layout['filters']['x']+layout['filters']['width']<=layout['offers']['x'],layout
@@ -148,6 +148,10 @@ try:
   time.sleep(.2);assert len(posts)==posts_before_copy and status()['request'] is None,'legacy automatic_search=true must not start Trade'
   st=status();assert st['native_rect']==st['panel_bounds'],(st['native_rect'],st['panel_bounds'])
   assert st['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},st['application']
+  if st['appearance']['active']=='awakened':
+   assert st['appearance']['item_title']['mapped'] and st['appearance']['item_title']['text']
+   if family!='currency':
+    assert all(row['rect']['mapped'] for row in st['item_filter_controls']['numbers'])
   print(family,'captured',flush=True)
   if family=='wand':
    before=status();rect=before['item_filter_controls']['corruption']['rect'];o=before['origin']

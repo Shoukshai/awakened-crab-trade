@@ -1,0 +1,14 @@
+{
+  "version": "0.36.9",
+  "language": "en",
+  "platform": "Linux, native GTK",
+  "scope": "Actual native panel, synthetic item and market offers. No live prices or real game input.",
+  "theme": "awakened",
+  "file": "awakened.png",
+  "size": [
+    460,
+    1600
+  ],
+  "sha256": "c3320cdeec23d8095f2d33d5995e84d7b1509931415231096ca1b42471547937",
+  "binary_sha256": "332dfaf47ce6aaab7756ec2ed0bfa90480006df6481a95df3ae096d2a0047322"
+}

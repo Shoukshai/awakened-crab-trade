@@ -133,7 +133,7 @@ try:
         assert status()['settings']['theme']=='tide' and status()['request']==request
         click(status()['preferences']['cancel']);wait_for(lambda:state(view='Price') and status()['appearance']['active']=='tide','Cancel restores saved style')
         assert status()['request']==request and status()['generation']==generation
-        themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant']
+        themes=['tide','relic','terminal','frost','split','focus','blueprint','editorial','compact','merchant','awakened']
         captures=pathlib.Path(os.environ.get('APT_THEME_SCREENSHOT_DIR',root/'dist/previews/themes'));captures.mkdir(parents=True,exist_ok=True)
         checks=[]
         for theme in themes[1:]+themes[:1]:
@@ -183,8 +183,16 @@ try:
         wait_for(lambda:status()['summary']['image_ready'],'item image fetched through fixture',10)
         if family not in ['influence','wand']:wait_for(lambda:status()['summary']['source'] and status()['summary']['price'] not in ['…','—'],'exact Ninja quote',10)
         s0=status()
+        if os.environ.get('APT_FIXTURE_THEME')=='awakened':
+            title=s0['appearance']['item_title']
+            assert title['mapped'] and title['text'],title
+            for row in ([] if family=='currency' else s0['item_filter_controls']['numbers']):
+                assert row['rect']['mapped'],row
         assert s0['application']=={'title':'Awakened Crab Trade','icon':{'width':256,'height':256}},s0['application']
-        assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
+        if os.environ.get('APT_FIXTURE_THEME')=='awakened' and family in ['wand','influence']:
+            assert not s0['summary']['mapped'],s0['summary']
+        else:
+            assert s0['summary']['mapped'] and s0['summary']['height']>=100,s0['summary']
         assert not posts,'copy must not automatically query Trade with a legacy automatic_search=true profile'
         if family=='wand':
             row=next(r for r in status()['stat_controls'] if r['id']=='implicit.stat_2974417149')
@@ -222,7 +230,7 @@ try:
             picture=Image.open(runtime/'slider-colors.png').convert('RGB');y=o['y']+slider['y']+7
             gray=picture.getpixel((int(o['x']+slider['x']+slider['width']*.75),int(y)))
             cyan=picture.getpixel((int(o['x']+slider['x']+slider['width']*.25),int(y)))
-            accent={'tide':(104,217,231),'relic':(226,161,122),'terminal':(122,200,227),'frost':(8,111,133),'split':(123,187,234),'focus':(147,175,255),'blueprint':(129,182,237),'editorial':(228,172,135),'compact':(100,214,225),'merchant':(157,79,43)}[os.environ.get('APT_FIXTURE_THEME','tide')]
+            accent={'tide':(104,217,231),'relic':(226,161,122),'terminal':(122,200,227),'frost':(8,111,133),'split':(123,187,234),'focus':(147,175,255),'blueprint':(129,182,237),'editorial':(228,172,135),'compact':(100,214,225),'merchant':(157,79,43),'awakened':(203,213,224)}[os.environ.get('APT_FIXTURE_THEME','tide')]
             track=(184,194,201) if os.environ.get('APT_FIXTURE_THEME') in ['frost','merchant'] else (38,43,51)
             assert all(abs(a-b)<=2 for a,b in zip(cyan,accent)) and all(abs(a-b)<=2 for a,b in zip(gray,track)),(gray,cyan,accent,track)
             report['slider_integer_thresholds_and_cyan_gray_colors']={'gray':gray,'cyan':cyan}

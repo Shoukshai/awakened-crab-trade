@@ -4,6 +4,13 @@ use gtk::{atk::prelude::*, prelude::*};
 
 pub struct StatRow {
     pub container: gtk::EventBox,
+    body: gtk::Box,
+    caption: gtk::Box,
+    top: gtk::Box,
+    controls: gtk::Box,
+    inputs: gtk::Box,
+    tag: gtk::Label,
+    check: gtk::Label,
     selected: gtk::ToggleButton,
     min: gtk::Entry,
     max: gtk::Entry,
@@ -42,6 +49,7 @@ impl StatRow {
             Some(" ")
         });
         check.set_width_chars(1);
+        check.set_valign(gtk::Align::Center);
         check.style_context().add_class("mod-selection");
         caption.pack_start(&check, false, false, 0);
         let checked = check.downgrade();
@@ -66,7 +74,9 @@ impl StatRow {
             }
         }
         caption.pack_start(&label, true, true, 0);
-        body.pack_start(&caption, false, false, 0);
+        let top = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        top.pack_start(&caption, true, true, 0);
+        body.pack_start(&top, false, false, 0);
         container.set_tooltip_text(Some(&candidate.display_reference));
         if let Some(accessible) = container.accessible() {
             accessible.set_role(gtk::atk::Role::CheckBox);
@@ -106,6 +116,12 @@ impl StatRow {
             }
         });
         let controls = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let tag = gtk::Label::new(Some(&candidate.tag));
+        tag.style_context().add_class("mod-tag");
+        tag.set_xalign(0.);
+        tag.set_valign(gtk::Align::Center);
+        tag.set_no_show_all(true);
+        controls.pack_start(&tag, false, false, 0);
         let min = gtk::Entry::new();
         let max = gtk::Entry::new();
         for (entry, name, value) in [
@@ -255,6 +271,13 @@ impl StatRow {
         });
         Self {
             container,
+            body,
+            caption,
+            top,
+            controls,
+            inputs,
+            tag,
+            check,
             selected,
             min,
             max,
@@ -294,6 +317,53 @@ impl StatRow {
             None
         };
         Some(filter)
+    }
+    pub fn set_theme(&self, theme: crate::appearance::Theme) {
+        let classic = theme == crate::appearance::Theme::Awakened;
+        if let Some(parent) = self
+            .inputs
+            .parent()
+            .and_then(|w| w.downcast::<gtk::Container>().ok())
+        {
+            parent.remove(&self.inputs);
+        }
+        self.caption.set_hexpand(true);
+        if classic && self.numeric {
+            self.top.pack_end(&self.inputs, false, false, 0);
+        } else {
+            self.controls.pack_end(&self.inputs, false, false, 0);
+        }
+        self.body.set_border_width(if classic { 0 } else { 8 });
+        self.tag.set_visible(classic);
+        self.controls.set_margin_end(if classic { 96 } else { 0 });
+        if let Some(slider) = &self.slider {
+            slider.style_context().remove_class("classic-slider");
+            if classic {
+                slider.style_context().add_class("classic-slider");
+            }
+            slider.set_size_request(
+                if classic { 200 } else { 96 },
+                if classic { 16 } else { 30 },
+            );
+            slider.set_hexpand(!classic);
+            self.controls.set_child_packing(
+                slider,
+                !classic,
+                !classic,
+                0,
+                if classic {
+                    gtk::PackType::End
+                } else {
+                    gtk::PackType::Start
+                },
+            );
+        }
+        self.check.style_context().add_class("mod-selection");
+        for entry in [&self.min, &self.max] {
+            entry.set_width_chars(if classic { 4 } else { 5 });
+            entry.set_max_width_chars(if classic { 4 } else { 7 });
+        }
+        self.container.queue_draw();
     }
     pub fn diagnostics(&self, window: &gtk::Window) -> serde_json::Value {
         let rect = |w: &gtk::Widget| {

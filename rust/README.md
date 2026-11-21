@@ -33,7 +33,7 @@ poe.ninja quotes; other supported families also offer Trade searches.
 The current league is selected automatically. Settings can override the league,
 shortcuts, scale and default filters. Unknown historical preferences are preserved.
 Choose English or French in Settings, then Save. The Style selector previews
-ten native themes immediately; Save persists the choice and Cancel restores
+eleven native themes immediately; Save persists the choice and Cancel restores
 the previous one. Theme changes preserve the current query and modifier values.
 Split uses two columns, Focus uses tabs, Compact docks Search, and Merchant
 places prices first. New profiles start in English;

@@ -52,3 +52,33 @@
 /* GTK's default tab shadow is blue; use the active theme's single accent. */
 #apt-native notebook > header tab { box-shadow: none; border: none; border-bottom: 2px solid transparent; background: transparent; }
 #apt-native notebook > header tab:checked { box-shadow: none; border-bottom-color: @act_accent; }
+/* Awakened PoE Trade classic palette and hierarchy. See docs/awakened-classic.md. */
+#apt-native.theme-awakened { border: none; border-radius: 0px; }
+#apt-native.theme-awakened .app-header { background: @act_surface; border: none; padding: 0px 4px; min-height: 24px; }
+#apt-native.theme-awakened .app-header label { color: @act_muted; font-size: 12px; }
+#apt-native.theme-awakened .app-header button { min-height: 16px; padding: 0px 4px; border: none; border-radius: 0px; }
+#apt-native.theme-awakened .classic-item-bar { background: @act_surface; padding: 4px 8px; border-radius: 3px; }
+#apt-native.theme-awakened .header-title { font-size: 14px; font-weight: bold; font-variant: small-caps; }
+#apt-native.theme-awakened button, #apt-native.theme-awakened entry, #apt-native.theme-awakened spinbutton { border-radius: 3px; min-height: 16px; padding: 2px 8px; }
+#apt-native.theme-awakened button.primary { color: @act_fg; background: @act_line; border-color: transparent; min-width: 64px; }
+#apt-native.theme-awakened button.primary label { color: @act_fg; }
+#apt-native.theme-awakened button.chip { border-color: @act_muted; color: @act_muted; padding: 2px 8px; }
+#apt-native.theme-awakened button.chip:checked { border-color: @act_fg; background: @act_surface; }
+#apt-native.theme-awakened button.chip:checked label { color: @act_fg; }
+#apt-native.theme-awakened flowboxchild { padding: 0px; background: transparent; border: none; }
+#apt-native.theme-awakened expander.filter-section { margin-top: 4px; }
+#apt-native.theme-awakened expander.filter-section > title { background: transparent; padding: 4px 0px; border-radius: 0px; }
+#apt-native.theme-awakened .mod-row { background: transparent; border: none; border-bottom: 1px solid @act_line; border-radius: 0px; padding: 8px 0px; }
+#apt-native.theme-awakened .mod-row.selected { background: transparent; border-color: @act_line; }
+#apt-native.theme-awakened .mod-row:not(.selected) label { color: @act_muted; }
+#apt-native.theme-awakened .mod-selection { border: 1px solid @act_muted; border-radius: 1px; font-size: 10px; min-width: 10px; }
+#apt-native.theme-awakened .mod-tag { font-size: 10px; color: @act_muted; background: @act_line; padding: 0px 4px; border-radius: 2px; }
+#apt-native.theme-awakened .mod-bounds entry { background: @act_surface; border-color: transparent; padding: 2px 4px; min-height: 18px; }
+#apt-native.theme-awakened .mod-bounds entry:focus { border-color: @act_muted; }
+#apt-native.theme-awakened .trade-row { border: none; border-radius: 0px; }
+#apt-native.theme-awakened .trade-row.even { background: #354153; }
+#apt-native.theme-awakened .trade-row:hover { background: @act_hover; }
+#apt-native.theme-awakened .trade-row label { font-size: 13px; }
+#apt-native.theme-awakened .trade-row .seller { color: @act_muted; }
+#apt-native.theme-awakened .price { font-size: 13px; font-weight: 500; }
+#apt-native.theme-awakened .summary-price { font-size: 16px; }

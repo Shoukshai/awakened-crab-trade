@@ -3,7 +3,10 @@ use crate::{
     item::{Family, Item},
 };
 use gtk::prelude::*;
-use std::{cell::RefCell, path::Path};
+use std::{
+    cell::{Cell, RefCell},
+    path::Path,
+};
 pub struct Panel {
     pub container: gtk::Box,
     pub open: gtk::Button,
@@ -14,6 +17,9 @@ pub struct Panel {
     trend: gtk::Label,
     stack: gtk::Label,
     url: RefCell<Option<String>>,
+    classic: Cell<bool>,
+    equipment: Cell<bool>,
+    has_quote: Cell<bool>,
 }
 fn label(text: &str, class: &str) -> gtk::Label {
     let l = gtk::Label::new(Some(text));
@@ -64,9 +70,14 @@ impl Panel {
             trend,
             stack,
             url: RefCell::new(None),
+            classic: Cell::new(false),
+            equipment: Cell::new(false),
+            has_quote: Cell::new(false),
         }
     }
     pub fn reset(&self, item: &Item) {
+        self.equipment.set(item.family() == Family::Equipment);
+        self.has_quote.set(false);
         self.image.clear();
         self.currency.hide();
         self.price.set_text("…");
@@ -111,7 +122,7 @@ impl Panel {
             kind += " · Corrompu";
         }
         self.kind.set_text(&kind);
-        self.container.show();
+        self.refresh_visibility();
     }
     pub fn image(&self, path: &Path) {
         if let Ok(p) = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(path, 48, 56, true) {
@@ -119,6 +130,8 @@ impl Panel {
         }
     }
     pub fn show(&self, result: &Result<Report, String>) {
+        self.has_quote
+            .set(result.as_ref().is_ok_and(|r| r.price.is_some()));
         match result {
             Ok(report) => {
                 if let Some(price) = &report.price {
@@ -168,6 +181,16 @@ impl Panel {
                 self.container.set_tooltip_text(Some(error));
             }
         }
+        self.refresh_visibility();
+    }
+    pub fn set_theme(&self, theme: crate::appearance::Theme) {
+        self.classic
+            .set(theme == crate::appearance::Theme::Awakened);
+        self.refresh_visibility();
+    }
+    fn refresh_visibility(&self) {
+        self.container
+            .set_visible(!self.classic.get() || !self.equipment.get() || self.has_quote.get());
     }
     pub fn url(&self) -> Option<String> {
         self.url.borrow().clone()

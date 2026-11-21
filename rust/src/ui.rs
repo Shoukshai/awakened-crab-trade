@@ -108,6 +108,7 @@ struct Ui {
     #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     ocr_review: ocr_review::Panel,
     title: gtk::Label,
+    classic_item_bar: gtk::Box,
     text: gtk::Label,
     search_button: gtk::Button,
     settings_button: gtk::Button,
@@ -182,6 +183,8 @@ fn set_style(
     window.set_size_request(width.min(available.max(1)), 0);
     let family = if theme == crate::appearance::Theme::Terminal {
         "Monospace"
+    } else if theme == crate::appearance::Theme::Awakened {
+        "\"Fontin SmallCaps\", \"Fontin\", Georgia, \"Liberation Serif\", serif"
     } else if cfg!(target_os = "windows") {
         "\"Segoe UI\", \"Liberation Sans\", sans-serif"
     } else {
@@ -432,7 +435,7 @@ impl Ui {
         value["backdrop"] = self.backdrop.diagnostics();
         value["item_filter_controls"] = self.item_filters.diagnostics(&self.window);
         value["listings"] = self.listings.diagnostics(&self.window);
-        value["appearance"] = serde_json::json!({"active":self.appearance.get().id(),"saved":self.settings.borrow().theme.id(),"workspace":self.workspace.diagnostics(&self.window)});
+        value["appearance"] = serde_json::json!({"active":self.appearance.get().id(),"saved":self.settings.borrow().theme.id(),"workspace":self.workspace.diagnostics(&self.window),"item_title":{"text":self.title.text().as_str(),"mapped":self.title.is_mapped()}});
         value["language"] = serde_json::json!(crate::i18n::language().id());
         value["search_label"] = serde_json::json!(self
             .search_button
@@ -597,7 +600,14 @@ impl Ui {
         }
         context.add_class(&format!("theme-{}", theme.id()));
         self.content.set_border_width(theme.padding());
-        self.content.set_spacing(theme.spacing());
+        let classic = theme == crate::appearance::Theme::Awakened;
+        self.content
+            .set_spacing(if classic { 0 } else { theme.spacing() });
+        self.stack.set_margin_start(if classic { 16 } else { 0 });
+        self.stack.set_margin_end(if classic { 16 } else { 0 });
+        self.stack.set_margin_top(if classic { 16 } else { 0 });
+        self.stack.set_margin_bottom(if classic { 16 } else { 0 });
+        self.classic_item_bar.set_visible(classic);
         for widget in &self.header_widgets {
             if let Some(parent) = widget
                 .parent()
@@ -615,7 +625,14 @@ impl Ui {
             } else {
                 gtk::Orientation::Horizontal
             });
-        if theme == crate::appearance::Theme::Compact {
+        self.league_label.set_xalign(if classic { 0.5 } else { 0. });
+        if classic {
+            self.classic_item_bar.pack_start(&self.title, true, true, 0);
+            for index in [0, 2, 3, 4, 5] {
+                self.header
+                    .pack_start(&self.header_widgets[index], index == 2, index == 2, 0);
+            }
+        } else if theme == crate::appearance::Theme::Compact {
             let top = gtk::Box::new(gtk::Orientation::Horizontal, 8);
             let bottom = gtk::Box::new(gtk::Orientation::Horizontal, 8);
             for index in [0, 1, 5] {
@@ -632,10 +649,26 @@ impl Ui {
             }
         }
         self.header.show_all();
+        self.title.show();
         self.workspace.apply(theme, scale);
+        for (index, action) in self.actions.children().iter().enumerate() {
+            self.actions.set_child_packing(
+                action,
+                !classic,
+                !classic,
+                0,
+                if classic && index > 0 {
+                    gtk::PackType::End
+                } else {
+                    gtk::PackType::Start
+                },
+            );
+        }
+        self.item_filters.set_theme(theme);
         self.listings.set_theme(theme);
+        self.summary.set_theme(theme);
         for row in self.stat_rows.borrow().iter() {
-            row.container.queue_draw();
+            row.set_theme(theme);
         }
         self.position_panel(None);
         // GDK Win32 retains the old natural size after a minimum-width reduction.
@@ -1115,6 +1148,7 @@ impl Ui {
         expander.add(&advanced);
         for candidate in &candidates {
             let row = stat_row::StatRow::new(candidate);
+            row.set_theme(self.appearance.get());
             let sender = self.events.clone();
             let current = self.current.clone();
             let origin = format!("stat:{}", candidate.modifier.id);
@@ -2064,6 +2098,12 @@ pub fn run() -> Result<(), String> {
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
     let price_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let classic_item_bar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    classic_item_bar
+        .style_context()
+        .add_class("classic-item-bar");
+    classic_item_bar.set_no_show_all(true);
+    price_content.pack_start(&classic_item_bar, false, false, 0);
     price_content.pack_start(&bulk_row, false, false, 0);
     let summary = summary_panel::Panel::new();
     price_content.pack_start(&summary.container, false, false, 0);
@@ -2269,6 +2309,7 @@ pub fn run() -> Result<(), String> {
         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         ocr_review,
         title,
+        classic_item_bar,
         text,
         search_button: search.clone(),
         settings_button: preferences_open.clone(),

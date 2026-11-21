@@ -86,6 +86,9 @@ pub struct Panel {
     expander: gtk::Expander,
     fields: gtk::Box,
     quick: gtk::Box,
+    classic_chips: gtk::FlowBox,
+    quick_order: RefCell<Vec<gtk::Widget>>,
+    theme: Cell<crate::appearance::Theme>,
     model: RefCell<Option<Plan>>,
     numbers: RefCell<Vec<NumberRow>>,
     flags: RefCell<Vec<(Flag, gtk::CheckButton)>>,
@@ -129,6 +132,14 @@ impl Panel {
         fields.set_margin_top(8);
         expander.add(&fields);
         let quick = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        let classic_chips = gtk::FlowBox::new();
+        classic_chips.set_selection_mode(gtk::SelectionMode::None);
+        classic_chips.set_min_children_per_line(1);
+        classic_chips.set_max_children_per_line(20);
+        classic_chips.set_column_spacing(8);
+        classic_chips.set_row_spacing(8);
+        classic_chips.set_no_show_all(true);
+        container.pack_start(&classic_chips, false, false, 0);
         container.pack_start(&summary, false, false, 0);
         container.pack_start(&quick, false, false, 0);
         container.pack_start(&expander, false, false, 0);
@@ -138,6 +149,9 @@ impl Panel {
             expander,
             fields,
             quick,
+            classic_chips,
+            quick_order: RefCell::new(vec![]),
+            theme: Cell::new(crate::appearance::Theme::Tide),
             model: RefCell::new(None),
             numbers: RefCell::new(vec![]),
             flags: RefCell::new(vec![]),
@@ -185,6 +199,38 @@ impl Panel {
             }
         });
     }
+    pub fn set_theme(&self, theme: crate::appearance::Theme) {
+        self.theme.set(theme);
+        let classic = theme == crate::appearance::Theme::Awakened;
+        for widget in self.quick_order.borrow().iter() {
+            if let Some(parent) = widget
+                .parent()
+                .and_then(|p| p.downcast::<gtk::Container>().ok())
+            {
+                parent.remove(widget);
+            }
+            if classic && widget.style_context().has_class("quick-choice") {
+                self.fields.pack_start(widget, false, false, 0);
+                self.fields.reorder_child(widget, 0);
+            } else if classic {
+                self.classic_chips.insert(widget, -1);
+            } else {
+                self.quick.pack_start(widget, false, false, 0);
+            }
+        }
+        for child in self.classic_chips.children() {
+            if child
+                .downcast_ref::<gtk::FlowBoxChild>()
+                .is_some_and(|c| c.child().is_none())
+            {
+                self.classic_chips.remove(&child);
+            }
+        }
+        for child in self.classic_chips.children() {
+            child.show_all();
+        }
+        self.classic_chips.set_visible(classic);
+    }
     pub fn commit(&self) {
         for row in self.numbers.borrow().iter() {
             row.min.update();
@@ -201,6 +247,7 @@ impl Panel {
     }
     fn quick_choice(&self, text: &str, choice: &gtk::ComboBoxText) {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        row.style_context().add_class("quick-choice");
         let caption = label(text);
         caption.set_width_chars(10);
         row.pack_start(&caption, false, false, 0);
@@ -224,6 +271,11 @@ impl Panel {
     }
     pub fn clear(&self, message: &str) {
         self.updating.set(true);
+        self.quick_order.borrow_mut().clear();
+        for child in self.classic_chips.children() {
+            self.classic_chips.remove(&child);
+        }
+        self.classic_chips.hide();
         self.model.replace(None);
         self.last_snapshot.replace(None);
         for child in self.quick.children() {
@@ -547,6 +599,8 @@ impl Panel {
             self.fields.pack_start(&label("Échange en lot : utilisez le stock minimum et la devise de paiement au-dessus."), false, false, 0);
         }
 
+        self.quick_order.replace(self.quick.children());
+        self.set_theme(self.theme.get());
         self.quick.show_all();
         self.fields.show_all();
         self.summary.hide();

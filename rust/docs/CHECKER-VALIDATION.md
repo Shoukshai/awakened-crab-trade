@@ -32,7 +32,7 @@ The full runner also checks live English/French switching and cancellation of
 a language draft. Set `APT_FIXTURE_LANGUAGE=en` for English captures; the
 default test language is French. All runners deliberately load a legacy
 `automatic_search=true` profile and verify that copying sends no Trade request
-until Search is clicked. Core tests cover profile import, language defaults and all ten persisted theme IDs.
+until Search is clicked. Core tests cover profile import, language defaults and all eleven persisted theme IDs.
 Theme-cycle checks preserve a live query across all styles, validate Split/Focus/
 Compact geometry and whole-row hover, and exercise Cancel/Escape/outside rollback.
 Use `APT_FIXTURE_THEME=focus` (or another theme ID) for a family-specific layout check.

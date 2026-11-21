@@ -15,9 +15,10 @@ pub enum Theme {
     Editorial,
     Compact,
     Merchant,
+    Awakened,
 }
 impl Theme {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Tide,
         Self::Relic,
         Self::Terminal,
@@ -28,6 +29,7 @@ impl Theme {
         Self::Editorial,
         Self::Compact,
         Self::Merchant,
+        Self::Awakened,
     ];
     pub fn id(self) -> &'static str {
         match self {
@@ -41,6 +43,7 @@ impl Theme {
             Self::Editorial => "editorial",
             Self::Compact => "compact",
             Self::Merchant => "merchant",
+            Self::Awakened => "awakened",
         }
     }
     pub fn name(self) -> &'static str {
@@ -55,6 +58,7 @@ impl Theme {
             Self::Editorial => "Editorial",
             Self::Compact => "Compact",
             Self::Merchant => "Merchant",
+            Self::Awakened => "Awakened Classic",
         }
     }
     pub fn from_id(id: &str) -> Option<Self> {
@@ -65,6 +69,7 @@ impl Theme {
             Self::Split => 640,
             Self::Editorial | Self::Merchant => 540,
             Self::Compact => 400,
+            Self::Awakened => 460,
             _ => 480,
         }
     }
@@ -76,7 +81,7 @@ impl Theme {
     }
     pub fn spacing(self) -> i32 {
         match self {
-            Self::Terminal | Self::Compact => 8,
+            Self::Terminal | Self::Compact | Self::Awakened => 8,
             Self::Editorial => 16,
             _ => 12,
         }
@@ -85,6 +90,7 @@ impl Theme {
         match self {
             Self::Terminal | Self::Compact => 12,
             Self::Editorial => 24,
+            Self::Awakened => 0,
             _ => 16,
         }
     }
@@ -100,6 +106,9 @@ impl Theme {
             Self::Editorial => "Titres serif, lignes ouvertes et aérées.",
             Self::Compact => "Panneau étroit, recherche fixée en bas.",
             Self::Merchant => "Papier chaud, prix en première colonne.",
+            Self::Awakened => {
+                "Disposition classique d’Awakened PoE Trade, gris ardoise et lignes compactes."
+            }
         }
     }
     pub fn colors(self) -> [&'static str; 9] {
@@ -140,6 +149,10 @@ impl Theme {
             Self::Compact => [
                 "#101b20", "#192930", "#243940", "#e4eeef", "#a4b8be", "#344d56", "#64d6e1",
                 "#18363d", "#09272c",
+            ],
+            Self::Awakened => [
+                "#2d3748", "#1a202c", "#4a5568", "#e2e8f0", "#a0aec0", "#4a5568", "#cbd5e0",
+                "#4a5568", "#1a202c",
             ],
             Self::Merchant => [
                 "#eee8dd", "#e5dccd", "#ded1bc", "#332b23", "#6e6051", "#bfb09b", "#9d4f2b",

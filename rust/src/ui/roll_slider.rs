@@ -103,6 +103,9 @@ pub fn new(
             };
             let w = (area.allocated_width() as f64 - 12.).max(1.);
             let h = area.allocated_height() as f64;
+            let classic = area.style_context().has_class("classic-slider");
+            let bar_y = if classic { (h - 4.) / 2. } else { 4. };
+            let bar_height = if classic { 4. } else { h - 8. };
             let low = read(&min).ok().flatten();
             let high = read(&max).ok().flatten();
             let range = (selected.is_active() && (low.is_some() || high.is_some()))
@@ -118,11 +121,11 @@ pub fn new(
             } else {
                 super::cairo_color(cr, area, "act_track");
             }
-            cr.rectangle(6., 4., w, h - 8.);
+            cr.rectangle(6., bar_y, w, bar_height);
             let _ = cr.fill();
             if let Some((l, r)) = range {
                 super::cairo_color(cr, area, "act_track");
-                cr.rectangle(6. + l * w, 4., ((r - l) * w).max(1.), h - 8.);
+                cr.rectangle(6. + l * w, bar_y, ((r - l) * w).max(1.), bar_height);
                 let _ = cr.fill();
             }
             super::cairo_color(cr, area, "act_fg");
@@ -139,23 +142,25 @@ pub fn new(
                 cr.line_to(x, h - 4.);
                 let _ = cr.stroke();
             }
-            cr.set_font_size(11.);
-            let accent_at =
-                |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);
-            if accent_at(0.02) {
-                super::cairo_color(cr, area, "act_on_accent");
-            }
-            cr.move_to(10., h / 2. + 4.);
-            let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
-            let text = super::economy_panel::format_amount(bounds.max);
-            if let Ok(size) = cr.text_extents(&text) {
-                if accent_at(0.98) {
+            if !classic {
+                cr.set_font_size(11.);
+                let accent_at =
+                    |fraction: f64| range.is_some_and(|(l, r)| fraction < l || fraction > r);
+                if accent_at(0.02) {
                     super::cairo_color(cr, area, "act_on_accent");
-                } else {
-                    super::cairo_color(cr, area, "act_fg");
                 }
-                cr.move_to(2. + w - size.x_advance(), h / 2. + 4.);
-                let _ = cr.show_text(&text);
+                cr.move_to(10., h / 2. + 4.);
+                let _ = cr.show_text(&super::economy_panel::format_amount(bounds.min));
+                let text = super::economy_panel::format_amount(bounds.max);
+                if let Ok(size) = cr.text_extents(&text) {
+                    if accent_at(0.98) {
+                        super::cairo_color(cr, area, "act_on_accent");
+                    } else {
+                        super::cairo_color(cr, area, "act_fg");
+                    }
+                    cr.move_to(2. + w - size.x_advance(), h / 2. + 4.);
+                    let _ = cr.show_text(&text);
+                }
             }
             if area.has_focus() {
                 super::cairo_color(cr, area, "act_accent");

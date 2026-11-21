@@ -16,7 +16,8 @@ Awakened PoE Trade.
 
 ## Screenshots
 
-[Preview all ten native styles (0.33.0)](docs/screenshots/styles/overview.webp).
+[Preview the original ten styles](docs/screenshots/styles/overview.webp).
+[Awakened Classic](rust/docs/awakened-classic.md) adds the familiar price-checker layout as an eleventh style.
 
 English demo views from version 0.32.0. Click for full panels. Offers and prices are test data.
 
