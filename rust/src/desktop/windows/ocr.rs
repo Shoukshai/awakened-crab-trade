@@ -15,11 +15,7 @@ use windows::{
     Storage::Streams::DataWriter,
     Win32::System::WinRT::{RoInitialize, RoUninitialize, RO_INIT_MULTITHREADED},
 };
-use windows_sys::Win32::{
-    Foundation::*,
-    Graphics::Gdi::*,
-    UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
-};
+use windows_sys::Win32::{Foundation::*, Graphics::Gdi::*, UI::WindowsAndMessaging::*};
 
 pub struct Image {
     pub width: usize,
@@ -392,17 +388,6 @@ impl<'a> Target<'a> {
             return Err("Target application changed; OCR cancelled.".into());
         }
         Ok(())
-    }
-    fn alt(&self) -> Result<(), String> {
-        self.check()?;
-        if unsafe { GetAsyncKeyState(i32::from(VK_MENU)) } >= 0 {
-            Err(
-                "Hold Alt before the OCR shortcut and keep Alt held until the image is captured."
-                    .into(),
-            )
-        } else {
-            Ok(())
-        }
     }
 }
 // Client DC fallback supports ordinary rendered windows; DXGI is preferred
@@ -1110,33 +1095,12 @@ fn reconstruct(
     );
     result
 }
-pub fn capture(
-    context: &Context<'_>,
-    settings: &crate::capture::Settings,
-    expected: Option<u32>,
-) -> Result<Draft, String> {
-    let capture_started = Instant::now();
-    settings.validate()?;
-    let target = Target::new(context)?;
-    if expected != Some(native::id(target.window)) {
-        return Err("Target application changed; OCR cancelled.".into());
-    }
-    target.alt()?;
-    let rect = native::rect(target.window).ok_or("Target window has no visible area.")?;
-    if rect.width < 100
-        || rect.height < 100
-        || i64::from(rect.width) * i64::from(rect.height) > 24_000_000
-    {
-        return Err("Unsupported capture size.".into());
-    }
-    let check = || {
-        target.alt()?;
-        if native::rect(target.window) != Some(rect) {
-            return Err("Target window moved or resized; OCR cancelled.".into());
-        }
-        Ok(())
-    };
-    let (image, backend) = crate::capture::frame::first_usable(
+pub fn sample_frame(
+    window: HWND,
+    rect: crate::price_layout::Rect,
+    check: &impl Fn() -> Result<(), String>,
+) -> Result<(Image, &'static str), String> {
+    crate::capture::frame::first_usable(
         |backend| {
             // Fault injection is available only on the authenticated private desktop.
             if native::fixture_root().is_some_and(|root| {
@@ -1153,13 +1117,13 @@ pub fn capture(
             }
             let image = match backend {
                 "Windows Graphics Capture" => super::window_capture::capture(
-                    windows::Win32::Foundation::HWND(target.window),
+                    windows::Win32::Foundation::HWND(window),
                     rect,
                     &check,
                 ),
                 "Desktop Duplication" => super::screen_capture::capture(rect, &check),
-                "Desktop GDI" => gdi(target.window, rect, true),
-                _ => gdi(target.window, rect, false),
+                "Desktop GDI" => gdi(window, rect, true),
+                _ => gdi(window, rect, false),
             };
             match &image {
                 Ok(i) if !crate::capture::frame::has_content(&i.pixels) => {
@@ -1172,10 +1136,31 @@ pub fn capture(
         },
         |i| crate::capture::frame::has_content(&i.pixels),
         check,
-    )?;
-    target.alt()?;
-    eprintln!("ocr capture backend={backend}");
-    // Diagnostics are restricted to the authenticated private Windows fixture.
+    )
+}
+pub fn capture(
+    context: &Context<'_>,
+    settings: &crate::capture::Settings,
+    expected: Option<u32>,
+    ticket: super::ocr_snapshot::Ticket,
+) -> Result<Draft, String> {
+    let capture_started = Instant::now();
+    settings.validate()?;
+    let target = Target::new(context)?;
+    if expected != Some(native::id(target.window)) {
+        return Err("Target application changed; OCR cancelled.".into());
+    }
+    let frozen = ticket.resolve(&|| target.check())?;
+    if frozen.window != native::id(target.window)
+        || frozen.pid != target.pid
+        || native::rect(target.window) != Some(frozen.rect)
+    {
+        return Err("Target window changed after the shortcut; OCR cancelled.".into());
+    }
+    let _pause_sampling = super::ocr_snapshot::processing();
+    let image = &frozen.image;
+    eprintln!("ocr capture backend={}", frozen.backend);
+    // Screenshots are written only on the authenticated private test desktop.
     if let Some(root) = native::fixture_root() {
         if let Ok(f) = std::fs::File::create(root.join("ocr-snapshot.ppm")) {
             let mut f = std::io::BufWriter::new(f);
@@ -1185,26 +1170,16 @@ pub fn capture(
             }
         }
     }
-    // Alt can be released after this point; pixels stay in memory until review.
     eprintln!(
-        "ocr snapshot={}x{} alt_held=true capture_ms={}",
+        "ocr snapshot={}x{} alt_held_at_shortcut=true capture_ms={}",
         image.width,
         image.height,
         capture_started.elapsed().as_millis()
     );
-    let result = recognize(&image, &|| target.check());
-    let start = Instant::now();
-    while unsafe { GetAsyncKeyState(i32::from(VK_MENU)) } < 0 {
-        target.check()?;
-        if start.elapsed() > Duration::from_secs(10) {
-            return Err("Release Alt to open OCR review.".into());
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    let result = recognize(image, &|| target.check());
     target.check()?;
     eprintln!(
-        "ocr alt_release_wait_ms={} total_ms={}",
-        start.elapsed().as_millis(),
+        "ocr capture_complete total_ms={} wait_for_alt=false",
         capture_started.elapsed().as_millis()
     );
     result

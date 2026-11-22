@@ -107,11 +107,17 @@ unsafe extern "system" fn callback(code: i32, kind: WPARAM, data: LPARAM) -> LRE
         return CallNextHookEx(std::ptr::null_mut(), code, kind, data);
     }
     let event = &*(data as *const KBDLLHOOKSTRUCT);
+    let down = kind as u32 == WM_KEYDOWN || kind as u32 == WM_SYSKEYDOWN;
+    let up = kind as u32 == WM_KEYUP || kind as u32 == WM_SYSKEYUP;
+    #[cfg(feature = "cloud-ocr")]
+    if [u32::from(VK_MENU), u32::from(VK_LMENU), u32::from(VK_RMENU)].contains(&event.vkCode)
+        && (down || up)
+    {
+        super::ocr_snapshot::alt_changed(event.vkCode, down);
+    }
     if event.flags & LLKHF_INJECTED != 0 {
         return CallNextHookEx(std::ptr::null_mut(), code, kind, data);
     }
-    let down = kind as u32 == WM_KEYDOWN || kind as u32 == WM_SYSKEYDOWN;
-    let up = kind as u32 == WM_KEYUP || kind as u32 == WM_SYSKEYUP;
     let consumed = HOOK.with(|state| {
         let mut state = state.borrow_mut();
         let Some(state) = state.as_mut() else {

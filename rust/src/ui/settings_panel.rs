@@ -228,7 +228,7 @@ impl Panel {
             row(&grid, 1, "Exécutable du client", &client);
             let local_poe = gtk::CheckButton::with_label("Tester sur PoE local (Ctrl+Alt+O)");
             grid.attach(&local_poe, 0, 2, 2, 1);
-            let hint=gtk::Label::new(Some("La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais."));
+            let hint=gtk::Label::new(Some("Affichez les détails avec Alt, puis Ctrl+D. Vous pouvez relâcher les touches immédiatement. Vérifiez le texte avant de rechercher. Jeu en anglais."));
             hint.set_line_wrap(true);
             hint.set_xalign(0.);
             grid.attach(&hint, 0, 3, 2, 1);
@@ -243,9 +243,9 @@ impl Panel {
                 for button in &key_buttons { button.set_sensitive(!local); }
                 recording.set(None);
                 hint.set_text(&crate::i18n::tr(if local {
-                    "Maintenez Alt, puis Ctrl+Alt+O sur un objet de PoE. Échap pour fermer. Jeu en anglais."
+                    "Affichez les détails avec Alt, puis Ctrl+Alt+O. Vous pouvez relâcher les touches immédiatement. Jeu en anglais."
                 } else {
-                    "La zone de l’infobulle est détectée automatiquement. Maintenez Alt jusqu’aux détails avancés, puis Ctrl+D. Vérifiez le texte avant de rechercher. Jeu en anglais."
+                    "Affichez les détails avec Alt, puis Ctrl+D. Vous pouvez relâcher les touches immédiatement. Vérifiez le texte avant de rechercher. Jeu en anglais."
                 }));
             });
             let scroll =

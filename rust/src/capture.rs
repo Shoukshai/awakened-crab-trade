@@ -2,6 +2,8 @@
 use serde::{Deserialize, Serialize};
 #[cfg(any(test, feature = "cloud-ocr"))]
 pub mod frame;
+#[cfg(any(test, feature = "cloud-ocr"))]
+pub mod latch;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

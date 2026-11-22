@@ -296,5 +296,7 @@
   "7 derniers jours": "Last 7 days",
   "Mise en vente": "Listed",
   "Prix": "Price",
-  "Valeur minimum invalide.": "Invalid minimum value."
+  "Valeur minimum invalide.": "Invalid minimum value.",
+  "Affichez les détails avec Alt, puis Ctrl+Alt+O. Vous pouvez relâcher les touches immédiatement. Jeu en anglais.": "Show the details with Alt, then press Ctrl+Alt+O. You can release the keys immediately. English game text is required.",
+  "Affichez les détails avec Alt, puis Ctrl+D. Vous pouvez relâcher les touches immédiatement. Vérifiez le texte avant de rechercher. Jeu en anglais.": "Show the details with Alt, then press Ctrl+D. You can release the keys immediately. Review the text before searching. English game text is required."
 }

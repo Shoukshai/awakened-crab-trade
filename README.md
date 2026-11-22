@@ -5,7 +5,7 @@
 A native Path of Exile 1 price checker for Linux and Windows, inspired by
 Awakened PoE Trade.
 
-**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.36.11)**
+**[Latest stable release](https://github.com/Shoukshai/awakened-crab-trade/releases/latest)** | **[Standard + OCR preview](https://github.com/Shoukshai/awakened-crab-trade/releases/tag/v0.36.12)**
 
 - Select item modifiers and adjust integer Min/Max filters.
 - Search Trade offers and hover over a result to see its full mods and price.
@@ -42,14 +42,14 @@ Choose **Style** in Settings to preview a theme; Save keeps it and Cancel restor
 the previous style. Filters and displayed offers survive a style change.
 
 For cloud gaming, use the separate **OCR** portable EXE (experimental).
-Hold Alt until the advanced tooltip appears, then press Ctrl+D. The tooltip area
+Hold Alt until the advanced tooltip appears, then press Ctrl+D. Release the keys immediately. The tooltip area
 is detected automatically. English game text is required; review the recognized
 values before searching. Both executables have independent settings and caches,
 and scope shortcuts to their own target windows. See [Windows editions](rust/docs/windows.md).
 
 To test OCR with local PoE on Windows, open the OCR edition's **Settings > Capture**,
 enable **Test on local PoE (Ctrl+Alt+O)**, then Save. Hover an item, hold Alt for its
-advanced details and press `Ctrl+Alt+O`. The standard edition keeps its usual
+advanced details and press `Ctrl+Alt+O`, then release the keys. The standard edition keeps its usual
 clipboard shortcuts. Disable the option to return to the configured cloud client.
 
 ## OCR requirements (experimental)

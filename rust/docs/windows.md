@@ -67,7 +67,7 @@ the chosen cloud client. Quit the old mixed 0.34 build before using these editio
 
 In the OCR edition, open Settings > Capture, enable **Test on local PoE
 (Ctrl+Alt+O)**, then Save. Hover an item in local PoE, hold Alt until advanced
-details appear and press Ctrl+Alt+O. Release Alt after capture. Escape closes the
+details appear and press Ctrl+Alt+O. You can release the keys immediately after the shortcut. Escape closes the
 panel; Ctrl+Shift+O also hides it. Use windowed or borderless PoE with English text.
 
 This opt-in target uses the same capture/PP-OCRv5/review pipeline as cloud gaming,
@@ -80,7 +80,7 @@ Disable the option and Save to restore the configured cloud target and shortcuts
 ## Cloud gaming OCR (experimental)
 
 Hover an item, hold Alt until its advanced tooltip is visible, then press Ctrl+D
-(with Alt still held). Release Alt after capture. The panel shows editable item
+(with Alt still held). You can release the keys immediately after the shortcut. The panel shows editable item
 text and any unrecognized lines. Verify the base, item level, values and modifiers,
 then choose Use these stats. Search remains manual. English game text is required.
 An absent item level stays absent; required character/gem levels are never used.
@@ -213,3 +213,28 @@ use a real Steam prefix or game window for automated input.
 [ReactOS keyboard layout](https://github.com/reactos/reactos/tree/344ebfe594e4cf6a498bac08105e1996a03a2c61/dll/keyboard/kbdus)
 for a keyboard component absent from Wine. It is installed only in the private
 test prefix, never distributed. The app uses Windows keyboard layouts unchanged.
+
+
+## Snapshot timing (0.36.12)
+
+With the advanced tooltip already visible, the physical shortcut latches an
+immutable frame from a prepared capture service. Releasing Alt cannot replace
+those pixels with the normal tooltip while the model loads or recognizes text.
+The service prepares Desktop Duplication for the active target, copies frames
+only while Alt is held, and pauses CPU sampling during OCR and panel display.
+Frames stay in bounded RAM storage; no user screenshots are saved or uploaded.
+A frame from before the current Alt press, another target/cursor position, or
+after the shortcut cannot satisfy the request. If a suitable frame is not ready,
+the app asks for another shortcut rather than reading later, different pixels.
+
+The result panel appears even while Alt is held. It remains passive until the
+shortcut modifiers are released so the game receives their real key-up events;
+then it becomes interactive. Model warmup has a separate startup job and cannot
+hold up the snapshot request. Changing applications or hiding the checker still
+cancels the result. Other capture backends remain available when duplication is
+not supported. Real Windows/Boosteroid timing still needs user verification.
+
+Desktop Duplication presentation timestamps use
+[QueryPerformanceCounter](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info).
+The latch compares them with the current Alt epoch and shortcut time; it does not
+substitute a future frame after the modifiers have changed.

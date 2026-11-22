@@ -117,7 +117,7 @@ try:
   rows += [('Adds 1 to 2 Physical Damage to Attacks','#9999ff'),('+445 to Accuracy Rating','#9999ff'),('+13 to maximum Energy Shield','#9999ff'),('+119 to maximum Life','#9999ff'),('Regenerate 56.5 Life per second','#9999ff'),('+19 to maximum Mana','#9999ff'),('+35% to Fire Resistance','#9999ff')]
   for i,(text,color) in enumerate(rows):d.text((940,20+i*37),text,fill=color,font=font if i<2 else small,anchor='mt')
   image.save(root/('fixture-ocr-advanced.bmp' if advanced else 'fixture-ocr.bmp'))
-  if advanced:image.save(root/'fixture-local-ready.bmp')
+  image.save(root/('fixture-local-ready.bmp' if advanced else 'fixture-local-basic.bmp'))
  # Old runs stay in the disk log but must not leak into a copied session report.
  log_paths=[root/'cache/awakened-crab-trade-ocr/checker.log']
  log_paths += [u/'AppData/Local/awakened-crab-trade-ocr/checker.log' for u in (root/'prefix/drive_c/users').iterdir() if (u/'AppData').is_dir()]
@@ -152,8 +152,7 @@ try:
   click(200,700)
   return status()['game_active']
  wait(focus_cloud,'cloud process selected')
- # Alt must already be held when the pixels are acquired. Keep it long enough
- # to test the gate, then release before review becomes interactive.
+ # The panel must appear while Alt is still held. Focus alone waits for key-up.
  (root/'capture-black-accelerated').touch()
  (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True);time.sleep(.3)
@@ -161,7 +160,13 @@ try:
  checks=[]
  for _ in range(8):
   start=time.monotonic();st=status();checks.append(time.monotonic()-start);time.sleep(.1)
- wait(lambda:(root/'ocr-snapshot.ppm').exists(),'pixels captured while Alt held',15)
+ wait(lambda:(root/'ocr-snapshot.ppm').exists(),'pixels frozen at the shortcut',15)
+ def first_review_held():
+  current=status()
+  return current.get('ocr_review',{}).get('mapped') and current.get('ocr_review',{}).get('apply',{}).get('enabled') and current['state']=='Passive'
+ wait(first_review_held,'visible OCR result with Alt still held',35)
+ held=status();assert held['keyboard_mode']=='None' and held['game_active'] and not held['overlay_focused'],held
+ report['result_visible_while_alt_held_without_stealing_keyup']=True
  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
  def first_review_ready():
   current=status()
@@ -273,14 +278,25 @@ try:
   capture_settings();assert status()['preferences']['capture_source']['local_poe']['value']
   assert [k['value'] for k in status()['preferences']['hotkeys']]==[k['value'] for k in cloud_keys]
   control(status()['preferences']['cancel'])
-  shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr.bmp');shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr-advanced.bmp')
+  shutil.copy2(root/'fixture-local-basic.bmp',root/'fixture-ocr.bmp');shutil.copy2(root/'fixture-local-ready.bmp',root/'fixture-ocr-advanced.bmp')
   (root/'hide-cloud').touch();time.sleep(.2);command('hide');focus_target('local game selected')
   wait(lambda:normal_command('status')['game_active'],'local game selected by standard edition')
   normal_before=normal_command('status')['generation'];copies_before=json.loads((root/'fixture.state.json').read_text())['copies']
   (root/'ocr-snapshot.ppm').unlink(missing_ok=True)
-  subprocess.run(['xdotool','keydown','Alt_L','keydown','Control_L','key','o','keyup','Control_L'],env=env,check=True)
-  wait(lambda:(root/'ocr-snapshot.ppm').exists(),'local OCR physical shortcut capture',15)
-  subprocess.run(['xdotool','keyup','Alt_L'],env=env,check=True)
+  subprocess.run(['xdotool','keydown','Alt_L'],env=env,check=True)
+  wait(lambda:status()['ocr_snapshot']['ready'],'local advanced frame ready before shortcut',15)
+  subprocess.run(['xdotool','keydown','Control_L','key','o','keyup','Control_L','keyup','Alt_L'],env=env,check=True)
+  wait(lambda:(root/'ocr-snapshot.ppm').exists(),'local OCR snapshot survives immediate Alt release',15)
+  advanced=Image.open(root/'fixture-local-ready.bmp').convert('RGB')
+  basic=Image.open(root/'fixture-local-basic.bmp').convert('RGB')
+  expected_bytes=advanced.width*advanced.height*3+len(f'P6\n{advanced.width} {advanced.height}\n255\n'.encode())
+  wait(lambda:(root/'ocr-snapshot.ppm').stat().st_size>=expected_bytes,'complete immutable snapshot bytes',5)
+  captured=Image.open(root/'ocr-snapshot.ppm').convert('RGB')
+  level_row=(580,200,1300,250)
+  assert captured.crop(level_row).tobytes()==advanced.crop(level_row).tobytes(),'Frozen screenshot lost the Alt-only item-level pixels'
+  assert captured.crop(level_row).tobytes()!=basic.crop(level_row).tobytes(),'Basic screenshot was substituted after Alt release'
+  report['local_shortcut_freezes_pixels_before_immediate_alt_release']=True
+  report['frozen_item_level_pixels_match_advanced_not_normal_tooltip']=True
   wait(lambda:status().get('ocr_review',{}).get('mapped') and status()['state']=='Interactive','local OCR review',35)
   local_review=status()['ocr_review'];assert local_review['apply']['enabled'] and engine_prefix in local_review['status'],local_review
   assert "Assassin's Mitts" in local_review['text'] and 'Item Level: 71' in local_review['text'],local_review
@@ -336,6 +352,6 @@ finally:
    try:process.wait(timeout=3)
    except subprocess.TimeoutExpired:process.kill();process.wait()
  for log in logs:log.close()
- for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp','fixture-local-ready.bmp','capture-black-accelerated','capture-all-blank','hide-cloud']:(root/name).unlink(missing_ok=True)
+ for name in ['fixture-ocr.bmp','fixture-ocr-advanced.bmp','fixture-local-ready.bmp','fixture-local-basic.bmp','capture-black-accelerated','capture-all-blank','hide-cloud']:(root/name).unlink(missing_ok=True)
  server.shutdown()
  if not success:print('Diagnostics:',root)

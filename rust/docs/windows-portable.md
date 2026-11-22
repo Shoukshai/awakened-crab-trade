@@ -10,7 +10,7 @@ See [experimental OCR hardware targets](ocr-benchmark.md).
 
 For local PoE OCR testing on Windows, enable **Test on local PoE (Ctrl+Alt+O)** in
 the OCR edition's Settings > Capture and Save. Hold Alt over an item, then use
-Ctrl+Alt+O. Disable that option to return to the configured cloud client.
+Ctrl+Alt+O. Release the keys immediately after the shortcut. Disable that option to return to the configured cloud client.
 
 On first launch, GTK, the checker and their licenses are extracted to
 `%LOCALAPPDATA%\awakened-crab-trade\portable`. Later launches reuse that cache;

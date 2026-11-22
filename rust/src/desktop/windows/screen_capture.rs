@@ -20,92 +20,117 @@ impl Drop for Acquired {
         }
     }
 }
-pub fn capture(rect: Rect, check: &impl Fn() -> Result<(), String>) -> Result<Image, String> {
-    unsafe { capture_inner(rect, check) }.map_err(|e| e.to_string())
+pub struct Stream {
+    // Release duplication and its context before the owning device.
+    duplication: IDXGIOutputDuplication,
+    context: ID3D11DeviceContext,
+    device: ID3D11Device,
+    area: Rect,
 }
-unsafe fn capture_inner(
-    rect: Rect,
-    check: &impl Fn() -> Result<(), String>,
-) -> windows::core::Result<Image> {
-    let factory: IDXGIFactory1 = CreateDXGIFactory1()?;
-    let mut index = 0;
-    while let Ok(adapter) = factory.EnumAdapters1(index) {
-        index += 1;
-        let mut output_index = 0;
-        while let Ok(output) = adapter.EnumOutputs(output_index) {
-            output_index += 1;
-            let desc = output.GetDesc()?;
-            let r = desc.DesktopCoordinates;
-            if !desc.AttachedToDesktop.as_bool()
-                || desc.Rotation != DXGI_MODE_ROTATION_IDENTITY
-                || rect.x < r.left
-                || rect.y < r.top
-                || rect.x + rect.width > r.right
-                || rect.y + rect.height > r.bottom
-            {
-                continue;
-            }
-            let mut device = None;
-            let mut context = None;
-            D3D11CreateDevice(
-                &adapter,
-                D3D_DRIVER_TYPE_UNKNOWN,
-                HMODULE::default(),
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                None,
-                D3D11_SDK_VERSION,
-                Some(&mut device),
-                None,
-                Some(&mut context),
-            )?;
-            let device = device.ok_or_else(windows::core::Error::from_thread)?;
-            let context = context.ok_or_else(windows::core::Error::from_thread)?;
-            let output: IDXGIOutput1 = output.cast()?;
-            let duplication = output.DuplicateOutput(&device)?;
-            for _ in 0..8 {
-                check().map_err(|e| windows::core::Error::new(E_ABORT, e))?;
-                let mut info = DXGI_OUTDUPL_FRAME_INFO::default();
-                let mut resource = None;
-                match duplication.AcquireNextFrame(120, &mut info, &mut resource) {
-                    Err(error) if error.code() == DXGI_ERROR_WAIT_TIMEOUT => continue,
-                    result => result?,
-                }
-                let _release = Acquired(duplication.clone());
-                // Mouse-only notifications are not new desktop images.
-                if info.LastPresentTime == 0 {
+impl Stream {
+    pub fn open(rect: Rect) -> Result<Self, String> {
+        unsafe { Self::open_inner(rect) }.map_err(|e| e.to_string())
+    }
+    unsafe fn open_inner(rect: Rect) -> windows::core::Result<Self> {
+        let factory: IDXGIFactory1 = CreateDXGIFactory1()?;
+        let mut index = 0;
+        while let Ok(adapter) = factory.EnumAdapters1(index) {
+            index += 1;
+            let mut output_index = 0;
+            while let Ok(output) = adapter.EnumOutputs(output_index) {
+                output_index += 1;
+                let desc = output.GetDesc()?;
+                let r = desc.DesktopCoordinates;
+                if !desc.AttachedToDesktop.as_bool()
+                    || desc.Rotation != DXGI_MODE_ROTATION_IDENTITY
+                    || rect.x < r.left
+                    || rect.y < r.top
+                    || rect.x + rect.width > r.right
+                    || rect.y + rect.height > r.bottom
+                {
                     continue;
                 }
-                if info.ProtectedContentMaskedOut.as_bool() {
-                    eprintln!("ocr Desktop Duplication: Windows masked protected desktop content");
-                }
-                let texture: ID3D11Texture2D = resource
-                    .ok_or_else(windows::core::Error::from_thread)?
-                    .cast()?;
-                let image = read_texture(
-                    &device,
-                    &context,
-                    &texture,
-                    Rect {
+                let mut device = None;
+                let mut context = None;
+                D3D11CreateDevice(
+                    &adapter,
+                    D3D_DRIVER_TYPE_UNKNOWN,
+                    HMODULE::default(),
+                    D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                    None,
+                    D3D11_SDK_VERSION,
+                    Some(&mut device),
+                    None,
+                    Some(&mut context),
+                )?;
+                let device = device.ok_or_else(windows::core::Error::from_thread)?;
+                let context = context.ok_or_else(windows::core::Error::from_thread)?;
+                let output: IDXGIOutput1 = output.cast()?;
+                let duplication = output.DuplicateOutput(&device)?;
+                return Ok(Stream {
+                    device,
+                    context,
+                    duplication,
+                    area: Rect {
                         x: rect.x - r.left,
                         y: rect.y - r.top,
                         ..rect
                     },
-                )?;
-                check().map_err(|e| windows::core::Error::new(E_ABORT, e))?;
-                if crate::capture::frame::has_content(&image.pixels) {
-                    return Ok(image);
-                }
+                });
             }
-            return Err(windows::core::Error::new(
-                E_FAIL,
-                "No readable desktop update within 960 ms",
-            ));
+        }
+        Err(windows::core::Error::new(
+            E_FAIL,
+            "No matching desktop duplication output",
+        ))
+    }
+    pub fn poll(
+        &self,
+        timeout: u32,
+        check: &impl Fn() -> Result<(), String>,
+    ) -> Result<Option<(Image, i64)>, String> {
+        unsafe { self.poll_inner(timeout, check) }.map_err(|e| e.to_string())
+    }
+    unsafe fn poll_inner(
+        &self,
+        timeout: u32,
+        check: &impl Fn() -> Result<(), String>,
+    ) -> windows::core::Result<Option<(Image, i64)>> {
+        check().map_err(|e| windows::core::Error::new(E_ABORT, e))?;
+        let mut info = DXGI_OUTDUPL_FRAME_INFO::default();
+        let mut resource = None;
+        match self
+            .duplication
+            .AcquireNextFrame(timeout, &mut info, &mut resource)
+        {
+            Err(error) if error.code() == DXGI_ERROR_WAIT_TIMEOUT => return Ok(None),
+            result => result?,
+        }
+        let _release = Acquired(self.duplication.clone());
+        if info.LastPresentTime == 0 {
+            return Ok(None);
+        }
+        if info.ProtectedContentMaskedOut.as_bool() {
+            eprintln!("ocr Desktop Duplication: Windows masked protected desktop content");
+        }
+        let texture: ID3D11Texture2D = resource
+            .ok_or_else(windows::core::Error::from_thread)?
+            .cast()?;
+        let image = read_texture(&self.device, &self.context, &texture, self.area)?;
+        check().map_err(|e| windows::core::Error::new(E_ABORT, e))?;
+        Ok(Some((image, info.LastPresentTime)))
+    }
+}
+pub fn capture(rect: Rect, check: &impl Fn() -> Result<(), String>) -> Result<Image, String> {
+    let stream = Stream::open(rect)?;
+    for _ in 0..8 {
+        if let Some((image, _)) = stream.poll(120, check)? {
+            if crate::capture::frame::has_content(&image.pixels) {
+                return Ok(image);
+            }
         }
     }
-    Err(windows::core::Error::new(
-        E_FAIL,
-        "No matching desktop duplication output",
-    ))
+    Err("No readable desktop update within 960 ms".into())
 }
 
 /// Copy only the validated client area; both GPU backends share the CPU readback.

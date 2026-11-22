@@ -68,6 +68,8 @@ enum Event {
     Captured(u64, bool, Box<Result<(Item, u128), String>>),
     #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     Ocr(u64, Option<u32>, Box<Result<crate::ocr::Draft, String>>),
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    OcrShortcut(crate::hotkeys::Action, crate::desktop::ocr_snapshot::Ticket),
     Prices(u64, Result<Prices, String>),
     Economy(u64, Box<EconomyResult>),
     Preferences(Box<crate::desktop::preferences::Update>),
@@ -89,6 +91,8 @@ struct CaptureJob {
     source: crate::capture::Settings,
     #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
     target: Option<u32>,
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    snapshot: crate::desktop::ocr_snapshot::Ticket,
 }
 struct Job {
     generation: u64,
@@ -167,6 +171,8 @@ struct Ui {
     worker: SyncSender<Job>,
     capture_worker: SyncSender<CaptureJob>,
     capture_pending: Cell<Option<u64>>,
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    shortcut_snapshot: RefCell<Option<crate::desktop::ocr_snapshot::Ticket>>,
     url: RefCell<Option<String>>,
     shown: RefCell<Option<Instant>>,
     result: RefCell<Option<(u64, Result<Prices, String>)>>,
@@ -418,6 +424,7 @@ impl Ui {
         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
         {
             value["ocr_review"] = self.ocr_review.diagnostics(&self.window);
+            value["ocr_snapshot"] = crate::desktop::ocr_snapshot::diagnostics();
         }
         value["edition"] = serde_json::json!(crate::edition::id());
         value["popup_controls"] = popup_controls(&self.window);
@@ -521,6 +528,42 @@ impl Ui {
             "overlay state=Hidden reason={reason:?} generation={} input=empty keyboard=None",
             self.state.borrow().generation
         );
+    }
+    fn interact_after_paint(self: &Rc<Self>) {
+        let Some(token) = self.pending_interaction.take() else {
+            return;
+        };
+        if token != self.state.borrow().generation {
+            return;
+        }
+        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+        if self.stack.visible_child_name().as_deref() == Some("ocr")
+            && crate::desktop::ocr_snapshot::modifiers_held()
+        {
+            // The panel is visible now, but PoE must receive the real key-ups.
+            // Wait only to acquire keyboard focus, never to display the result.
+            self.pending_interaction.set(Some(token));
+            let weak = Rc::downgrade(self);
+            glib::timeout_add_local(Duration::from_millis(15), move || {
+                let Some(ui) = weak.upgrade() else {
+                    return glib::ControlFlow::Break;
+                };
+                if ui.pending_interaction.get() != Some(token)
+                    || ui.state.borrow().generation != token
+                    || !ui.window.is_visible()
+                {
+                    return glib::ControlFlow::Break;
+                }
+                if crate::desktop::ocr_snapshot::modifiers_held() {
+                    return glib::ControlFlow::Continue;
+                }
+                ui.pending_interaction.set(None);
+                ui.command("interact");
+                glib::ControlFlow::Break
+            });
+            return;
+        }
+        self.command("interact");
     }
     fn show(&self) -> bool {
         #[cfg(target_os = "linux")]
@@ -974,6 +1017,12 @@ impl Ui {
                         #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
                         target: crate::desktop::native::focused_target()
                             .map(crate::desktop::native::id),
+                        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+                        snapshot: self
+                            .shortcut_snapshot
+                            .borrow_mut()
+                            .take()
+                            .unwrap_or_else(crate::desktop::ocr_snapshot::freeze),
                     })
                     .is_ok()
                 {
@@ -1573,6 +1622,14 @@ impl Ui {
                         eprintln!("league automatic failed: {error}");
                     }
                 }
+            }
+            #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+            Event::OcrShortcut(action, ticket) => {
+                self.shortcut_snapshot.replace(Some(ticket));
+                if let crate::hotkeys::Action::Command(command) = action {
+                    self.command(command);
+                }
+                self.shortcut_snapshot.take();
             }
             Event::Hotkey(crate::hotkeys::Action::Command(command)) => self.command(command),
             Event::Hotkey(_) => {}
@@ -2239,30 +2296,30 @@ pub fn run() -> Result<(), String> {
     window.add(&content);
     localization::refresh(&window);
     let game_active = Arc::new(AtomicBool::new(false));
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    let _snapshot_sampler = crate::desktop::ocr_snapshot::start();
+    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+    std::thread::spawn(|| {
+        let started = Instant::now();
+        let ready = std::env::current_exe()
+            .map_err(|e| e.to_string())
+            .and_then(|exe| {
+                crate::neural_ocr::warm_up(exe.parent().ok_or("OCR runtime directory unavailable")?)
+            });
+        match ready {
+            Ok(()) => eprintln!(
+                "ocr warmup=ready elapsed_ms={}",
+                started.elapsed().as_millis()
+            ),
+            Err(error) => eprintln!("ocr warmup=unavailable reason={error}"),
+        }
+    });
     let (capture_worker, captures) = mpsc::sync_channel::<CaptureJob>(1);
     {
         let sender = sender.clone();
         let current = current.clone();
         let active = game_active.clone();
         std::thread::spawn(move || {
-            #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
-            {
-                let started = Instant::now();
-                let ready = std::env::current_exe()
-                    .map_err(|e| e.to_string())
-                    .and_then(|exe| {
-                        crate::neural_ocr::warm_up(
-                            exe.parent().ok_or("OCR runtime directory unavailable")?,
-                        )
-                    });
-                match ready {
-                    Ok(()) => eprintln!(
-                        "ocr warmup=ready elapsed_ms={}",
-                        started.elapsed().as_millis()
-                    ),
-                    Err(error) => eprintln!("ocr warmup=unavailable reason={error}"),
-                }
-            }
             while let Ok(job) = captures.recv() {
                 if current.load(Ordering::Acquire) != job.generation {
                     continue;
@@ -2283,6 +2340,7 @@ pub fn run() -> Result<(), String> {
                         },
                         &job.source,
                         job.target,
+                        job.snapshot,
                     );
                     if sender
                         .send(Event::Ocr(job.generation, job.target, Box::new(result)))
@@ -2479,6 +2537,8 @@ pub fn run() -> Result<(), String> {
         worker,
         capture_worker,
         capture_pending: Cell::new(None),
+        #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+        shortcut_snapshot: RefCell::new(None),
         url: RefCell::new(None),
         shown: RefCell::new(None),
         result: RefCell::new(None),
@@ -2647,7 +2707,7 @@ pub fn run() -> Result<(), String> {
                 if ui.state.borrow().state == State::Preparing {
                     ui.state.borrow_mut().painted();
                     eprintln!("overlay state=Passive first_frame=painted display_ms={} geometry={}x{} activation_requested=false",ui.shown.borrow().as_ref().map(|t| t.elapsed().as_millis()).unwrap_or(0),ui.window.allocated_width(),ui.window.allocated_height());
-                    if ui.pending_interaction.take()==Some(ui.state.borrow().generation) {ui.command("interact");}
+                    ui.interact_after_paint();
                     ui.window.queue_draw();
                 } else if ui.window.is_visible() && matches!(ui.state.borrow().state,State::Passive|State::Interactive) {
                     // The second frame commits the final panel input region
@@ -2766,6 +2826,12 @@ pub fn run() -> Result<(), String> {
                 active,
                 preferences_jobs,
                 move |command| {
+                    #[cfg(all(target_os = "windows", feature = "cloud-ocr"))]
+                    if command.is_copy() {
+                        let ticket = crate::desktop::ocr_snapshot::freeze();
+                        let _ = actions.send(Event::OcrShortcut(command, ticket));
+                        return;
+                    }
                     let _ = actions.send(Event::Hotkey(command));
                 },
                 move |update| {

@@ -1,6 +1,6 @@
 [package]
 name = "awakened-crab-trade"
-version = "0.36.11"
+version = "0.36.12"
 edition = "2021"
 license = "MIT"
 description = "Native Path of Exile price checker for Linux and Windows"
@@ -39,7 +39,7 @@ lto = "thin"
 strip = true
 
 [features]
-cloud-ocr = ["dep:windows", "windows-sys/Win32_System_JobObjects", "neural-ocr"]
+cloud-ocr = ["dep:windows", "windows-sys/Win32_System_JobObjects", "windows-sys/Win32_System_Performance", "neural-ocr"]
 neural-ocr = ["dep:ort", "dep:tract-onnx", "windows-sys/Win32_System_ProcessStatus"]
 windows-test-fixture = []
 

@@ -5,6 +5,8 @@ pub mod game_input;
 pub mod native;
 #[cfg(feature = "cloud-ocr")]
 pub mod ocr;
+#[cfg(feature = "cloud-ocr")]
+pub mod ocr_snapshot;
 #[path = "../preferences.rs"]
 pub mod preferences;
 #[cfg(feature = "cloud-ocr")]
