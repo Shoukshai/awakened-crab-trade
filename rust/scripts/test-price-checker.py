@@ -120,6 +120,41 @@ try:
             if v['y']+8<y<v['y']+v['height']-8:return r
             o=status()['origin'];subprocess.run([str(target/'debug/examples/pointer'),str(int(o['x']+v['x']+v['width']-10)),str(int(o['y']+v['y']+v['height']/2)),'2560','1600','--scroll','60' if y>v['y']+v['height']/2 else '-60'],env=env,check=True);time.sleep(.06)
         raise RuntimeError('stat row unreachable')
+    if os.environ.get('APT_LEGACY_REGRESSION'):
+        captures=root/'dist/previews/legacy-regression';captures.mkdir(parents=True,exist_ok=True)
+        copy('ctrl+alt+d',True)
+        assert status()['appearance']['active']=='awakened'
+        click(status()['settings_button']);wait_for(lambda:state(view='Settings') and status()['preferences']['theme']['rect']['width']>100,'Legacy settings allocated')
+        time.sleep(.12)
+        click(status()['preferences']['theme']['rect'])
+        wait_for(lambda:status()['owned_popup'],'Legacy theme menu open')
+        time.sleep(.2)
+        capture_panel(str(captures/'theme-menu-open.png'))
+        assert status()['owned_popup'],'theme preview dismissed the open dropdown'
+        assert status()['appearance']['active']=='awakened','theme changed geometry while the dropdown was still open'
+        popup=status()['popup_controls'];item=popup['items'][9];o=status()['origin'];p=popup['origin']
+        pointer(o['x']+p['x']+item['x']+item['width']/2,o['y']+p['y']+item['y']+item['height']/2,True)
+        wait_for(lambda:not status()['owned_popup'] and status()['appearance']['active']=='merchant','apply selected theme after menu closes')
+        choose_combo(status()['preferences']['theme']['rect'],10)
+        wait_for(lambda:status()['appearance']['active']=='awakened','return to Legacy preview')
+        click(status()['preferences']['cancel']);wait_for(lambda:state(view='Price'),'cancel theme draft')
+        click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'first Legacy offers')
+        assert not status()['search_button']['mapped'],'completed Legacy search stays compact'
+        click(status()['item_filter_controls']['base']['rect'])
+        wait_for(lambda:status()['search_button']['mapped'] and status()['request'] is None,'edited filters restore Search')
+        click(status()['search_button'])
+        wait_for(lambda:status()['query'] and 'cooldown' in status()['query'].get('error',''),'real local Trade cooldown')
+        capture_panel(str(captures/'cooldown.png'))
+        assert status()['search_button']['mapped'],'Legacy hides Search after cooldown rejection'
+        assert len(posts)==1,'cooldown must not send a second request'
+        time.sleep(5.1)
+        assert len(posts)==1,'cooldown must not retry automatically'
+        click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'manual retry succeeds')
+        assert len(posts)==2 and not status()['search_button']['mapped']
+        report.update(legacy_theme_mouse_selection=True,legacy_cooldown_retains_manual_search=True,no_automatic_retry=True)
+        capture_panel(str(captures/'retried.png'))
+        if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report,indent=2));success=True;sys.exit(0)
     if os.environ.get('APT_THEME_CYCLE'):
         copy('ctrl+alt+d',True)
         click(status()['search_button']);wait_for(lambda:status()['query'] and status()['query'].get('listings')==2,'initial theme-cycle offers')

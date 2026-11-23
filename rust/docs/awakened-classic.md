@@ -20,6 +20,10 @@ The quote uses 32 px artwork. The results toolbar holds Online and Open Trade,
 followed by aligned Price, Level, Quality and Listed columns as applicable to the
 item. A completed search replaces the Search row; editing filters restores it.
 The whole offer row still shows the full item on hover.
+A cooldown or failed request keeps Search visible for a manual retry. Waiting
+does not send another request automatically.
+The Style dropdown opens below its field so the last selection does not clip
+the menu above the screen on Windows.
 The same filter widgets and values are reparented when the style changes; switching
 styles does not start a Trade request or reset the current item or results.
 OCR, explicit Search, outside-click closing and offer previews keep their behavior.

@@ -200,7 +200,10 @@ fn set_style(
         "Sans"
     };
     let font = (f64::from(theme.font_size()) * scale).round() as u32;
-    let sheet=format!("{}\n{}\n{}\n#apt-native {{font-family: {}; font-size: {}px;}} #apt-offer-details label, tooltip label {{font-family: {}; font-size: {}px;}}",theme.definitions(),include_str!("ui/style.css"),include_str!("ui/themes.css"),family,font,family,font);
+    // Keep chooser cell metrics stable while the surrounding theme previews a
+    // different font. GTK reuses its popup's measured rows across openings.
+    let chooser_font = (14. * scale).round() as u32;
+    let sheet=format!("{}\n{}\n{}\n#apt-native {{font-family: {}; font-size: {}px;}} #apt-offer-details label, tooltip label {{font-family: {}; font-size: {}px;}}\n#apt-native combobox.theme-selector, #apt-native combobox.theme-selector *, #apt-native combobox.theme-selector label {{font-family: Sans; font-size: {}px; font-variant: normal;}}",theme.definitions(),include_str!("ui/style.css"),include_str!("ui/themes.css"),family,font,family,font,chooser_font);
     css.load_from_data(sheet.as_bytes())
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -1522,7 +1525,8 @@ impl Ui {
         self.economy_panel.container.hide();
         self.request_quote();
         self.text.set_text("Recherche…");
-        self.workspace.searched();
+        // Only completed results replace Search in Classic. A cooldown, HTTP
+        // error or a full worker queue must leave an explicit retry available.
         match self.worker.try_send(Job {
             generation,
             league: settings.league.clone(),
@@ -1754,6 +1758,7 @@ impl Ui {
                         );
                     }
                     Err(e) => {
+                        self.workspace.invalidate();
                         self.text.set_text(&e);
                         eprintln!("trade error generation={generation} error={e}");
                     }

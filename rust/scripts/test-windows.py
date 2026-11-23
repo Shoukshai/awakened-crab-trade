@@ -97,6 +97,36 @@ try:
  subprocess.run(['grim',str(root/'before-veil.png')],env=env,check=True)
  baseline=Image.open(root/'before-veil.png').convert('RGB').getpixel((200,500));report['before_veil_pixel']=baseline
  print('fake game active',flush=True)
+ if os.environ.get('APT_LEGACY_REGRESSION'):
+  command('locked-copy');wait(lambda:status()['item'] and status()['state']=='Interactive' and status()['rendered'],'Legacy copy')
+  assert status()['appearance']['active']=='awakened'
+  menu_checks=[]
+  for theme,index in [('merchant',9),('awakened',10),('tide',0),('awakened',10)]:
+   control(status()['settings_button']);wait(lambda:status()['view']=='Settings' and status()['preferences']['theme']['rect']['width']>100,'theme settings allocated')
+   time.sleep(.15);control(status()['preferences']['theme']['rect'])
+   popup=wait(lambda:status()['popup_controls'] if status()['owned_popup'] else None,'Legacy dropdown')
+   shot('legacy-dropdown-'+theme+'.png')
+   assert len(popup['items'])==11,popup
+   item=popup['items'][index];o=status()['origin'];p=popup['origin']
+   click(o['x']+p['x']+item['x']+item['width']/2,o['y']+p['y']+item['y']+item['height']/2)
+   wait(lambda:not status()['owned_popup'] and status()['appearance']['active']==theme,'mouse-selected '+theme)
+   control(status()['preferences']['apply']);wait(lambda:status()['view']=='Price' and not status()['preferences_pending'],'save theme')
+   wait(lambda:status()['width']==(540 if theme=='merchant' else 460 if theme=='awakened' else 480),'settled theme width')
+   menu_checks.append(theme)
+  control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'Legacy initial search')
+  assert not status()['search_button']['mapped']
+  control(status()['item_filter_controls']['base']['rect']);wait(lambda:status()['request'] is None and status()['search_button']['mapped'],'edit restores search')
+  control(status()['search_button']);wait(lambda:status()['query'] and 'cooldown' in status()['query'].get('error',''),'Trade cooldown')
+  shot('legacy-cooldown.png')
+  assert status()['search_button']['mapped'],'Legacy hides Search after cooldown rejection'
+  assert len(posts)==1
+  time.sleep(5.1);assert len(posts)==1,'no automatic retry'
+  control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'manual retry')
+  assert len(posts)==2 and not status()['search_button']['mapped']
+  shot('legacy-retried.png')
+  report.update(legacy_theme_mouse_cycle=menu_checks,legacy_cooldown_keeps_search=True,manual_retry_succeeds=True,no_automatic_retry=True)
+  (r/'dist/windows-legacy-report.json').write_text(json.dumps(report,indent=2)+'\n')
+  print(json.dumps(report,indent=2));success=True;sys.exit(0)
  if os.environ.get('APT_WINDOWS_THEME_CYCLE') or os.environ.get('APT_THEME_CYCLE'):
   command('locked-copy');wait(lambda:status()['item'] and status()['state']=='Interactive' and status()['rendered'],'initial theme-cycle copy')
   control(status()['search_button']);wait(lambda:status()['query'] and status()['query'].get('listings')==2,'initial theme-cycle offers')

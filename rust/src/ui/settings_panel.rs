@@ -73,6 +73,11 @@ impl Panel {
         language.set_tooltip_text(Some("La langue change après Enregistrer."));
         container.pack_start(&language_row, false, false, 0);
         let theme = gtk::ComboBoxText::new();
+        // A one-column grid opens below the field. The default selected-row
+        // alignment puts the last style above the screen and leaves Win32's
+        // menu scrolled/clipped even when all eleven choices would fit below.
+        theme.set_wrap_width(1);
+        theme.style_context().add_class("theme-selector");
         for choice in crate::appearance::Theme::ALL {
             theme.append(Some(choice.id()), choice.name());
         }
